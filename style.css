@@ -28,7 +28,7 @@ body {
     line-height: 1.5;
 }
 
-.container { max-width: 1400px; margin: 0 auto; min-height: 85vh; }
+.container { max-width: 1400px; margin: 0 auto; min-height: 85vh; display: flex; flex-direction: column; }
 
 /* --- HEADER --- */
 header {
@@ -81,6 +81,7 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 .media-grid { 
     display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); 
     gap: 20px; padding-bottom: 60px; 
+    flex: 1; /* Đẩy footer xuống dưới cùng nếu ít nội dung */
 }
 
 .card {
@@ -131,8 +132,8 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 
 .file-info { 
     display: flex; align-items: center; gap: 10px; 
-    overflow: hidden; flex: 1; /* Chiếm hết không gian còn lại */
-    min-width: 0; /* Cho phép text truncate hoạt động */
+    overflow: hidden; flex: 1; 
+    min-width: 0; 
     margin-right: 8px;
 }
 
@@ -151,10 +152,9 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
     text-decoration: none;
     transition: background 0.2s;
     border: 1px solid transparent;
-    flex-shrink: 0; /* Không bị co lại */
+    flex-shrink: 0; 
 }
 
-/* Icon SVG bên trong */
 .btn-download svg {
     width: 20px; height: 20px; fill: currentColor;
 }
@@ -252,6 +252,17 @@ input[type="text"]:focus, input[type="password"]:focus {
 @keyframes slideUpFade { from {bottom: 10px; opacity: 0;} to {bottom: 30px; opacity: 1;} }
 @keyframes fadeOut { from {bottom: 30px; opacity: 1;} to {bottom: 10px; opacity: 0;} }
 
+/* --- FOOTER CREDIT --- */
+.site-footer {
+    text-align: center;
+    padding: 30px 0 10px 0;
+    color: var(--text-sub);
+    font-size: 14px;
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+    width: 100%;
+}
+
 /* Mobile Adjustments */
 @media (max-width: 768px) {
     .container { padding: 10px; }
@@ -262,6 +273,5 @@ input[type="text"]:focus, input[type="password"]:focus {
     .tabs { width: 100%; justify-content: flex-start; } 
     .tab-btn { flex: none; }
     
-    /* Tăng kích thước nút trên mobile thêm chút */
     .btn-download { width: 44px; height: 44px; background: #f8f9fa; }
 }
