@@ -4,7 +4,6 @@ const db = firebase.database();
 
 // --- STATE ---
 let isAdmin = false;
-// ĐÃ XÓA DÒNG: const SECRET_KEY = ...; (Vì giờ lấy từ Firebase)
 let currentTab = 'video';
 let currentFolderId = null; // null = root
 let allData = [];
@@ -65,7 +64,7 @@ function renderGrid() {
         }
         if (isFolder) thumbContent = `<div class="folder-icon">📁</div>`;
 
-        // NÚT TẢI XUỐNG VỚI ICON SVG
+        // Nút tải xuống
         const downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
         const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
         
@@ -177,7 +176,8 @@ function showContextMenu(e, key, isItem) {
     }
 }
 
-// --- ACTIONS ---
+// --- ACTION HANDLERS (LOGIC DI CHUYỂN MỚI) ---
+
 function createFolderUI() {
     if (!isAdmin) { alert("Cần quyền Admin!"); return; }
     const name = prompt("Nhập tên thư mục mới:", "Thư mục mới");
@@ -213,26 +213,61 @@ function deleteItem() {
 function copyItem() {
     if (!isAdmin) { alert("Cần quyền Admin!"); return; }
     appClipboard = { action: 'copy', id: contextTargetId };
-    
-    const toast = document.getElementById('toast');
-    toast.className = "show";
-    setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
+    showToast("Đã chép vào bộ nhớ tạm");
+}
+
+function cutItem() {
+    if (!isAdmin) { alert("Cần quyền Admin!"); return; }
+    appClipboard = { action: 'cut', id: contextTargetId };
+    showToast("Đã chọn để di chuyển");
 }
 
 function pasteItem() {
     if (!isAdmin) { alert("Cần quyền Admin!"); return; }
     if (!appClipboard.id) { alert("Chưa có gì để dán!"); return; }
 
+    // Kiểm tra không di chuyển folder vào chính nó
+    if (appClipboard.id === currentFolderId) {
+        alert("Không thể dán mục vào chính nó!");
+        return;
+    }
+
     const sourceItem = allData.find(i => i.key === appClipboard.id);
     if (!sourceItem) return;
 
-    const newItem = { ...sourceItem };
-    delete newItem.key; 
-    newItem.parentId = currentFolderId; 
-    newItem.title = newItem.title + " (Copy)";
-    newItem.timestamp = Date.now();
+    // Chuẩn bị dữ liệu cập nhật
+    const updates = {
+        parentId: currentFolderId,
+        timestamp: Date.now()
+    };
 
-    db.ref('videos').push(newItem);
+    // TỰ ĐỘNG ĐỔI LOẠI FILE THEO TAB HIỆN TẠI
+    // Nếu bạn dán file Video vào tab Ảnh, nó sẽ biến thành Ảnh
+    if (sourceItem.type === 'folder') {
+        updates.tabCategory = currentTab;
+    } else {
+        updates.type = currentTab;
+    }
+
+    if (appClipboard.action === 'cut') {
+        // --- DI CHUYỂN (CUT) ---
+        db.ref('videos/' + appClipboard.id).update(updates)
+            .then(() => {
+                showToast("Đã di chuyển thành công");
+                appClipboard = { action: null, id: null }; // Xóa clipboard
+            });
+
+    } else if (appClipboard.action === 'copy') {
+        // --- SAO CHÉP (COPY) ---
+        const newItem = {
+            ...sourceItem,
+            ...updates,
+            title: sourceItem.title + " (Copy)"
+        };
+        delete newItem.key; // Xóa key cũ
+
+        db.ref('videos').push(newItem).then(() => showToast("Đã dán bản sao"));
+    }
 }
 
 function downloadItem() {
@@ -245,6 +280,13 @@ function downloadItem() {
 function openContextItem() {
     const item = allData.find(i => i.key === contextTargetId);
     if (item) handleClick(item.key, item.type, item.id);
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.className = "show";
+    setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
 }
 
 // --- UPLOAD ---
@@ -309,7 +351,7 @@ function closeMedia(e, force) {
     }
 }
 
-// --- AUTH (CẬP NHẬT: LẤY PASS TỪ FIREBASE) ---
+// --- AUTH ---
 function showLogin() {
     document.getElementById('overlay').style.display = 'block';
     document.getElementById('login-panel').style.display = 'block';
@@ -323,35 +365,23 @@ function checkPassword() {
     const inputPass = document.getElementById('adminPass').value;
     const btn = document.querySelector('#login-panel .btn-submit');
     
-    // UI phản hồi
-    const originalText = btn.innerText;
     btn.innerText = "Đang kiểm tra...";
     btn.disabled = true;
 
-    // Lấy mật khẩu từ Firebase node 'admin_password'
     db.ref('admin_password').once('value')
     .then((snapshot) => {
         const serverPass = snapshot.val();
-        
         if (serverPass && inputPass === serverPass) {
-            // Đúng mật khẩu
             isAdmin = true;
             document.getElementById('btnNew').style.display = 'block';
             document.getElementById('loginBtn').style.display = 'none';
             document.getElementById('logoutBtn').style.display = 'block';
             closeLogin();
-        } else {
-            // Sai mật khẩu
-            alert("Sai mật khẩu");
-        }
+        } else { alert("Sai mật khẩu"); }
     })
-    .catch((error) => {
-        console.error(error);
-        alert("Lỗi kết nối kiểm tra mật khẩu");
-    })
+    .catch(() => alert("Lỗi kết nối"))
     .finally(() => {
-        // Reset nút bấm
-        btn.innerText = originalText;
+        btn.innerText = "Xác nhận";
         btn.disabled = false;
     });
 }
