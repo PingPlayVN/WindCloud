@@ -1,38 +1,77 @@
-const firebaseConfig = { databaseURL: "https://cloudwed-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+const firebaseConfig = {
+  apiKey: "AIzaSyDeQBdoFn7GSISvbApUm3cYibNXLnnfx7U",
+  authDomain: "cloudwed.firebaseapp.com",
+  databaseURL: "https://cloudwed-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "cloudwed",
+  storageBucket: "cloudwed.firebasestorage.app",
+  messagingSenderId: "439323775591",
+  appId: "1:439323775591:web:c51ee6faa887be1b52bac2",
+  measurementId: "G-DJKCVMND8M"
+};
 firebase.initializeApp(firebaseConfig);
+
 const db = firebase.database();
+const auth = firebase.auth();
 
 // --- STATE ---
 let isAdmin = false;
 let currentTab = 'video';
 let currentFolderId = null; // null = root
 let allData = [];
+let dataMap = {}; // TỐI ƯU: Map để tra cứu nhanh (O(1))
 
 // Clipboard nội bộ
 let appClipboard = { action: null, id: null };
-// Right click target
 let contextTargetId = null;
 
-// --- INIT & RENDER ---
+// --- AUTH LISTENER ---
+auth.onAuthStateChanged((user) => {
+    const btnNew = document.getElementById('btnNew');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminTool = document.getElementById('adminTool');
+
+    if (user) {
+        isAdmin = true;
+        btnNew.style.display = 'block';
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        console.log("Logged in:", user.email);
+    } else {
+        isAdmin = false;
+        btnNew.style.display = 'none';
+        adminTool.style.display = 'none';
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+    }
+});
+
+// --- INIT & RENDER (TỐI ƯU) ---
 db.ref('videos').on('value', (snapshot) => {
     allData = [];
+    dataMap = {}; // Reset map
+    
     snapshot.forEach(child => {
         const val = child.val();
         if (val.parentId === undefined) val.parentId = null;
-        allData.push({ key: child.key, ...val });
+        
+        const item = { key: child.key, ...val };
+        allData.push(item);
+        dataMap[child.key] = item; // TỐI ƯU: Lưu vào map để tra cứu sau này
     });
     renderGrid();
 });
 
 function renderGrid() {
     const grid = document.getElementById('grid');
-    grid.innerHTML = '';
-    updateBreadcrumb();
+    updateBreadcrumb(); // Cập nhật breadcrumb trước
 
+    // 1. Lọc dữ liệu
     const filtered = allData.filter(item => {
-        const isCorrectParent = (item.parentId === currentFolderId);
-        if (!isCorrectParent) return false;
+        // Chỉ lấy item thuộc thư mục hiện tại
+        if (item.parentId !== currentFolderId) return false;
 
+        // Logic phân loại tab
         if (item.type === 'folder') {
             return item.tabCategory === currentTab; 
         } else {
@@ -40,14 +79,17 @@ function renderGrid() {
         }
     });
 
+    // 2. Sắp xếp (Folder lên đầu)
     filtered.sort((a, b) => (a.type === 'folder' ? -1 : 1));
 
+    // 3. Render HTML (TỐI ƯU: Gom chuỗi)
     if (filtered.length === 0) {
         grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:#999; margin-top:50px;">Thư mục trống</p>`;
         return;
     }
 
-    filtered.forEach(data => {
+    // TỐI ƯU: Sử dụng map để tạo chuỗi HTML lớn thay vì += innerHTML liên tục
+    const htmlBuffer = filtered.map(data => {
         const isFolder = data.type === 'folder';
         
         let icon = '▶';
@@ -56,15 +98,18 @@ function renderGrid() {
         else if (data.type === 'doc') icon = '📄';
         else if (data.type === 'other') icon = '📦';
 
+        // Tối ưu thumbnail: Chỉ tải khi cần thiết
         const thumbUrl = !isFolder ? `https://drive.google.com/thumbnail?id=${data.id}&sz=w400` : '';
         
-        let thumbContent = `<img src="${thumbUrl}" loading="lazy" onerror="this.style.display='none'">`;
-        if (!isFolder && data.type === 'other') {
-             thumbContent = `<div style="font-size:40px">📦</div>`; 
+        let thumbContent = '';
+        if (isFolder) {
+            thumbContent = `<div class="folder-icon">📁</div>`;
+        } else if (data.type === 'other') {
+            thumbContent = `<div style="font-size:40px">📦</div>`; 
+        } else {
+            thumbContent = `<img src="${thumbUrl}" loading="lazy" decoding="async" onerror="this.style.display='none'">`;
         }
-        if (isFolder) thumbContent = `<div class="folder-icon">📁</div>`;
 
-        // Nút tải xuống
         const downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
         const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
         
@@ -73,14 +118,17 @@ function renderGrid() {
                 ${downloadIcon}
             </a>` : '';
 
-        let cardHtml = `
+        // Play overlay chỉ cho video
+        const playOverlay = (!isFolder && data.type === 'video') ? '<div class="play-overlay">▶</div>' : '';
+
+        return `
             <div class="card ${isFolder ? 'is-folder' : ''}" 
                  oncontextmenu="showContextMenu(event, '${data.key}', true)"
                  onclick="handleClick('${data.key}', '${data.type}', '${data.id}')">
                 
                 <div class="thumb-box">
                     ${thumbContent}
-                    ${!isFolder && data.type === 'video' ? '<div class="play-overlay">▶</div>' : ''}
+                    ${playOverlay}
                 </div>
 
                 <div class="card-footer">
@@ -92,16 +140,22 @@ function renderGrid() {
                 </div>
             </div>
         `;
-        grid.innerHTML += cardHtml;
-    });
+    }).join(''); // Nối tất cả thành 1 chuỗi
+
+    grid.innerHTML = htmlBuffer; // Chỉ vẽ lại DOM 1 lần duy nhất
 }
 
-// --- NAVIGATION ---
+// --- NAVIGATION (TỐI ƯU) ---
 function switchTab(type) {
+    if (currentTab === type) return; // Không làm gì nếu bấm lại tab cũ
     currentTab = type;
     currentFolderId = null; 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    // Tối ưu selector
+    const activeBtn = document.querySelector('.tab-btn.active');
+    if(activeBtn) activeBtn.classList.remove('active');
     document.getElementById(`tab-${type}`).classList.add('active');
+    
     renderGrid();
 }
 
@@ -115,11 +169,7 @@ function handleClick(key, type, driveId) {
 }
 
 function navigateTo(targetId) {
-    if (targetId === 'root') {
-        currentFolderId = null;
-    } else {
-        currentFolderId = targetId;
-    }
+    currentFolderId = (targetId === 'root') ? null : targetId;
     renderGrid();
 }
 
@@ -129,11 +179,16 @@ function updateBreadcrumb() {
     
     if (currentFolderId) {
         let path = [];
-        let curr = allData.find(i => i.key === currentFolderId);
-        while(curr) {
+        // TỐI ƯU: Sử dụng dataMap để tra cứu (O(1)) thay vì .find (O(n))
+        let curr = dataMap[currentFolderId];
+        
+        // Giới hạn độ sâu để tránh treo nếu dữ liệu lỗi vòng lặp
+        let safetyCounter = 0;
+        while(curr && safetyCounter < 50) {
             path.unshift(curr);
             if (!curr.parentId) break;
-            curr = allData.find(i => i.key === curr.parentId);
+            curr = dataMap[curr.parentId]; // Tra cứu nhanh
+            safetyCounter++;
         }
 
         path.forEach(folder => {
@@ -149,13 +204,16 @@ const contextMenu = document.getElementById('contextMenu');
 document.addEventListener('contextmenu', function(e) {
     if (e.target.closest('.container')) {
         e.preventDefault();
+        // Chỉ hiện menu bg nếu KHÔNG click vào card
         if (!e.target.closest('.card')) {
-            showContextMenu(event, null, false);
+            showContextMenu(e, null, false);
         }
     }
 });
 
-document.addEventListener('click', () => contextMenu.style.display = 'none');
+document.addEventListener('click', () => {
+    if (contextMenu.style.display === 'block') contextMenu.style.display = 'none';
+});
 
 function showContextMenu(e, key, isItem) {
     e.preventDefault();
@@ -163,125 +221,177 @@ function showContextMenu(e, key, isItem) {
     
     contextTargetId = key; 
 
-    contextMenu.style.top = `${e.clientY}px`;
-    contextMenu.style.left = `${e.clientX}px`;
-    contextMenu.style.display = 'block';
+    // Giữ menu trong màn hình
+    let top = e.clientY;
+    let left = e.clientX;
+    
+    contextMenu.style.display = 'block'; // Hiển thị trước để tính toán kích thước
+    if (left + contextMenu.offsetWidth > window.innerWidth) left = window.innerWidth - contextMenu.offsetWidth - 10;
+    if (top + contextMenu.offsetHeight > window.innerHeight) top = window.innerHeight - contextMenu.offsetHeight - 10;
+
+    contextMenu.style.top = `${top}px`;
+    contextMenu.style.left = `${left}px`;
+
+    const menuItems = document.getElementById('menu-item');
+    const menuBg = document.getElementById('menu-bg');
 
     if (isItem) {
-        document.getElementById('menu-item').style.display = 'block';
-        document.getElementById('menu-bg').style.display = 'none';
+        menuItems.style.display = 'block';
+        menuBg.style.display = 'none';
     } else {
-        document.getElementById('menu-item').style.display = 'none';
-        document.getElementById('menu-bg').style.display = 'block';
+        menuItems.style.display = 'none';
+        menuBg.style.display = 'block';
     }
 }
 
-// --- ACTION HANDLERS (LOGIC DI CHUYỂN MỚI) ---
+// --- CUSTOM MODAL LOGIC ---
+const acModal = document.getElementById('actionModal');
+const acTitle = document.getElementById('acModalTitle');
+const acDesc = document.getElementById('acModalDesc');
+const acInput = document.getElementById('acModalInput');
+const acBtn = document.getElementById('acModalBtn');
+const acCancelBtn = document.querySelector('.btn-modal-cancel');
+
+function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
+    acModal.style.display = 'flex';
+    acTitle.innerText = title;
+    acDesc.innerText = desc || '';
+    acInput.value = initialValue;
+    acBtn.onclick = null; 
+    
+    acInput.style.display = (type === 'prompt') ? 'block' : 'none';
+    acDesc.style.display = (type !== 'prompt') ? 'block' : 'none';
+    acCancelBtn.style.display = (type === 'alert') ? 'none' : 'block';
+
+    if (type === 'prompt') setTimeout(() => acInput.focus(), 100);
+
+    acBtn.onclick = () => {
+        if (type === 'prompt' && !acInput.value.trim()) return;
+        if (onConfirm) onConfirm(acInput.value);
+        closeActionModal();
+    };
+
+    acInput.onkeydown = (e) => {
+        if (e.key === 'Enter') acBtn.click();
+    };
+}
+
+function closeActionModal() {
+    acModal.style.display = 'none';
+}
+
+// --- ACTION HANDLERS ---
 
 function createFolderUI() {
-    if (!isAdmin) { alert("Cần quyền Admin!"); return; }
-    const name = prompt("Nhập tên thư mục mới:", "Thư mục mới");
-    if (name) {
-        db.ref('videos').push({
-            title: name,
-            type: 'folder',
-            tabCategory: currentTab,
-            parentId: currentFolderId,
-            timestamp: Date.now()
-        });
-    }
+    if (!isAdmin) { showActionModal({ title: "Thông báo", desc: "Cần quyền Admin!", type: 'alert' }); return; }
+    
+    showActionModal({
+        title: "Tạo thư mục mới",
+        type: 'prompt',
+        initialValue: "Thư mục mới",
+        onConfirm: (name) => {
+            db.ref('videos').push({
+                title: name,
+                type: 'folder',
+                tabCategory: currentTab,
+                parentId: currentFolderId,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+    });
 }
 
 function renameItemUI() {
-    if (!isAdmin) { alert("Cần quyền Admin!"); return; }
-    const item = allData.find(i => i.key === contextTargetId);
+    if (!isAdmin) { showActionModal({ title: "Thông báo", desc: "Cần quyền Admin!", type: 'alert' }); return; }
+    
+    // Tối ưu: Lấy từ dataMap nhanh hơn
+    const item = dataMap[contextTargetId];
     if (!item) return;
 
-    const newName = prompt("Đổi tên thành:", item.title);
-    if (newName && newName !== item.title) {
-        db.ref('videos/' + contextTargetId).update({ title: newName });
-    }
+    showActionModal({
+        title: "Đổi tên tệp",
+        type: 'prompt',
+        initialValue: item.title,
+        onConfirm: (newName) => {
+            if (newName && newName !== item.title) {
+                db.ref('videos/' + contextTargetId).update({ title: newName });
+            }
+        }
+    });
 }
 
 function deleteItem() {
-    if (!isAdmin) { alert("Cần quyền Admin!"); return; }
-    if (confirm("Bạn có chắc muốn xóa?")) {
-        db.ref('videos/' + contextTargetId).remove();
-    }
+    if (!isAdmin) { showActionModal({ title: "Thông báo", desc: "Cần quyền Admin!", type: 'alert' }); return; }
+    
+    showActionModal({
+        title: "Xóa mục này?",
+        desc: "Hành động này không thể hoàn tác.",
+        type: 'confirm',
+        onConfirm: () => {
+            db.ref('videos/' + contextTargetId).remove();
+        }
+    });
 }
 
 function copyItem() {
-    if (!isAdmin) { alert("Cần quyền Admin!"); return; }
+    if (!isAdmin) { showToast("Cần quyền Admin!"); return; }
     appClipboard = { action: 'copy', id: contextTargetId };
     showToast("Đã chép vào bộ nhớ tạm");
 }
 
 function cutItem() {
-    if (!isAdmin) { alert("Cần quyền Admin!"); return; }
+    if (!isAdmin) { showToast("Cần quyền Admin!"); return; }
     appClipboard = { action: 'cut', id: contextTargetId };
     showToast("Đã chọn để di chuyển");
 }
 
 function pasteItem() {
-    if (!isAdmin) { alert("Cần quyền Admin!"); return; }
-    if (!appClipboard.id) { alert("Chưa có gì để dán!"); return; }
+    if (!isAdmin) { showToast("Cần quyền Admin!"); return; }
+    if (!appClipboard.id) { showToast("Chưa có gì để dán!"); return; }
 
-    // Kiểm tra không di chuyển folder vào chính nó
     if (appClipboard.id === currentFolderId) {
-        alert("Không thể dán mục vào chính nó!");
+        showActionModal({ title: "Lỗi", desc: "Không thể dán vào chính nó!", type: 'alert' });
         return;
     }
 
-    const sourceItem = allData.find(i => i.key === appClipboard.id);
+    const sourceItem = dataMap[appClipboard.id];
     if (!sourceItem) return;
 
-    // Chuẩn bị dữ liệu cập nhật
     const updates = {
         parentId: currentFolderId,
-        timestamp: Date.now()
+        timestamp: firebase.database.ServerValue.TIMESTAMP
     };
 
-    // TỰ ĐỘNG ĐỔI LOẠI FILE THEO TAB HIỆN TẠI
-    // Nếu bạn dán file Video vào tab Ảnh, nó sẽ biến thành Ảnh
-    if (sourceItem.type === 'folder') {
-        updates.tabCategory = currentTab;
-    } else {
-        updates.type = currentTab;
-    }
+    if (sourceItem.type === 'folder') updates.tabCategory = currentTab;
+    else updates.type = currentTab;
 
     if (appClipboard.action === 'cut') {
-        // --- DI CHUYỂN (CUT) ---
         db.ref('videos/' + appClipboard.id).update(updates)
             .then(() => {
-                showToast("Đã di chuyển thành công");
-                appClipboard = { action: null, id: null }; // Xóa clipboard
+                showToast("Đã di chuyển");
+                appClipboard = { action: null, id: null }; 
             });
 
     } else if (appClipboard.action === 'copy') {
-        // --- SAO CHÉP (COPY) ---
-        const newItem = {
-            ...sourceItem,
-            ...updates,
-            title: sourceItem.title + " (Copy)"
-        };
-        delete newItem.key; // Xóa key cũ
-
+        const newItem = { ...sourceItem, ...updates, title: sourceItem.title + " (Copy)" };
+        delete newItem.key; 
         db.ref('videos').push(newItem).then(() => showToast("Đã dán bản sao"));
     }
 }
 
 function downloadItem() {
-    const item = allData.find(i => i.key === contextTargetId);
+    const item = dataMap[contextTargetId];
     if (item && item.type !== 'folder') {
         window.open(`https://drive.google.com/uc?export=download&id=${item.id}`, '_blank');
     }
 }
 
 function openContextItem() {
-    const item = allData.find(i => i.key === contextTargetId);
+    const item = dataMap[contextTargetId];
     if (item) handleClick(item.key, item.type, item.id);
 }
 
+// --- UTILS ---
 function showToast(msg) {
     const toast = document.getElementById('toast');
     toast.innerText = msg;
@@ -289,7 +399,6 @@ function showToast(msg) {
     setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
 }
 
-// --- UPLOAD ---
 function extractFileId(url) {
     const match = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
     return match ? (match[1] || match[2]) : null;
@@ -302,7 +411,7 @@ function autoFillID() {
 
 function toggleAdminTool() {
     const el = document.getElementById('adminTool');
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    el.style.display = (el.style.display === 'block') ? 'none' : 'block';
 }
 
 function addToCloud() {
@@ -310,18 +419,19 @@ function addToCloud() {
     const url = document.getElementById('mediaUrl').value;
     const id = extractFileId(url);
     const title = document.getElementById('mediaTitle').value || ("File " + id?.substring(0,5));
-    const type = currentTab; 
-
+    
     if (id) {
         db.ref('videos').push({
-            id: id, title: title, type: type, 
-            parentId: currentFolderId, timestamp: Date.now()
+            id: id, title: title, type: currentTab, 
+            parentId: currentFolderId, 
+            timestamp: firebase.database.ServerValue.TIMESTAMP
         });
         document.getElementById('mediaUrl').value = '';
         document.getElementById('mediaTitle').value = '';
         toggleAdminTool();
+        showToast("Thêm tệp thành công!"); 
     } else {
-        alert("Link Google Drive không hợp lệ");
+        showActionModal({ title: "Lỗi Link", desc: "Link không hợp lệ.", type: 'alert' });
     }
 }
 
@@ -333,15 +443,16 @@ function openMedia(id, type) {
     content.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
 
-    setTimeout(() => {
+    // Tối ưu: Dùng requestAnimationFrame để mượt mà hơn
+    requestAnimationFrame(() => {
         let html = `<span class="close-modal" onclick="closeMedia(event, true)">&times;</span>`;
         if (type === 'image') {
-            html += `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:0.3s">`;
+            html += `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s">`;
         } else {
-            html += `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:0.3s"></iframe>`;
+            html += `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s"></iframe>`;
         }
         content.innerHTML += html;
-    }, 100);
+    });
 }
 
 function closeMedia(e, force) {
@@ -351,44 +462,39 @@ function closeMedia(e, force) {
     }
 }
 
-// --- AUTH ---
+// --- AUTH FNS ---
 function showLogin() {
     document.getElementById('overlay').style.display = 'block';
     document.getElementById('login-panel').style.display = 'block';
+    document.getElementById('loginError').style.display = 'none';
 }
 function closeLogin() {
     document.getElementById('overlay').style.display = 'none';
     document.getElementById('login-panel').style.display = 'none';
 }
 
-function checkPassword() {
-    const inputPass = document.getElementById('adminPass').value;
+function loginAdmin() {
+    const email = document.getElementById('adminEmail').value;
+    const pass = document.getElementById('adminPass').value;
     const btn = document.querySelector('#login-panel .btn-submit');
-    
-    btn.innerText = "Đang kiểm tra...";
-    btn.disabled = true;
+    const errObj = document.getElementById('loginError');
 
-    db.ref('admin_password').once('value')
-    .then((snapshot) => {
-        const serverPass = snapshot.val();
-        if (serverPass && inputPass === serverPass) {
-            isAdmin = true;
-            document.getElementById('btnNew').style.display = 'block';
-            document.getElementById('loginBtn').style.display = 'none';
-            document.getElementById('logoutBtn').style.display = 'block';
-            closeLogin();
-        } else { alert("Sai mật khẩu"); }
-    })
-    .catch(() => alert("Lỗi kết nối"))
-    .finally(() => {
-        btn.innerText = "Xác nhận";
-        btn.disabled = false;
-    });
+    btn.innerText = "Đang xử lý...";
+    btn.disabled = true;
+    errObj.style.display = 'none';
+
+    auth.signInWithEmailAndPassword(email, pass)
+        .then(() => closeLogin())
+        .catch((error) => {
+            errObj.innerText = "Lỗi: " + error.message;
+            errObj.style.display = 'block';
+        })
+        .finally(() => {
+            btn.innerText = "Đăng nhập";
+            btn.disabled = false;
+        });
 }
 
 function logout() {
-    isAdmin = false;
-    document.getElementById('btnNew').style.display = 'none';
-    document.getElementById('loginBtn').style.display = 'block';
-    document.getElementById('logoutBtn').style.display = 'none';
+    auth.signOut().then(() => showToast("Đã đăng xuất"));
 }
