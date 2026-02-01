@@ -4,7 +4,7 @@ const db = firebase.database();
 
 // --- STATE ---
 let isAdmin = false;
-const SECRET_KEY = "Gp140709@";
+// ĐÃ XÓA DÒNG: const SECRET_KEY = ...; (Vì giờ lấy từ Firebase)
 let currentTab = 'video';
 let currentFolderId = null; // null = root
 let allData = [];
@@ -67,8 +67,6 @@ function renderGrid() {
 
         // NÚT TẢI XUỐNG VỚI ICON SVG
         const downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
-        
-        // Icon tải xuống chuẩn
         const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
         
         const downloadBtn = !isFolder ? `
@@ -237,7 +235,6 @@ function pasteItem() {
     db.ref('videos').push(newItem);
 }
 
-// Download function for Context Menu
 function downloadItem() {
     const item = allData.find(i => i.key === contextTargetId);
     if (item && item.type !== 'folder') {
@@ -312,7 +309,7 @@ function closeMedia(e, force) {
     }
 }
 
-// --- AUTH ---
+// --- AUTH (CẬP NHẬT: LẤY PASS TỪ FIREBASE) ---
 function showLogin() {
     document.getElementById('overlay').style.display = 'block';
     document.getElementById('login-panel').style.display = 'block';
@@ -321,15 +318,44 @@ function closeLogin() {
     document.getElementById('overlay').style.display = 'none';
     document.getElementById('login-panel').style.display = 'none';
 }
+
 function checkPassword() {
-    if (document.getElementById('adminPass').value === SECRET_KEY) {
-        isAdmin = true;
-        document.getElementById('btnNew').style.display = 'block';
-        document.getElementById('loginBtn').style.display = 'none';
-        document.getElementById('logoutBtn').style.display = 'block';
-        closeLogin();
-    } else { alert("Sai mật khẩu"); }
+    const inputPass = document.getElementById('adminPass').value;
+    const btn = document.querySelector('#login-panel .btn-submit');
+    
+    // UI phản hồi
+    const originalText = btn.innerText;
+    btn.innerText = "Đang kiểm tra...";
+    btn.disabled = true;
+
+    // Lấy mật khẩu từ Firebase node 'admin_password'
+    db.ref('admin_password').once('value')
+    .then((snapshot) => {
+        const serverPass = snapshot.val();
+        
+        if (serverPass && inputPass === serverPass) {
+            // Đúng mật khẩu
+            isAdmin = true;
+            document.getElementById('btnNew').style.display = 'block';
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'block';
+            closeLogin();
+        } else {
+            // Sai mật khẩu
+            alert("Sai mật khẩu");
+        }
+    })
+    .catch((error) => {
+        console.error(error);
+        alert("Lỗi kết nối kiểm tra mật khẩu");
+    })
+    .finally(() => {
+        // Reset nút bấm
+        btn.innerText = originalText;
+        btn.disabled = false;
+    });
 }
+
 function logout() {
     isAdmin = false;
     document.getElementById('btnNew').style.display = 'none';
