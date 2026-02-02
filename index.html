@@ -18,7 +18,6 @@
         
         <div style="display:flex; align-items:center; gap:10px;">
             <button id="themeBtn" class="btn-header icon-btn" onclick="toggleTheme()" title="Chế độ tối">🌙</button>
-            
             <button id="loginBtn" class="btn-header" onclick="showLogin()">Admin Access</button>
             <button id="logoutBtn" class="btn-header" onclick="logout()" style="display:none; color: var(--danger); border-color:transparent">Thoát</button>
         </div>
@@ -80,7 +79,10 @@
         <div class="menu-item" onclick="openContextItem()">👀 Mở</div>
         <div class="menu-item" onclick="downloadItem()">⬇️ Tải xuống</div> 
         <div class="menu-divider"></div>
-        <div class="menu-item" onclick="cutItem()">✂️ Di chuyển (Cut)</div> <div class="menu-item" onclick="copyItem()">📝 Sao chép (Copy)</div>
+        <div class="menu-item" id="menuSetSort" onclick="setFolderSortUI()">⚙️ Sắp xếp mặc định</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" onclick="cutItem()">✂️ Di chuyển (Cut)</div> 
+        <div class="menu-item" onclick="copyItem()">📝 Sao chép (Copy)</div>
         <div class="menu-item" onclick="renameItemUI()">✏️ Đổi tên</div>
         <div class="menu-divider"></div>
         <div class="menu-item danger" onclick="deleteItem()">🗑 Xóa</div>
@@ -108,6 +110,13 @@
         <p id="acModalDesc">Nội dung thông báo</p>
         
         <input type="text" id="acModalInput" placeholder="Nhập nội dung..." autocomplete="off">
+        
+        <select id="acModalSelect" class="sort-select" style="display:none; width:100%">
+            <option value="date_desc">📅 Mới nhất</option>
+            <option value="date_asc">📅 Cũ nhất</option>
+            <option value="name_asc">🔤 Tên (A-Z)</option>
+            <option value="name_desc">🔤 Tên (Z-A)</option>
+        </select>
         
         <div class="modal-btn-group">
             <button class="btn-modal-cancel" onclick="closeActionModal()">Hủy</button>

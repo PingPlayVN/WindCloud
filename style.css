@@ -168,8 +168,18 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 }
 
 .file-name { 
-    font-size: 14px; font-weight: 500; color: var(--text-main); 
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+    font-size: 14px; 
+    font-weight: 500; 
+    color: var(--text-main); 
+    
+    /* MỚI: Cho phép xuống dòng tối đa 2 dòng */
+    white-space: normal; 
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Giới hạn 2 dòng */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word; /* Ngắt từ hợp lý */
+    line-height: 1.4; /* Tăng khoảng cách dòng cho dễ đọc */
 }
 
 /* NÚT TẢI XUỐNG */

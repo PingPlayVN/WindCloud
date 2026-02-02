@@ -16,28 +16,26 @@ const auth = firebase.auth();
 // --- STATE ---
 let isAdmin = false;
 let currentTab = 'video';
-let currentFolderId = null; // null = root
+let currentFolderId = null; 
 let currentSortMode = 'date_desc';
-let currentSearchTerm = ''; // MỚI: Từ khóa tìm kiếm
+let currentSearchTerm = ''; 
 let allData = [];
 let dataMap = {}; 
 
-// Clipboard nội bộ
 let appClipboard = { action: null, id: null };
 let contextTargetId = null;
 
-// --- THEME / DARK MODE (MỚI) ---
+// --- THEME ---
 function initTheme() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('themeBtn').innerText = '☀️'; // Icon mặt trời
+        document.getElementById('themeBtn').innerText = '☀️';
     } else {
         document.documentElement.removeAttribute('data-theme');
-        document.getElementById('themeBtn').innerText = '🌙'; // Icon mặt trăng
+        document.getElementById('themeBtn').innerText = '🌙';
     }
 }
-// Chạy ngay khi load
 initTheme();
 
 function toggleTheme() {
@@ -65,7 +63,6 @@ auth.onAuthStateChanged((user) => {
         btnNew.style.display = 'block';
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'block';
-        console.log("Logged in:", user.email);
     } else {
         isAdmin = false;
         btnNew.style.display = 'none';
@@ -83,7 +80,6 @@ db.ref('videos').on('value', (snapshot) => {
     snapshot.forEach(child => {
         const val = child.val();
         if (val.parentId === undefined) val.parentId = null;
-        
         const item = { key: child.key, ...val };
         allData.push(item);
         dataMap[child.key] = item; 
@@ -93,10 +89,12 @@ db.ref('videos').on('value', (snapshot) => {
 
 function changeSortMode(mode) {
     currentSortMode = mode;
+    // Đồng bộ lại UI dropdown
+    const select = document.getElementById('sortSelect');
+    if(select) select.value = mode;
     renderGrid();
 }
 
-// Hàm xử lý tìm kiếm (MỚI)
 function handleSearch(val) {
     currentSearchTerm = val.toLowerCase().trim();
     renderGrid();
@@ -106,45 +104,46 @@ function renderGrid() {
     const grid = document.getElementById('grid');
     updateBreadcrumb(); 
 
-    // 1. Lọc dữ liệu (Đã thêm Search)
+    // 1. Lọc
     let filtered = allData.filter(item => {
-        // Lọc theo thư mục
         if (item.parentId !== currentFolderId) return false;
         
-        // Lọc theo Tab
         let tabMatch = (item.type === 'folder') 
             ? (item.tabCategory === currentTab) 
             : (item.type === currentTab);
         if (!tabMatch) return false;
 
-        // Lọc theo Tìm kiếm (MỚI)
         if (currentSearchTerm && !item.title.toLowerCase().includes(currentSearchTerm)) {
             return false;
         }
-
         return true;
     });
 
-    // 2. SẮP XẾP
+    // 2. SẮP XẾP (Đã sửa lỗi sắp xếp số thông minh)
     filtered.sort((a, b) => {
+        // Folder luôn lên đầu
         if (a.type === 'folder' && b.type !== 'folder') return -1;
         if (a.type !== 'folder' && b.type === 'folder') return 1;
 
         const [criteria, order] = currentSortMode.split('_'); 
         
-        let valA, valB;
         if (criteria === 'date') {
-            valA = a.timestamp; valB = b.timestamp;
+            const timeA = a.timestamp || 0;
+            const timeB = b.timestamp || 0;
+            return order === 'asc' ? timeA - timeB : timeB - timeA;
         } else {
-            valA = a.title.toLowerCase(); valB = b.title.toLowerCase();
+            // FIX: Thêm { numeric: true } để sắp xếp số tự nhiên (Tập 2 sẽ đứng trước Tập 10)
+            const nameA = a.title || "";
+            const nameB = b.title || "";
+            const options = { numeric: true, sensitivity: 'base' };
+            
+            return order === 'asc' 
+                ? nameA.localeCompare(nameB, 'vi', options) 
+                : nameB.localeCompare(nameA, 'vi', options);
         }
-
-        if (valA < valB) return order === 'asc' ? -1 : 1;
-        if (valA > valB) return order === 'asc' ? 1 : -1;
-        return 0;
     });
 
-    // 3. Render HTML
+    // 3. Render
     if (filtered.length === 0) {
         let msg = currentSearchTerm ? `Không tìm thấy "${currentSearchTerm}"` : "Thư mục trống";
         grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:var(--text-sub); margin-top:50px;">${msg}</p>`;
@@ -210,22 +209,32 @@ function switchTab(type) {
     if (currentTab === type) return; 
     currentTab = type;
     currentFolderId = null; 
-    currentSearchTerm = ''; // Reset tìm kiếm khi chuyển tab
+    currentSearchTerm = ''; 
     document.getElementById('searchInput').value = '';
     
+    // Khi về root, reset về mặc định (Mới nhất) hoặc giữ nguyên tùy ý
+    // Ở đây ta reset về Mới nhất để trải nghiệm nhất quán
+    changeSortMode('date_desc');
+
     const activeBtn = document.querySelector('.tab-btn.active');
     if(activeBtn) activeBtn.classList.remove('active');
     document.getElementById(`tab-${type}`).classList.add('active');
-    
-    renderGrid();
 }
 
 function handleClick(key, type, driveId) {
     if (type === 'folder') {
         currentFolderId = key;
-        currentSearchTerm = ''; // Reset tìm kiếm khi vào folder mới
+        currentSearchTerm = '';
         document.getElementById('searchInput').value = '';
-        renderGrid();
+        
+        // CHECK MẶC ĐỊNH SORT CỦA FOLDER NÀY
+        const folder = dataMap[key];
+        if (folder && folder.defaultSort) {
+            changeSortMode(folder.defaultSort);
+        } else {
+            // Nếu folder không có cài đặt riêng, giữ nguyên sort hiện tại
+            renderGrid();
+        }
     } else {
         openMedia(driveId, type);
     }
@@ -233,9 +242,18 @@ function handleClick(key, type, driveId) {
 
 function navigateTo(targetId) {
     currentFolderId = (targetId === 'root') ? null : targetId;
-    currentSearchTerm = ''; // Reset tìm kiếm
+    currentSearchTerm = '';
     document.getElementById('searchInput').value = '';
-    renderGrid();
+    
+    // Nếu back về root, reset sort
+    if (!currentFolderId) {
+        changeSortMode('date_desc');
+    } else {
+        // Nếu back về folder khác, check sort của folder đó
+        const folder = dataMap[currentFolderId];
+        if (folder && folder.defaultSort) changeSortMode(folder.defaultSort);
+        else renderGrid();
+    }
 }
 
 function updateBreadcrumb() {
@@ -280,6 +298,17 @@ function showContextMenu(e, key, isItem) {
     e.stopPropagation(); 
     contextTargetId = key; 
 
+    // Kiểm tra để hiện/ẩn nút "Set Sort"
+    const menuSetSort = document.getElementById('menuSetSort');
+    const targetItem = dataMap[key];
+    
+    // Chỉ hiện nút này nếu là Folder và là Admin
+    if (targetItem && targetItem.type === 'folder' && isAdmin) {
+        menuSetSort.style.display = 'flex';
+    } else {
+        menuSetSort.style.display = 'none';
+    }
+
     let top = e.clientY;
     let left = e.clientX;
     contextMenu.style.display = 'block'; 
@@ -300,14 +329,16 @@ function showContextMenu(e, key, isItem) {
     }
 }
 
-// --- CUSTOM MODAL LOGIC ---
+// --- CUSTOM MODAL LOGIC (Đã nâng cấp) ---
 const acModal = document.getElementById('actionModal');
 const acTitle = document.getElementById('acModalTitle');
 const acDesc = document.getElementById('acModalDesc');
 const acInput = document.getElementById('acModalInput');
+const acSelect = document.getElementById('acModalSelect');
 const acBtn = document.getElementById('acModalBtn');
 const acCancelBtn = document.querySelector('.btn-modal-cancel');
 
+// Hỗ trợ thêm type: 'select'
 function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
     acModal.style.display = 'flex';
     acTitle.innerText = title;
@@ -315,15 +346,38 @@ function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
     acInput.value = initialValue;
     acBtn.onclick = null; 
     
-    acInput.style.display = (type === 'prompt') ? 'block' : 'none';
-    acDesc.style.display = (type !== 'prompt') ? 'block' : 'none';
-    acCancelBtn.style.display = (type === 'alert') ? 'none' : 'block';
+    // Reset display
+    acInput.style.display = 'none';
+    acDesc.style.display = 'none';
+    acSelect.style.display = 'none';
+    acCancelBtn.style.display = 'block';
 
-    if (type === 'prompt') setTimeout(() => acInput.focus(), 100);
+    if (type === 'prompt') {
+        acInput.style.display = 'block';
+        setTimeout(() => acInput.focus(), 100);
+    } 
+    else if (type === 'select') {
+        acSelect.style.display = 'block';
+        acSelect.value = initialValue || 'date_desc';
+    }
+    else if (type === 'confirm') {
+        acDesc.style.display = 'block';
+    } 
+    else if (type === 'alert') {
+        acDesc.style.display = 'block';
+        acCancelBtn.style.display = 'none';
+    }
 
     acBtn.onclick = () => {
-        if (type === 'prompt' && !acInput.value.trim()) return;
-        if (onConfirm) onConfirm(acInput.value);
+        let value = null;
+        if (type === 'prompt') {
+            if (!acInput.value.trim()) return;
+            value = acInput.value;
+        } else if (type === 'select') {
+            value = acSelect.value;
+        }
+        
+        if (onConfirm) onConfirm(value);
         closeActionModal();
     };
 
@@ -337,6 +391,25 @@ function closeActionModal() {
 }
 
 // --- ACTION HANDLERS ---
+
+// TÍNH NĂNG MỚI: Đặt sort mặc định cho folder
+function setFolderSortUI() {
+    if (!isAdmin) return;
+    const item = dataMap[contextTargetId];
+    if (!item) return;
+
+    showActionModal({
+        title: "Cài đặt sắp xếp mặc định",
+        desc: "Chọn kiểu sắp xếp sẽ áp dụng khi mở thư mục này:",
+        type: 'select',
+        initialValue: item.defaultSort || 'date_desc',
+        onConfirm: (mode) => {
+            db.ref('videos/' + contextTargetId).update({ defaultSort: mode })
+              .then(() => showToast("Đã lưu cài đặt!"));
+        }
+    });
+}
+
 function createFolderUI() {
     if (!isAdmin) { showActionModal({ title: "Thông báo", desc: "Cần quyền Admin!", type: 'alert' }); return; }
     showActionModal({
