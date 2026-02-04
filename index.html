@@ -9,6 +9,15 @@
 </head>
 <body>
 
+<div id="limit-overlay">
+    <div class="limit-box">
+        <h2>⚠️ Server Quá Tải</h2>
+        <p>Hệ thống đang giới hạn tối đa <strong>20 người</strong> truy cập cùng lúc để đảm bảo tốc độ.</p>
+        <p>Vui lòng quay lại sau ít phút!</p>
+        <button onclick="location.reload()" class="btn-submit">Thử lại ngay</button>
+    </div>
+</div>
+
 <div class="container" id="mainContainer">
     <header>
         <div class="logo-area">
@@ -35,6 +44,8 @@
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm..." oninput="handleSearch(this.value)">
             </div>
+
+            <button class="btn-header icon-btn" onclick="toggleViewMode()" id="viewBtn" title="Đổi giao diện">⊞</button>
 
             <select id="sortSelect" onchange="changeSortMode(this.value)" class="sort-select">
                 <option value="date_desc">📅 Mới nhất</option>
@@ -84,6 +95,8 @@
         <div class="menu-item" onclick="cutItem()">✂️ Di chuyển (Cut)</div> 
         <div class="menu-item" onclick="copyItem()">📝 Sao chép (Copy)</div>
         <div class="menu-item" onclick="renameItemUI()">✏️ Đổi tên</div>
+        <div class="menu-item" onclick="editLinkUI()">🔗 Sửa Link</div>
+        
         <div class="menu-divider"></div>
         <div class="menu-item danger" onclick="deleteItem()">🗑 Xóa</div>
     </div>

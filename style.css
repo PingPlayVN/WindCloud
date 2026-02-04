@@ -107,14 +107,48 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 .crumb-item:hover { background: var(--hover-bg); color: var(--text-main); }
 .crumb-separator { color: var(--text-sub); opacity: 0.5; font-size: 12px; }
 
-/* --- GRID SYSTEM --- */
+/* --- GRID SYSTEM & LIST VIEW --- */
 .media-grid { 
     display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); 
     gap: 20px; padding-bottom: 60px; 
-    flex: 1; 
-    align-content: start;
+    flex: 1; align-content: start;
+    transition: all 0.3s ease; /* Hiệu ứng chuyển đổi Grid/List */
 }
 
+/* LIST VIEW STYLE (Chế độ danh sách) */
+.media-grid.list-view {
+    display: flex; flex-direction: column; gap: 10px;
+}
+
+.media-grid.list-view .card {
+    flex-direction: row; height: 60px;
+    align-items: center; padding: 0 10px;
+}
+
+.media-grid.list-view .thumb-box {
+    width: 50px; height: 40px; 
+    margin-right: 15px; border-radius: 4px;
+    background: transparent; /* Trong suốt ở chế độ list */
+}
+.media-grid.list-view .thumb-box img { border-radius: 4px; }
+.media-grid.list-view .card.is-folder .thumb-box { height: 40px; background: transparent; }
+.media-grid.list-view .card.is-folder .folder-icon { font-size: 24px; }
+
+.media-grid.list-view .play-overlay {
+    width: 20px; height: 20px; font-size: 10px;
+}
+.media-grid.list-view .play-overlay svg { width: 12px; height: 12px; }
+
+.media-grid.list-view .card-footer {
+    padding: 0; flex: 1; border-top: none; min-height: auto;
+    background: transparent;
+}
+.media-grid.list-view .file-info { margin-right: auto; }
+.media-grid.list-view .file-name { 
+    font-size: 14px; white-space: nowrap; -webkit-line-clamp: 1; 
+}
+
+/* CARD DEFAULT STYLE */
 .card {
     background: var(--bg-surface); 
     border: 1px solid transparent; 
@@ -126,6 +160,7 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 }
 
 .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.media-grid.list-view .card:hover { transform: translateX(4px); } /* List view thì đẩy sang phải */
 
 /* Folder Styling */
 .card.is-folder .thumb-box { 
@@ -137,9 +172,9 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 
 .thumb-box {
     height: 150px; background: var(--card-thumb-bg); 
-    position: relative; /* Quan trọng để play-overlay căn giữa */
+    position: relative; 
     display: flex; align-items: center; justify-content: center;
-    overflow: hidden;
+    overflow: hidden; flex-shrink: 0;
 }
 .thumb-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
 .card:hover .thumb-box img { transform: scale(1.05); }
@@ -291,6 +326,25 @@ input[type="text"]:focus, input[type="password"]:focus {
 @keyframes slideUpFade { from {bottom: 10px; opacity: 0;} to {bottom: 30px; opacity: 1;} }
 @keyframes fadeOut { from {bottom: 30px; opacity: 1;} to {bottom: 10px; opacity: 0;} }
 
+/* --- LIMIT OVERLAY (Màn hình chặn quá 20 người) --- */
+#limit-overlay {
+    display: none; /* Mặc định ẩn */
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 9999; /* Cao nhất */
+    justify-content: center; align-items: center;
+    flex-direction: column; text-align: center;
+}
+[data-theme="dark"] #limit-overlay { background: rgba(18, 18, 18, 0.95); }
+
+.limit-box {
+    padding: 30px; background: var(--bg-surface); border-radius: 16px;
+    box-shadow: var(--shadow-lg); border: 2px solid var(--danger);
+    max-width: 400px; width: 90%;
+}
+.limit-box h2 { color: var(--danger); margin-bottom: 10px; }
+.limit-box p { color: var(--text-main); margin-bottom: 15px; }
+
 /* --- FOOTER CREDIT --- */
 .site-footer {
     text-align: center; padding: 30px 0 10px 0; color: var(--text-sub);
@@ -322,6 +376,9 @@ input[type="text"]:focus, input[type="password"]:focus {
     #btnNew { padding: 8px 16px; white-space: nowrap; }
 
     .media-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    /* Mobile List View */
+    .media-grid.list-view { gap: 8px; }
+    .media-grid.list-view .card { height: 50px; }
     
     .card { border-radius: 8px; }
     .thumb-box { height: 90px; } 
