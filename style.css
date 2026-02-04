@@ -136,19 +136,29 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 .card.is-folder .card-footer { border-top: none; padding-top: 5px; }
 
 .thumb-box {
-    height: 150px; background: var(--card-thumb-bg); display: flex; align-items: center; justify-content: center;
-    overflow: hidden; position: relative;
+    height: 150px; background: var(--card-thumb-bg); 
+    position: relative; /* Quan trọng để play-overlay căn giữa */
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
 }
 .thumb-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
 .card:hover .thumb-box img { transform: scale(1.05); }
 
+/* Nút Play căn giữa tuyệt đối */
 .play-overlay {
-    position: absolute; width: 44px; height: 44px; background: rgba(0,0,0,0.6);
+    position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+    background: rgba(0,0,0,0.6);
     backdrop-filter: blur(2px);
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 20px; padding-left: 4px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: white; 
     box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    z-index: 10;
+    pointer-events: none;
 }
+.play-overlay svg { width: 26px; height: 26px; margin-left: 2px; }
 
 /* --- CARD FOOTER & DOWNLOAD BTN --- */
 .card-footer { 
@@ -168,18 +178,10 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 }
 
 .file-name { 
-    font-size: 14px; 
-    font-weight: 500; 
-    color: var(--text-main); 
-    
-    /* MỚI: Cho phép xuống dòng tối đa 2 dòng */
+    font-size: 14px; font-weight: 500; color: var(--text-main); 
     white-space: normal; 
-    display: -webkit-box;
-    -webkit-line-clamp: 2; /* Giới hạn 2 dòng */
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-break: break-word; /* Ngắt từ hợp lý */
-    line-height: 1.4; /* Tăng khoảng cách dòng cho dễ đọc */
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-word; line-height: 1.4;
 }
 
 /* NÚT TẢI XUỐNG */
@@ -342,44 +344,37 @@ input[type="text"]:focus, input[type="password"]:focus {
 
     /* --- FIX UI POPUP MOBILE --- */
     
-    /* 1. Popup Đăng nhập: Co giãn theo màn hình */
-    #login-panel { 
-        width: 90%; 
-        max-width: 320px; 
-        padding: 20px;
-    }
+    #login-panel { width: 90%; max-width: 320px; padding: 20px; }
 
-    /* 2. Popup Xem Video/Ảnh: Nút Đóng (X) bám góc màn hình */
     .close-modal {
-        position: fixed; /* Cố định vào màn hình thay vì trôi theo video */
-        top: 15px; 
-        right: 15px;
-        background: rgba(0, 0, 0, 0.6); /* Thêm nền đen mờ để dễ nhìn trên nền trắng */
-        width: 40px; 
-        height: 40px;
-        z-index: 5002; /* Luôn nổi lên trên cùng */
-        border-radius: 50%;
+        position: fixed; top: 15px; right: 15px;
+        background: rgba(0, 0, 0, 0.6); 
+        width: 40px; height: 40px;
+        z-index: 5002; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 28px;
-        padding-bottom: 4px; /* Căn chỉnh dấu x vào giữa */
+        font-size: 28px; padding-bottom: 4px; 
     }
 
-    /* Điều chỉnh khung video/ảnh cho gọn */
+    /* ĐIỀU CHỈNH MODAL CONTENT */
     .modal-content {
-        width: 100%;
-        height: auto;
-        max-height: 80vh;
+        width: 100%; height: auto; max-height: 80vh;
     }
     .modal-content iframe {
-        aspect-ratio: 16/9; /* Giữ tỷ lệ khung hình video */
+        aspect-ratio: 16/9; /* Mặc định cho video */
         height: auto;
     }
-    
-    /* 3. Popup Hành động (Action Modal) */
-    .custom-modal-box {
-        width: 90%;
-        padding: 20px;
+
+    /* --- MỚI: TĂNG CHIỀU CAO CHO TÀI LIỆU --- */
+    .modal-content.view-doc {
+        height: 90vh; /* Tăng chiều cao lên 90% màn hình */
+        max-height: 90vh;
     }
+    .modal-content.view-doc iframe {
+        aspect-ratio: auto; /* Bỏ tỉ lệ 16/9 */
+        height: 100%; /* Full chiều cao */
+    }
+    
+    .custom-modal-box { width: 90%; padding: 20px; }
 }
 
 /* --- CUSTOM ACTION MODAL --- */

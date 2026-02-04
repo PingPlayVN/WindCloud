@@ -89,7 +89,6 @@ db.ref('videos').on('value', (snapshot) => {
 
 function changeSortMode(mode) {
     currentSortMode = mode;
-    // Đồng bộ lại UI dropdown
     const select = document.getElementById('sortSelect');
     if(select) select.value = mode;
     renderGrid();
@@ -104,7 +103,6 @@ function renderGrid() {
     const grid = document.getElementById('grid');
     updateBreadcrumb(); 
 
-    // 1. Lọc
     let filtered = allData.filter(item => {
         if (item.parentId !== currentFolderId) return false;
         
@@ -119,9 +117,7 @@ function renderGrid() {
         return true;
     });
 
-    // 2. SẮP XẾP (Đã sửa lỗi sắp xếp số thông minh)
     filtered.sort((a, b) => {
-        // Folder luôn lên đầu
         if (a.type === 'folder' && b.type !== 'folder') return -1;
         if (a.type !== 'folder' && b.type === 'folder') return 1;
 
@@ -132,7 +128,6 @@ function renderGrid() {
             const timeB = b.timestamp || 0;
             return order === 'asc' ? timeA - timeB : timeB - timeA;
         } else {
-            // FIX: Thêm { numeric: true } để sắp xếp số tự nhiên (Tập 2 sẽ đứng trước Tập 10)
             const nameA = a.title || "";
             const nameB = b.title || "";
             const options = { numeric: true, sensitivity: 'base' };
@@ -143,7 +138,6 @@ function renderGrid() {
         }
     });
 
-    // 3. Render
     if (filtered.length === 0) {
         let msg = currentSearchTerm ? `Không tìm thấy "${currentSearchTerm}"` : "Thư mục trống";
         grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:var(--text-sub); margin-top:50px;">${msg}</p>`;
@@ -178,7 +172,13 @@ function renderGrid() {
                 ${downloadIcon}
             </a>` : '';
 
-        const playOverlay = (!isFolder && data.type === 'video') ? '<div class="play-overlay">▶</div>' : '';
+        // Dùng SVG chuẩn cho nút Play
+        const playOverlay = (!isFolder && data.type === 'video') ? 
+            `<div class="play-overlay">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </div>` : '';
 
         return `
             <div class="card ${isFolder ? 'is-folder' : ''}" 
@@ -211,9 +211,6 @@ function switchTab(type) {
     currentFolderId = null; 
     currentSearchTerm = ''; 
     document.getElementById('searchInput').value = '';
-    
-    // Khi về root, reset về mặc định (Mới nhất) hoặc giữ nguyên tùy ý
-    // Ở đây ta reset về Mới nhất để trải nghiệm nhất quán
     changeSortMode('date_desc');
 
     const activeBtn = document.querySelector('.tab-btn.active');
@@ -227,12 +224,10 @@ function handleClick(key, type, driveId) {
         currentSearchTerm = '';
         document.getElementById('searchInput').value = '';
         
-        // CHECK MẶC ĐỊNH SORT CỦA FOLDER NÀY
         const folder = dataMap[key];
         if (folder && folder.defaultSort) {
             changeSortMode(folder.defaultSort);
         } else {
-            // Nếu folder không có cài đặt riêng, giữ nguyên sort hiện tại
             renderGrid();
         }
     } else {
@@ -245,11 +240,9 @@ function navigateTo(targetId) {
     currentSearchTerm = '';
     document.getElementById('searchInput').value = '';
     
-    // Nếu back về root, reset sort
     if (!currentFolderId) {
         changeSortMode('date_desc');
     } else {
-        // Nếu back về folder khác, check sort của folder đó
         const folder = dataMap[currentFolderId];
         if (folder && folder.defaultSort) changeSortMode(folder.defaultSort);
         else renderGrid();
@@ -298,11 +291,9 @@ function showContextMenu(e, key, isItem) {
     e.stopPropagation(); 
     contextTargetId = key; 
 
-    // Kiểm tra để hiện/ẩn nút "Set Sort"
     const menuSetSort = document.getElementById('menuSetSort');
     const targetItem = dataMap[key];
     
-    // Chỉ hiện nút này nếu là Folder và là Admin
     if (targetItem && targetItem.type === 'folder' && isAdmin) {
         menuSetSort.style.display = 'flex';
     } else {
@@ -329,7 +320,40 @@ function showContextMenu(e, key, isItem) {
     }
 }
 
-// --- CUSTOM MODAL LOGIC (Đã nâng cấp) ---
+// --- MODAL & PREVIEW ---
+function openMedia(id, type) {
+    const modal = document.getElementById('mediaModal');
+    const content = document.getElementById('modalContent');
+    
+    content.innerHTML = '<div class="loader"></div>';
+    
+    // --- BẮT ĐẦU SỬA: Đánh dấu nếu là tài liệu ---
+    content.className = 'modal-content'; // Reset class
+    if (type === 'doc') {
+        content.classList.add('view-doc');
+    }
+    // --- KẾT THÚC SỬA ---
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        let html = `<span class="close-modal" onclick="closeMedia(event, true)">&times;</span>`;
+        if (type === 'image') {
+            html += `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s">`;
+        } else {
+            html += `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s"></iframe>`;
+        }
+        content.innerHTML += html;
+    });
+}
+
+function closeMedia(e, force) {
+    if (force || e.target.id === 'mediaModal') {
+        document.getElementById('mediaModal').style.display = 'none';
+        document.getElementById('modalContent').innerHTML = '';
+    }
+}
+
+// --- CUSTOM MODAL LOGIC ---
 const acModal = document.getElementById('actionModal');
 const acTitle = document.getElementById('acModalTitle');
 const acDesc = document.getElementById('acModalDesc');
@@ -338,7 +362,6 @@ const acSelect = document.getElementById('acModalSelect');
 const acBtn = document.getElementById('acModalBtn');
 const acCancelBtn = document.querySelector('.btn-modal-cancel');
 
-// Hỗ trợ thêm type: 'select'
 function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
     acModal.style.display = 'flex';
     acTitle.innerText = title;
@@ -346,7 +369,6 @@ function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
     acInput.value = initialValue;
     acBtn.onclick = null; 
     
-    // Reset display
     acInput.style.display = 'none';
     acDesc.style.display = 'none';
     acSelect.style.display = 'none';
@@ -391,8 +413,6 @@ function closeActionModal() {
 }
 
 // --- ACTION HANDLERS ---
-
-// TÍNH NĂNG MỚI: Đặt sort mặc định cho folder
 function setFolderSortUI() {
     if (!isAdmin) return;
     const item = dataMap[contextTargetId];
@@ -550,30 +570,6 @@ function addToCloud() {
         showToast("Thêm tệp thành công!"); 
     } else {
         showActionModal({ title: "Lỗi Link", desc: "Link không hợp lệ.", type: 'alert' });
-    }
-}
-
-// --- PREVIEW ---
-function openMedia(id, type) {
-    const modal = document.getElementById('mediaModal');
-    const content = document.getElementById('modalContent');
-    content.innerHTML = '<div class="loader"></div>';
-    modal.style.display = 'flex';
-    requestAnimationFrame(() => {
-        let html = `<span class="close-modal" onclick="closeMedia(event, true)">&times;</span>`;
-        if (type === 'image') {
-            html += `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s">`;
-        } else {
-            html += `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s"></iframe>`;
-        }
-        content.innerHTML += html;
-    });
-}
-
-function closeMedia(e, force) {
-    if (force || e.target.id === 'mediaModal') {
-        document.getElementById('mediaModal').style.display = 'none';
-        document.getElementById('modalContent').innerHTML = '';
     }
 }
 
