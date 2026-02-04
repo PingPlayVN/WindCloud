@@ -339,6 +339,47 @@ input[type="text"]:focus, input[type="password"]:focus {
     .btn-download svg { width: 16px; height: 16px; }
     
     .breadcrumb { white-space: nowrap; overflow-x: auto; padding-bottom: 5px; font-size: 13px; }
+
+    /* --- FIX UI POPUP MOBILE --- */
+    
+    /* 1. Popup Đăng nhập: Co giãn theo màn hình */
+    #login-panel { 
+        width: 90%; 
+        max-width: 320px; 
+        padding: 20px;
+    }
+
+    /* 2. Popup Xem Video/Ảnh: Nút Đóng (X) bám góc màn hình */
+    .close-modal {
+        position: fixed; /* Cố định vào màn hình thay vì trôi theo video */
+        top: 15px; 
+        right: 15px;
+        background: rgba(0, 0, 0, 0.6); /* Thêm nền đen mờ để dễ nhìn trên nền trắng */
+        width: 40px; 
+        height: 40px;
+        z-index: 5002; /* Luôn nổi lên trên cùng */
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px;
+        padding-bottom: 4px; /* Căn chỉnh dấu x vào giữa */
+    }
+
+    /* Điều chỉnh khung video/ảnh cho gọn */
+    .modal-content {
+        width: 100%;
+        height: auto;
+        max-height: 80vh;
+    }
+    .modal-content iframe {
+        aspect-ratio: 16/9; /* Giữ tỷ lệ khung hình video */
+        height: auto;
+    }
+    
+    /* 3. Popup Hành động (Action Modal) */
+    .custom-modal-box {
+        width: 90%;
+        padding: 20px;
+    }
 }
 
 /* --- CUSTOM ACTION MODAL --- */
