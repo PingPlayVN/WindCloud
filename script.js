@@ -393,12 +393,16 @@ function updateBreadcrumb() {
 const contextMenu = document.getElementById('contextMenu');
 
 document.addEventListener('contextmenu', function(e) {
-    if (e.target.closest('.container')) {
-        e.preventDefault();
+    // CHỈNH SỬA: Chỉ chặn và hiện menu tùy chỉnh nếu click vào vùng #app-cloud
+    if (e.target.closest('#app-cloud')) {
+        e.preventDefault(); // Chặn menu chuột phải mặc định của trình duyệt
+        
+        // Nếu không click vào card (file/folder) thì tức là click vào nền trống của Cloud
         if (!e.target.closest('.card')) {
             showContextMenu(e, null, false);
         }
     }
+    // Nếu click ở Wind Drop hay Color Studio, menu mặc định của trình duyệt sẽ hiện ra bình thường
 });
 
 document.addEventListener('click', () => {
