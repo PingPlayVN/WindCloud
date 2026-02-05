@@ -380,7 +380,10 @@ input[type="text"]:focus, input[type="password"]:focus {
 
     /* --- FIX UI POPUP MOBILE --- */
     
-    #login-panel { width: 90%; max-width: 320px; padding: 20px; }
+    #login-panel .admin-card {
+    width: 90%;
+    max-width: 320px; 
+}
 
     /* --- MỚI: TĂNG CHIỀU CAO CHO TÀI LIỆU --- */
     .modal-content.view-doc {
