@@ -105,26 +105,30 @@ function toggleViewMode() {
 // --- THEME ---
 function initTheme() {
     const savedTheme = localStorage.getItem('theme');
+    const checkbox = document.getElementById('theme-checkbox');
+
     if (savedTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('themeBtn').innerText = '☀️';
+        // Nếu là dark mode, đánh dấu checkbox là đã chọn (để hiện mặt trăng)
+        if(checkbox) checkbox.checked = true;
     } else {
         document.documentElement.removeAttribute('data-theme');
-        document.getElementById('themeBtn').innerText = '🌙';
+        // Nếu là light mode, bỏ chọn checkbox (để hiện mặt trời)
+        if(checkbox) checkbox.checked = false;
     }
 }
 initTheme();
 
 function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
-    if (current === 'dark') {
-        document.documentElement.removeAttribute('data-theme');
-        localStorage.setItem('theme', 'light');
-        document.getElementById('themeBtn').innerText = '🌙';
-    } else {
+    const checkbox = document.getElementById('theme-checkbox');
+    
+    // Kiểm tra xem người dùng vừa bật hay tắt checkbox
+    if (checkbox.checked) {
         document.documentElement.setAttribute('data-theme', 'dark');
         localStorage.setItem('theme', 'dark');
-        document.getElementById('themeBtn').innerText = '☀️';
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
     }
 }
 
