@@ -285,27 +285,6 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 .btn-submit:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3); }
 
-/* --- MODALS --- */
-#login-panel { 
-    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); 
-    background: var(--bg-surface); padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); 
-    z-index: 2000; width: 320px; border-radius: 16px;
-    text-align: center;
-}
-#login-panel h3 { margin-top: 0; color: var(--text-main); }
-#overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); z-index: 1500; }
-
-.modal { display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
-.modal-content { position: relative; width: 85%; height: 90vh; display: flex; justify-content: center; align-items: center; }
-.modal-content iframe, .modal-content img { width: 100%; height: 100%; border: none; object-fit: contain; border-radius: 8px; }
-.close-modal { 
-    position: absolute; top: -50px; right: 0; color: white; 
-    font-size: 32px; cursor: pointer; opacity: 0.8; transition: 0.2s;
-    background: rgba(255,255,255,0.1); width: 40px; height: 40px;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-}
-.close-modal:hover { opacity: 1; background: rgba(255,255,255,0.2); transform: scale(1.1); }
-
 /* --- LOADER & TOAST --- */
 .loader {
     border: 4px solid rgba(255, 255, 255, 0.2);
@@ -403,24 +382,6 @@ input[type="text"]:focus, input[type="password"]:focus {
     
     #login-panel { width: 90%; max-width: 320px; padding: 20px; }
 
-    .close-modal {
-        position: fixed; top: 15px; right: 15px;
-        background: rgba(0, 0, 0, 0.6); 
-        width: 40px; height: 40px;
-        z-index: 5002; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 28px; padding-bottom: 4px; 
-    }
-
-    /* ĐIỀU CHỈNH MODAL CONTENT */
-    .modal-content {
-        width: 100%; height: auto; max-height: 80vh;
-    }
-    .modal-content iframe {
-        aspect-ratio: 16/9; /* Mặc định cho video */
-        height: auto;
-    }
-
     /* --- MỚI: TĂNG CHIỀU CAO CHO TÀI LIỆU --- */
     .modal-content.view-doc {
         height: 90vh; /* Tăng chiều cao lên 90% màn hình */
@@ -473,3 +434,241 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .btn-modal-confirm { background: var(--primary); color: white; }
 .btn-modal-confirm:hover { background: var(--primary-hover); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+/* --- style.css --- */
+
+/* --- NEW MEDIA MODAL UI (Thay thế giao diện cũ) --- */
+.modal {
+    display: none; position: fixed; z-index: 5000; 
+    left: 0; top: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.85); /* Nền tối hơn */
+    backdrop-filter: blur(5px);   /* Hiệu ứng mờ nền sau */
+    justify-content: center; align-items: center; 
+    padding: 20px;
+}
+
+/* Container chính của nội dung (giữ nguyên logic JS) */
+.modal-content { 
+    position: relative; 
+    width: 100%; max-width: 1000px; /* Giới hạn chiều rộng trên PC */
+    height: auto; 
+    display: flex; justify-content: center; align-items: center; 
+    pointer-events: none; /* Để click xuyên qua vùng trống đóng modal */
+}
+
+/* Cửa sổ Popup mới */
+.media-window {
+    width: 100%;
+    background: #1e1e1e;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column;
+    pointer-events: auto; /* Cho phép thao tác lại */
+    border: 1px solid rgba(255,255,255,0.1);
+    animation: zoomIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* Thanh tiêu đề */
+.media-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.media-title {
+    margin: 0; font-size: 16px; color: #e8eaed; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 80%;
+}
+
+/* Nút đóng mới */
+.btn-close-media {
+    background: transparent; border: none; cursor: pointer;
+    color: #9aa0a6; padding: 4px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.btn-close-media svg { width: 24px; height: 24px; fill: currentColor; }
+.btn-close-media:hover { background: rgba(255,255,255,0.1); color: white; transform: rotate(90deg); }
+
+/* Vùng chứa nội dung (Video/Ảnh) */
+.media-body {
+    position: relative;
+    width: 100%;
+    background: black;
+    /* Aspect Ratio cho Video mặc định là 16:9, chiều cao tự tính */
+    aspect-ratio: 16/9; 
+    display: flex; justify-content: center; align-items: center;
+}
+
+/* Nội dung (Iframe/Img) */
+.media-content {
+    width: 100%; height: 100%;
+    border: none; object-fit: contain;
+    opacity: 0; transition: opacity 0.5s ease; /* Fade in khi tải xong */
+}
+.media-content.loaded { opacity: 1; }
+
+/* Loader căn giữa */
+.media-body .loader {
+    display: block;
+    position: absolute; /* Bắt buộc để nằm đè lên video */
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%); /* Căn chính giữa */
+    z-index: 10;
+    
+    /* Style vòng tròn */
+    border-color: rgba(255,255,255,0.1);
+    border-top-color: var(--primary);
+    pointer-events: none; /* Để click xuyên qua nếu lỡ nó không tắt */
+}
+.media-content.loaded + .loader { 
+    display: none; 
+}
+/* --- STYLE RIÊNG CHO TÀI LIỆU (DOCS) --- */
+.modal-content.view-doc .media-window {
+    height: 90vh; /* Cao 90% màn hình */
+}
+.modal-content.view-doc .media-body {
+    aspect-ratio: auto; /* Bỏ tỷ lệ 16:9 */
+    flex: 1; /* Chiếm hết chiều cao còn lại */
+}
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 768px) {
+    .modal { padding: 0; background: black; } /* Mobile full màn đen */
+    
+    .media-window {
+        border-radius: 0;
+        height: 100%; 
+        border: none;
+        justify-content: center; /* Căn giữa dọc */
+    }
+
+    .media-header {
+        position: absolute; top: 0; left: 0; width: 100%; z-index: 10;
+        background: rgba(0,0,0,0.6); backdrop-filter: none;
+        border-bottom: none;
+    }
+    
+    .media-body {
+        width: 100%;
+        /* Mobile video giữ nguyên tỷ lệ 16/9 */
+    }
+    
+    /* Với tài liệu trên mobile */
+    .modal-content.view-doc .media-window {
+        justify-content: flex-start; /* Docs thì bắt đầu từ trên */
+        padding-top: 50px; /* Chừa chỗ cho header */
+    }
+}
+/* --- CLEAN ADMIN LOGIN CSS --- */
+
+#login-panel {
+    display: none; /* Mặc định ẩn, JS sẽ đổi thành flex */
+    position: fixed;
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
+    z-index: 2000;
+    
+    /* Cấu hình Flexbox để căn giữa nội dung bên trong */
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    
+    pointer-events: none; /* Cho phép click xuyên qua vùng trống */
+}
+
+/* Thẻ chứa form */
+.admin-card {
+    pointer-events: auto; /* Cho phép thao tác trong khung này */
+    width: 320px;
+    padding: 30px;
+    background: #f0f0f0; 
+    border-radius: 10px;
+    border: 3px solid #323232; 
+    box-shadow: 8px 8px 0 #323232; 
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    /* Hiệu ứng hiện ra từ giữa */
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+.admin-card .title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 900;
+    text-align: center;
+    color: #323232;
+    text-transform: uppercase;
+}
+
+.admin-input {
+    width: 100%;
+    height: 45px;
+    border-radius: 5px;
+    border: 2px solid #323232;
+    background-color: #fff;
+    box-shadow: 4px 4px #323232;
+    font-size: 15px;
+    font-weight: 600;
+    color: #323232;
+    padding: 5px 15px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.admin-input:focus {
+    border-color: #2d8cf0;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px #323232;
+}
+
+.admin-btn {
+    margin-top: 10px;
+    width: 100%;
+    height: 45px;
+    border-radius: 5px;
+    border: 2px solid #323232;
+    background-color: #323232; 
+    color: #fff; 
+    box-shadow: 4px 4px rgba(0,0,0,0.2);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.admin-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px #323232;
+}
+
+.btn-close-login {
+    background: transparent;
+    border: none;
+    color: #666;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 13px;
+    align-self: center;
+    margin-top: 10px;
+}
+.btn-close-login:hover { color: #d93025; }
+
+@keyframes popIn { 
+    from { opacity: 0; transform: scale(0.8); } 
+    to { opacity: 1; transform: scale(1); } 
+}

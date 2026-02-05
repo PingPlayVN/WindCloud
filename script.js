@@ -335,7 +335,10 @@ function handleClick(key, type, driveId) {
             updateDataPipeline();
         }
     } else {
-        openMedia(driveId, type);
+        // LẤY TIÊU ĐỀ ĐỂ HIỂN THỊ TRONG POPUP
+        const item = dataMap[key];
+        const title = item ? item.title : 'Media Viewer';
+        openMedia(driveId, type, title);
     }
 }
 
@@ -425,31 +428,42 @@ function showContextMenu(e, key, isItem) {
 }
 
 // --- MODAL & PREVIEW ---
-function openMedia(id, type) {
+function openMedia(id, type, title) {
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
     
-    content.innerHTML = '<div class="loader"></div>';
-    
+    // Reset nội dung
+    content.innerHTML = '';
     content.className = 'modal-content'; 
-    if (type === 'doc') {
-        content.classList.add('view-doc');
-    }
+    if (type === 'doc') content.classList.add('view-doc');
+    if (type === 'image') content.classList.add('view-image');
 
     modal.style.display = 'flex';
-    requestAnimationFrame(() => {
-        let html = `<span class="close-modal" onclick="closeMedia(event, true)">&times;</span>`;
-        if (type === 'image') {
-            html += `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s">`;
-        } else {
-            html += `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" onload="this.style.opacity=1; document.querySelector('.loader').style.display='none'" style="opacity:0; transition:opacity 0.3s"></iframe>`;
-        }
-        content.innerHTML += html;
-    });
+    
+    // CẤU TRÚC HTML MỚI: Header + Body
+    const htmlStructure = `
+        <div class="media-window">
+            <div class="media-header">
+                <h3 class="media-title" title="${title}">${title}</h3>
+                <button class="btn-close-media" onclick="closeMedia(event, true)">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+                </button>
+            </div>
+            <div class="media-body">
+                ${type === 'image' 
+                    ? `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" onload="this.classList.add('loaded')" class="media-content">`
+                    : `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" onload="this.classList.add('loaded')" class="media-content"></iframe>`
+                }
+            <div class="loader"></div>
+            </div>
+        </div>
+    `;
+
+    content.innerHTML = htmlStructure;
 }
 
 function closeMedia(e, force) {
-    if (force || e.target.id === 'mediaModal') {
+    if (force) {
         document.getElementById('mediaModal').style.display = 'none';
         document.getElementById('modalContent').innerHTML = '';
     }
@@ -705,8 +719,12 @@ function addToCloud() {
 // --- AUTH FNS ---
 function showLogin() {
     document.getElementById('overlay').style.display = 'block';
-    document.getElementById('login-panel').style.display = 'block';
-    document.getElementById('loginError').style.display = 'none';
+    // Đảm bảo dùng 'flex' để ăn theo thuộc tính justify/align trong CSS
+    const panel = document.getElementById('login-panel');
+    if (panel) panel.style.display = 'flex'; 
+    
+    const errEl = document.getElementById('loginError');
+    if(errEl) errEl.style.display = 'none';
 }
 function closeLogin() {
     document.getElementById('overlay').style.display = 'none';
@@ -716,22 +734,28 @@ function closeLogin() {
 function loginAdmin() {
     const email = document.getElementById('adminEmail').value;
     const pass = document.getElementById('adminPass').value;
-    const btn = document.querySelector('#login-panel .btn-submit');
+    
+    const btn = document.getElementById('btnLogin'); // Phải khớp với ID trong index.html
     const errObj = document.getElementById('loginError');
 
-    btn.innerText = "Đang xử lý...";
-    btn.disabled = true;
-    errObj.style.display = 'none';
-
+    if(btn) {
+        btn.innerText = "Đang xử lý...";
+        btn.disabled = true;
+    }
+    
     auth.signInWithEmailAndPassword(email, pass)
         .then(() => closeLogin())
         .catch((error) => {
-            errObj.innerText = "Lỗi: " + error.message;
-            errObj.style.display = 'block';
+            if(errObj) {
+                errObj.innerText = "Sai tài khoản hoặc mật khẩu!";
+                errObj.style.display = 'block';
+            }
         })
         .finally(() => {
-            btn.innerText = "Đăng nhập";
-            btn.disabled = false;
+            if(btn) {
+                btn.innerText = "Truy cập!";
+                btn.disabled = false;
+            }
         });
 }
 

@@ -102,17 +102,25 @@
     </div>
 </div>
 
-<div id="mediaModal" class="modal" onclick="closeMedia(event)">
+<div id="mediaModal" class="modal">
     <div class="modal-content" id="modalContent"></div>
 </div>
 
 <div id="overlay" onclick="closeLogin()"></div>
-<div id="login-panel">
-    <h3>Admin Login</h3>
-    <input type="text" id="adminEmail" style="margin-bottom:10px;" placeholder="Email Admin...">
-    <input type="password" id="adminPass" style="margin-bottom:15px;" placeholder="Mật khẩu...">
-    <button class="btn-submit" onclick="loginAdmin()" style="width:100%">Đăng nhập</button>
-    <p id="loginError" style="color:var(--danger); font-size:13px; margin-top:10px; display:none;"></p>
+<div id="login-panel" style="display: none;">
+    <div class="admin-card">
+        <div class="title">Admin Login</div>
+        <form class="admin-form" onsubmit="event.preventDefault()">
+            <input class="admin-input" id="adminEmail" name="email" placeholder="Email" type="email">
+            <input class="admin-input" id="adminPass" name="password" placeholder="Password" type="password">
+            
+            <button class="admin-btn" id="btnLogin" type="button" onclick="loginAdmin()">Truy cập!</button>
+            
+            <p id="loginError" style="color:red; font-size:13px; display:none; margin:0; text-align:center"></p>
+        </form>
+        
+        <button onclick="closeLogin()" class="btn-close-login">Đóng cửa sổ</button>
+    </div>
 </div>
 
 <div id="toast">Đã sao chép vào bộ nhớ tạm</div>
