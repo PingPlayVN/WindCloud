@@ -850,31 +850,37 @@ function toggleSidebar() {
 }
 
 function switchApp(appName) {
-    // 1. Đóng sidebar
+    // ... (Code cũ giữ nguyên: đóng sidebar, active menu...) ...
     toggleSidebar();
-
-    // 2. Cập nhật UI Menu Active
     document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-    if(appName === 'cloud') document.querySelector('.menu-item:nth-child(1)').classList.add('active');
-    else document.querySelector('.menu-item:nth-child(2)').classList.add('active');
 
-    // 3. Chuyển đổi màn hình
     const appCloud = document.getElementById('app-cloud');
     const appPalette = document.getElementById('app-palette');
+    const appDrop = document.getElementById('app-drop'); // Mới thêm
 
+    // Ẩn tất cả trước
+    appCloud.style.display = 'none';
+    appPalette.style.display = 'none';
+    if(appDrop) appDrop.style.display = 'none';
+
+    // Logic hiển thị
     if (appName === 'cloud') {
+        document.querySelector('.menu-item:nth-child(1)').classList.add('active');
         appCloud.style.display = 'block';
-        appPalette.style.display = 'none';
         document.title = "Wind Cloud - Storage";
-    } else {
-        appCloud.style.display = 'none';
+    } else if (appName === 'palette') {
+        document.querySelector('.menu-item:nth-child(2)').classList.add('active');
         appPalette.style.display = 'block';
         document.title = "Wind Cloud - Color Studio";
+        if (document.getElementById('paletteGrid').innerHTML.trim() === '') updatePaletteSystem();
+    } else if (appName === 'drop') { // --- MỚI THÊM ---
+        // Giả sử nút Drop là nút thứ 3 (nếu bạn đặt đúng vị trí HTML)
+        // Bạn có thể tìm bằng ID hoặc class cụ thể nếu muốn chính xác hơn
+        document.querySelectorAll('.menu-item')[2].classList.add('active'); 
         
-        // SỬA LỖI 1: Gọi đúng hàm updatePaletteSystem thay vì generatePalette
-        if (document.getElementById('paletteGrid').innerHTML.trim() === '') {
-            updatePaletteSystem();
-        }
+        appDrop.style.display = 'block';
+        document.title = "Wind Cloud - Wind Drop";
+        initWindDrop(); // Khởi động Radar
     }
 }
 
@@ -1032,4 +1038,373 @@ function exportPalette() {
             showToast("Đã copy toàn bộ mã màu! 📋");
         });
     }
+}
+
+// ==============================================
+// --- APP: WIND DROP PRO (TRUE P2P - WebRTC) ---
+// ==============================================
+
+let myPeer = null;
+let myPeerId = sessionStorage.getItem('wind_peer_id');
+
+// --- TRẠNG THÁI CHUYỂN FILE ---
+let isTransferring = false; // Cờ kiểm tra đang bận
+let activeConnection = null; // Kết nối hiện tại
+let transferLoop = null; // Vòng lặp gửi file (để cancel)
+let incomingChunks = []; // Mảng chứa các mảnh file nhận được
+let receivedSize = 0; // Dung lượng đã nhận
+
+// Cấu hình Chunk (Mảnh file): 64KB là mức an toàn cho WebRTC/PeerJS để không bị nghẽn
+const CHUNK_SIZE = 256 * 1024; 
+
+if (!myPeerId) {
+    myPeerId = 'wind_' + Math.floor(Math.random() * 9000 + 1000); 
+    sessionStorage.setItem('wind_peer_id', myPeerId);
+}
+
+function initWindDrop() {
+    console.log("🚀 Khởi động Wind Drop P2P...");
+    document.getElementById('dropStatus').innerText = "Đang kết nối...";
+
+    myPeer = new Peer(myPeerId, { debug: 1 });
+
+    myPeer.on('open', (id) => {
+        myPeerId = id;
+        document.getElementById('dropStatus').innerText = "Sẵn sàng (ID: " + id + ")";
+        announcePresence();
+    });
+
+    myPeer.on('connection', (conn) => {
+        // Nếu đang bận chuyển file khác, từ chối ngay kết nối mới
+        if (isTransferring) {
+            conn.on('open', () => {
+                conn.send({ type: 'busy' });
+                setTimeout(() => conn.close(), 500);
+            });
+            return;
+        }
+        setupIncomingConnection(conn);
+    });
+
+    myPeer.on('error', (err) => {
+        console.error("PeerJS Error:", err);
+        document.getElementById('dropStatus').innerText = "Lỗi: " + err.type;
+        resetTransferState();
+    });
+
+    db.ref('wind_drop_active').on('value', (snapshot) => {
+        renderPeers(snapshot.val());
+    });
+}
+
+function announcePresence() {
+    const userRef = db.ref('wind_drop_active/' + myPeerId);
+    userRef.onDisconnect().remove();
+    userRef.set({
+        name: isAdmin ? "Admin Phong" : "Khách " + myPeerId.split('_')[1],
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+}
+
+// --- NGƯỜI NHẬN (RECEIVER LOGIC) ---
+function setupIncomingConnection(conn) {
+    conn.on('open', () => {
+        console.log("🔗 Nhận kết nối từ:", conn.peer);
+    });
+
+    conn.on('data', (data) => {
+        // 1. Nhận Metadata (Yêu cầu gửi file)
+        if (data.type === 'meta') {
+            if (isTransferring) {
+                conn.send({ type: 'ack', status: 'busy' });
+                return;
+            }
+
+            // Lưu thông tin file sắp nhận
+            window.incomingFileMeta = data;
+            
+            showActionModal({
+                title: "📨 Yêu cầu nhận file",
+                desc: `${data.fileName}\n📦 Kích thước: ${formatSize(data.fileSize)}`,
+                type: 'confirm',
+                onConfirm: () => {
+                    // Chấp nhận
+                    conn.send({ type: 'ack', status: 'ok' });
+                    startTransferUI(data.fileName, 'receiving');
+                    
+                    // Khởi tạo bộ nhớ đệm
+                    activeConnection = conn;
+                    isTransferring = true;
+                    incomingChunks = [];
+                    receivedSize = 0;
+                }
+            });
+        }
+        
+        // 2. Nhận MẢNH FILE (Chunk)
+        else if (data.type === 'chunk') {
+            incomingChunks.push(data.data); // data.data là ArrayBuffer
+            receivedSize += data.data.byteLength;
+            
+            // Cập nhật UI
+            const percent = (receivedSize / window.incomingFileMeta.fileSize) * 100;
+            updateTransferUI(percent, 'Đang tải xuống...');
+
+            // Nếu đã nhận đủ
+            if (receivedSize >= window.incomingFileMeta.fileSize) {
+                finishDownload();
+            }
+        }
+        
+        // 3. Xử lý Lệnh HỦY từ phía gửi
+        else if (data.type === 'cancel') {
+            showToast("❌ Người gửi đã hủy chuyển tệp!");
+            resetTransferState();
+        }
+    });
+
+    conn.on('close', () => {
+        if (isTransferring) {
+            showToast("⚠️ Mất kết nối!");
+            resetTransferState();
+        }
+    });
+}
+
+// --- NGƯỜI GỬI (SENDER LOGIC - CHUNKING) ---
+function uploadFileP2P(file, targetPeerId) {
+    if (!myPeer) return;
+    if (isTransferring) {
+        showToast("⚠️ Đang chuyển tệp khác, vui lòng đợi!");
+        return;
+    }
+
+    showToast(`Đang kết nối tới ${targetPeerId}...`);
+    const conn = myPeer.connect(targetPeerId);
+
+    conn.on('open', () => {
+        // [FIX ZIP] Nếu file.type rỗng, gán mặc định là binary để không bị lỗi thành txt
+        const safeType = file.type || 'application/octet-stream';
+
+        // Gửi Metadata trước
+        conn.send({
+            type: 'meta',
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: safeType 
+        });
+    });
+
+    conn.on('data', (response) => {
+        if (response.type === 'ack') {
+            if (response.status === 'ok') {
+                // BẮT ĐẦU GỬI FILE
+                activeConnection = conn;
+                isTransferring = true;
+                startTransferUI(file.name, 'sending');
+                
+                // Gọi hàm cắt nhỏ và gửi
+                sendFileInChunks(file, conn);
+            } else if (response.status === 'busy') {
+                showToast("⚠️ Đối phương đang bận nhận file khác!");
+                conn.close();
+            } else {
+                showToast("❌ Bị từ chối!");
+                conn.close();
+            }
+        } 
+        else if (response.type === 'cancel') {
+            showToast("❌ Người nhận đã hủy!");
+            resetTransferState();
+        }
+    });
+}
+
+// Hàm cắt file và gửi tuần tự (Async Loop)
+async function sendFileInChunks(file, conn) {
+    let offset = 0;
+    let chunkCount = 0; // Đếm số gói tin để yield UI
+    
+    const readSlice = (start, end) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = err => reject(err);
+            reader.readAsArrayBuffer(file.slice(start, end));
+        });
+    };
+
+    while (offset < file.size) {
+        if (!isTransferring) break; 
+
+        const end = Math.min(offset + CHUNK_SIZE, file.size);
+        try {
+            const arrayBuffer = await readSlice(offset, end);
+            
+            // Gửi chunk
+            conn.send({
+                type: 'chunk',
+                data: arrayBuffer
+            });
+
+            offset = end;
+            chunkCount++;
+            
+            // Cập nhật UI
+            const percent = (offset / file.size) * 100;
+            updateTransferUI(percent, 'Đang gửi...');
+
+            // [TỐI ƯU TỐC ĐỘ]
+            // Thay vì delay 10ms mỗi lần, ta chỉ delay sau mỗi 20 chunks (~5MB)
+            // Điều này giúp trình duyệt "thở" để vẽ UI mà không làm chậm tốc độ gửi.
+            if (chunkCount % 20 === 0) {
+                await new Promise(r => setTimeout(r, 10)); 
+            }
+
+        } catch (err) {
+            console.error("Lỗi đọc file:", err);
+            showToast("Lỗi đọc file!");
+            resetTransferState();
+            return;
+        }
+    }
+
+    if (isTransferring) {
+        showToast("✅ Đã gửi xong!");
+        resetTransferState();
+        setTimeout(() => conn.close(), 2000); 
+    }
+}
+
+// --- XỬ LÝ KẾT THÚC VÀ HỦY ---
+
+function finishDownload() {
+    const meta = window.incomingFileMeta;
+    showToast("✅ Đang xử lý file...");
+    
+    // [FIX ZIP] Sử dụng type an toàn hoặc mặc định là octet-stream
+    const safeType = meta.fileType || 'application/octet-stream';
+
+    // Tạo Blob từ các mảnh với đúng định dạng
+    const blob = new Blob(incomingChunks, { type: safeType });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = meta.fileName; // Đảm bảo tên file giữ nguyên đuôi .zip
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    showToast("Đã lưu file thành công!");
+    resetTransferState();
+}
+
+function cancelTransfer() {
+    if (!isTransferring) return;
+
+    // Gửi thông báo hủy cho bên kia
+    if (activeConnection && activeConnection.open) {
+        activeConnection.send({ type: 'cancel' });
+    }
+    
+    showToast("⛔ Đã hủy chuyển tệp.");
+    resetTransferState();
+}
+
+function resetTransferState() {
+    isTransferring = false;
+    activeConnection = null;
+    incomingChunks = [];
+    receivedSize = 0;
+    
+    // Ẩn UI
+    document.getElementById('transfer-panel').style.display = 'none';
+}
+
+// --- QUẢN LÝ GIAO DIỆN TIẾN TRÌNH ---
+
+function startTransferUI(filename, mode) {
+    const panel = document.getElementById('transfer-panel');
+    const nameEl = document.getElementById('tf-filename');
+    const statusEl = document.getElementById('tf-status');
+    const bar = document.getElementById('tf-progress');
+
+    panel.style.display = 'block';
+    nameEl.innerText = filename;
+    bar.style.width = '0%';
+    statusEl.innerText = mode === 'sending' ? "Đang chuẩn bị gửi..." : "Đang chuẩn bị nhận...";
+}
+
+function updateTransferUI(percent, statusText) {
+    const bar = document.getElementById('tf-progress');
+    const statusEl = document.getElementById('tf-status');
+    
+    bar.style.width = percent + '%';
+    statusEl.innerText = `${statusText} (${Math.floor(percent)}%)`;
+}
+
+
+// --- GIỮ NGUYÊN PHẦN UI CŨ (RENDER PEERS) ---
+function renderPeers(users) {
+    const orbitZone = document.getElementById('user-orbit-zone');
+    orbitZone.innerHTML = '';
+    
+    if (!users) return;
+
+    const userList = Object.keys(users).filter(id => id !== myPeerId); 
+    document.getElementById('dropStatus').innerText = `Radar: ${userList.length} thiết bị (ID: ${myPeerId.split('_')[1]})`;
+
+    userList.forEach((userId, index) => {
+        const user = users[userId];
+        const el = document.createElement('div');
+        el.className = 'peer-user';
+        
+        const angle = (index / userList.length) * 2 * Math.PI;
+        const radius = 120;
+        const x = Math.cos(angle) * radius + 145; 
+        const y = Math.sin(angle) * radius + 145;
+        
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+
+        el.innerHTML = `<div class="peer-icon">👤</div><span>${user.name}</span>`;
+
+        // Truyền userId vào hàm gửi
+        setupDragDrop(el, userId);
+        orbitZone.appendChild(el);
+    });
+}
+
+function formatSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function setupDragDrop(element, targetId) {
+    element.addEventListener('dragover', (e) => { e.preventDefault(); element.classList.add('drag-over'); });
+    element.addEventListener('dragleave', () => { element.classList.remove('drag-over'); });
+    element.addEventListener('drop', (e) => {
+        e.preventDefault();
+        element.classList.remove('drag-over');
+        if (e.dataTransfer.files.length > 0) {
+            uploadFileP2P(e.dataTransfer.files[0], targetId);
+        }
+    });
+    element.onclick = () => {
+        // Chỉ cho phép chọn file nếu KHÔNG đang bận
+        if(isTransferring) {
+            showToast("Đang bận chuyển file!");
+            return;
+        }
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.onchange = (e) => {
+            if(e.target.files[0]) uploadFileP2P(e.target.files[0], targetId);
+        };
+        input.click();
+    };
 }

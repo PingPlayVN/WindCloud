@@ -22,7 +22,9 @@
         <li class="menu-item" onclick="switchApp('palette')">
             <span class="icon">🎨</span> Color Studio
         </li>
-
+        <li class="menu-item" onclick="switchApp('drop')">
+            <span class="icon">📡</span> Wind Drop
+        </li>
         <div style="height:1px; background:var(--border); margin:10px 15px;"></div>
 
         <li class="menu-item" id="loginBtn" onclick="showLogin()">
@@ -168,6 +170,44 @@
         <div class="palette-actions-bottom">
             <button class="btn-action" onclick="randomBaseColor()">🎲 Random Màu Gốc</button>
             <button class="btn-action primary" onclick="exportPalette()">📋 Copy Cả Bảng</button>
+        </div>
+    </div>
+</div>
+    
+    <div id="app-drop" style="display: none;">
+    <div class="drop-container">
+        <div class="drop-header">
+            <h1>📡 Wind Drop</h1>
+            <p>Chia sẻ tệp tức thì với người đang Online. Kéo & Thả để gửi.</p>
+        </div>
+
+        <div class="radar-zone">
+            <div class="radar-circle c1"></div>
+            <div class="radar-circle c2"></div>
+            <div class="radar-circle c3"></div>
+            <div class="my-device-center">
+                <span>Bạn</span>
+            </div>
+            
+            <div id="user-orbit-zone"></div>
+        </div>
+
+        <div class="drop-status" id="dropStatus">
+            Đang quét tìm thiết bị quanh đây...
+        </div>
+        <div id="transfer-panel" style="display: none;">
+            <div class="transfer-info">
+                <div class="tf-icon">📂</div>
+                <div class="tf-details">
+                    <span id="tf-filename">Video_4K.mp4</span>
+                    <span id="tf-status">Đang gửi... (45%)</span>
+                </div>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="tf-progress"></div>
+            </div>
+            <button class="btn-cancel-transfer" onclick="cancelTransfer()">Hủy bỏ</button>
+        </div>
         </div>
     </div>
 </div>
@@ -320,6 +360,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="script.js"></script>
 
 </body>
