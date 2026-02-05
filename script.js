@@ -850,37 +850,49 @@ function toggleSidebar() {
 }
 
 function switchApp(appName) {
-    // ... (Code cũ giữ nguyên: đóng sidebar, active menu...) ...
+    // 1. Đóng sidebar (cho mobile)
     toggleSidebar();
-    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
 
-    const appCloud = document.getElementById('app-cloud');
-    const appPalette = document.getElementById('app-palette');
-    const appDrop = document.getElementById('app-drop'); // Mới thêm
+    // 2. Reset trạng thái menu (Bỏ active tất cả)
+    const menuItems = document.querySelectorAll('.sidebar-menu .menu-item');
+    menuItems.forEach(item => item.classList.remove('active'));
 
-    // Ẩn tất cả trước
-    appCloud.style.display = 'none';
-    appPalette.style.display = 'none';
-    if(appDrop) appDrop.style.display = 'none';
+    // 3. Ẩn tất cả các App
+    const apps = ['app-cloud', 'app-palette', 'app-drop'];
+    apps.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
 
-    // Logic hiển thị
+    // 4. Xử lý hiển thị App được chọn
     if (appName === 'cloud') {
-        document.querySelector('.menu-item:nth-child(1)').classList.add('active');
-        appCloud.style.display = 'block';
+        // Cloud là item số 0 trong danh sách
+        if(menuItems[0]) menuItems[0].classList.add('active'); 
+        document.getElementById('app-cloud').style.display = 'block';
         document.title = "Wind Cloud - Storage";
-    } else if (appName === 'palette') {
-        document.querySelector('.menu-item:nth-child(2)').classList.add('active');
-        appPalette.style.display = 'block';
+    } 
+    else if (appName === 'palette') {
+        // Color Studio là item số 1
+        if(menuItems[1]) menuItems[1].classList.add('active');
+        document.getElementById('app-palette').style.display = 'block';
         document.title = "Wind Cloud - Color Studio";
-        if (document.getElementById('paletteGrid').innerHTML.trim() === '') updatePaletteSystem();
-    } else if (appName === 'drop') { // --- MỚI THÊM ---
-        // Giả sử nút Drop là nút thứ 3 (nếu bạn đặt đúng vị trí HTML)
-        // Bạn có thể tìm bằng ID hoặc class cụ thể nếu muốn chính xác hơn
-        document.querySelectorAll('.menu-item')[2].classList.add('active'); 
         
-        appDrop.style.display = 'block';
+        // Chỉ tạo bảng màu nếu chưa có
+        const grid = document.getElementById('paletteGrid');
+        if (grid && grid.innerHTML.trim() === '') updatePaletteSystem();
+    } 
+    else if (appName === 'drop') {
+        // Wind Drop là item số 2
+        if(menuItems[2]) menuItems[2].classList.add('active');
+        document.getElementById('app-drop').style.display = 'block';
         document.title = "Wind Cloud - Wind Drop";
-        initWindDrop(); // Khởi động Radar
+        
+        // Thêm try-catch để tránh lỗi JS làm hỏng giao diện
+        try {
+            initWindDrop();
+        } catch (e) {
+            console.error("Lỗi khởi động Wind Drop:", e);
+        }
     }
 }
 
