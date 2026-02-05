@@ -1067,7 +1067,7 @@ let incomingChunks = []; // Mảng chứa các mảnh file nhận được
 let receivedSize = 0; // Dung lượng đã nhận
 
 // Cấu hình Chunk (Mảnh file): 64KB là mức an toàn cho WebRTC/PeerJS để không bị nghẽn
-const CHUNK_SIZE = 256 * 1024; 
+const CHUNK_SIZE = 64 * 1024; 
 
 if (!myPeerId) {
     myPeerId = 'wind_' + Math.floor(Math.random() * 9000 + 1000); 
@@ -1232,11 +1232,11 @@ function uploadFileP2P(file, targetPeerId) {
     });
 }
 
-// Hàm cắt file và gửi tuần tự (Async Loop)
+// Hàm cắt file và gửi tuần tự (Async Loop - Bản Ổn Định Cao)
 async function sendFileInChunks(file, conn) {
     let offset = 0;
-    let chunkCount = 0; // Đếm số gói tin để yield UI
     
+    // Hàm đọc file an toàn
     const readSlice = (start, end) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -1246,45 +1246,54 @@ async function sendFileInChunks(file, conn) {
         });
     };
 
-    while (offset < file.size) {
-        if (!isTransferring) break; 
+    try {
+        while (offset < file.size) {
+            // 1. Kiểm tra nếu người dùng bấm Hủy
+            if (!isTransferring) break; 
+            
+            // 2. [QUAN TRỌNG] Kiểm tra xem kết nối còn sống không?
+            if (!conn || !conn.open) {
+                throw new Error("Mất kết nối với người nhận!");
+            }
 
-        const end = Math.min(offset + CHUNK_SIZE, file.size);
-        try {
+            const end = Math.min(offset + CHUNK_SIZE, file.size);
             const arrayBuffer = await readSlice(offset, end);
             
-            // Gửi chunk
+            // 3. Gửi dữ liệu
             conn.send({
                 type: 'chunk',
                 data: arrayBuffer
             });
 
             offset = end;
-            chunkCount++;
             
-            // Cập nhật UI
+            // 4. Cập nhật UI
             const percent = (offset / file.size) * 100;
             updateTransferUI(percent, 'Đang gửi...');
 
-            // [TỐI ƯU TỐC ĐỘ]
-            // Thay vì delay 10ms mỗi lần, ta chỉ delay sau mỗi 20 chunks (~5MB)
-            // Điều này giúp trình duyệt "thở" để vẽ UI mà không làm chậm tốc độ gửi.
-            if (chunkCount % 20 === 0) {
-                await new Promise(r => setTimeout(r, 10)); 
+            // 5. [CƠ CHẾ CHỐNG TRÀN BỘ NHỚ]
+            // Kiểm tra bộ đệm của trình duyệt. Nếu đang tồn đọng quá nhiều dữ liệu chưa gửi đi được
+            // thì chúng ta dừng lại đợi nó gửi xong rồi mới bơm tiếp.
+            if (conn.dataChannel.bufferedAmount > 1024 * 1024) { // Nếu tồn > 1MB
+                // Đợi 50ms cho mạng thở
+                await new Promise(r => setTimeout(r, 50));
+            } else {
+                // Nếu mạng khỏe, chỉ cần nghỉ cực ngắn để không đơ UI
+                await new Promise(r => setTimeout(r, 1)); 
             }
-
-        } catch (err) {
-            console.error("Lỗi đọc file:", err);
-            showToast("Lỗi đọc file!");
-            resetTransferState();
-            return;
         }
-    }
 
-    if (isTransferring) {
-        showToast("✅ Đã gửi xong!");
+        if (isTransferring) {
+            showToast("✅ Đã gửi xong!");
+            resetTransferState();
+            // Giữ kết nối thêm 2s để đảm bảo gói tin cuối đến nơi rồi mới đóng
+            setTimeout(() => { if(conn.open) conn.close(); }, 2000); 
+        }
+
+    } catch (err) {
+        console.error("Lỗi gửi file:", err);
+        showActionModal({ title: "Lỗi đường truyền", desc: "Kết nối bị gián đoạn. Vui lòng thử lại!", type: 'alert' });
         resetTransferState();
-        setTimeout(() => conn.close(), 2000); 
     }
 }
 
