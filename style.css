@@ -239,25 +239,93 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
     color: var(--primary);
 }
 
-/* --- CONTEXT MENU --- */
-#contextMenu {
-    display: none; position: fixed; z-index: 9999;
-    background: var(--bg-surface);
-    backdrop-filter: blur(10px);
-    border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-    width: 220px; padding: 6px; border: 1px solid var(--border);
-    animation: fadeIn 0.15s ease-out;
-}
-@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+/* --- CONTEXT MENU (FIXED) --- */
 
-.menu-item {
-    padding: 10px 12px; font-size: 14px; color: var(--text-main); cursor: pointer;
-    display: flex; align-items: center; gap: 12px; border-radius: 6px;
-    transition: background 0.1s;
+/* Khung bao ngoài chỉ dùng để định vị, KHÔNG có màu nền hay viền */
+#contextMenu {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    /* Reset toàn bộ style cũ để tránh bị hiện bóng ma */
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    width: auto;
+    backdrop-filter: none;
 }
-.menu-item:hover { background-color: var(--primary); color: white; }
-.menu-divider { height: 1px; background: var(--border); margin: 6px 0; }
-.menu-item.danger:hover { background-color: var(--danger); }
+
+/* Giao diện chính nằm ở thẻ này */
+.context-card {
+    background: #222222;
+    width: 260px;
+    border: 2px solid #313131;
+    border-radius: 10px;
+    padding: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: fadeIn 0.15s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.context-card .separator {
+    width: 100%;
+    border-bottom: 1px solid #444444;
+    margin: 5px 0px;
+}
+
+.context-card .list {
+    color: #e9e9e9;
+    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0; padding: 0;
+}
+
+.context-card .item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+    padding: 10px 12px; /* Tăng padding chút cho thoáng */
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    color: #e9e9e9; /* Màu chữ mặc định */
+}
+
+.context-card .item svg {
+    width: 18px; height: 18px;
+    stroke-width: 2px;
+}
+
+.context-card .item:hover {
+    background: #333333;
+    color: #fff;
+}
+
+.context-card .label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Style riêng cho nút Xóa */
+.context-card .item.delete {
+    color: #ff6b6b; /* Màu đỏ nhạt cho dễ nhìn trên nền đen */
+}
+
+.context-card .item.delete:hover {
+    background: #4a1818; /* Màu nền đỏ đậm khi hover */
+    color: #ff8787;
+}
+
+/* Animation hiện menu */
+@keyframes fadeIn { 
+    from { opacity: 0; transform: scale(0.95); } 
+    to { opacity: 1; transform: scale(1); } 
+}
 
 /* --- ADMIN TOOL & INPUTS --- */
 .input-section {
@@ -809,3 +877,164 @@ input[type="text"]:focus, input[type="password"]:focus {
 .theme-switch__checkbox:checked + .theme-switch__container .theme-switch__moon { transform: translate(0); }
 .theme-switch__checkbox:checked + .theme-switch__container .theme-switch__clouds { bottom: -4.062em; }
 .theme-switch__checkbox:checked + .theme-switch__container .theme-switch__stars-container { top: 50%; transform: translateY(-50%); }
+
+/* --- NEW CONTEXT MENU CSS --- */
+
+#contextMenu {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+}
+
+/* Đổi tên .card thành .context-card để tránh trùng lặp */
+.context-card {
+    background: #222222;
+    width: 260px;
+    border: 2px solid #313131;
+    border-radius: 10px;
+    padding: 3px 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: fadeIn 0.15s ease-out;
+}
+
+.context-card .separator {
+    width: 100%;
+    border-bottom: 1px solid #444444;
+    margin: 5px 0px;
+}
+
+.context-card .list {
+    color: #e9e9e9;
+    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0; padding: 0; /* Reset mặc định */
+}
+
+.context-card .item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+}
+
+.context-card .item svg {
+    z-index: 1;
+    width: 18px; height: 18px; /* Chỉnh lại size icon cho cân đối */
+    transition: all 0.3s ease;
+}
+
+.context-card .item:hover {
+    background: #333333;
+}
+
+.context-card .label {
+    font-weight: 400;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+/* Style riêng cho nút Xóa (Delete) */
+.context-card .item.delete {
+    color: #e3616a;
+}
+
+.context-card .item.delete:hover {
+    background: #6b2c2b;
+    color: white;
+}
+
+/* --- NEW SLIDING TABS CSS --- */
+
+/* Xóa style cũ của .tabs nếu còn sót */
+.tabs { display: none !important; } 
+
+.tabs-wrapper {
+  --tab-width: 90px; /* Chiều rộng mỗi tab */
+  --tab-height: 40px;
+  --tab-radius: 20px;
+  --tab-gap: 4px;
+  
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: var(--bg-surface); /* Nền ăn theo theme */
+  border-radius: var(--tab-radius);
+  padding: 4px;
+  box-shadow: inset 0 0 0 1px var(--border); /* Viền nhẹ */
+  isolation: isolate; /* Tạo context mới cho z-index */
+}
+
+/* Ẩn input radio */
+.tabs-wrapper input[type="radio"] {
+  position: absolute; width: 0; height: 0; opacity: 0;
+}
+
+/* Style cho Label (Nút bấm) */
+.tab-label {
+  width: var(--tab-width);
+  height: var(--tab-height);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2; /* Nổi lên trên thanh trượt */
+  color: var(--text-sub);
+  font-weight: 500; font-size: 14px;
+  transition: color 0.3s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Khi được chọn, đổi màu chữ */
+.tabs-wrapper input:checked + label {
+  color: var(--primary); 
+  font-weight: 600;
+}
+/* Dark mode: Màu chữ khi chọn sẽ sáng lên */
+[data-theme="dark"] .tabs-wrapper input:checked + label {
+    color: #fff;
+}
+
+/* Thanh trượt (Slider) chạy qua lại */
+.tab-slider {
+  position: absolute;
+  top: 4px; left: 4px; /* Căn theo padding của wrapper */
+  width: var(--tab-width);
+  height: var(--tab-height);
+  border-radius: calc(var(--tab-radius) - 4px);
+  background: var(--hover-bg); /* Màu nền của tab đang chọn */
+  z-index: 1;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+/* Dark mode: Slider màu đậm hơn chút */
+[data-theme="dark"] .tab-slider {
+    background: #3c4043;
+}
+
+/* Thanh trang trí nhỏ (Bar) ở trên/dưới - Tùy chọn, tôi làm mờ đi cho hiện đại */
+.tab-bar-deco {
+  position: absolute;
+  height: 100%; width: var(--tab-width);
+  top: 0; left: 4px;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* --- LOGIC DI CHUYỂN SLIDER (4 TABS) --- */
+.tab-rd-1:checked ~ .tab-slider, .tab-rd-1:checked ~ .tab-bar-deco { transform: translateX(0%); }
+.tab-rd-2:checked ~ .tab-slider, .tab-rd-2:checked ~ .tab-bar-deco { transform: translateX(100%); }
+.tab-rd-3:checked ~ .tab-slider, .tab-rd-3:checked ~ .tab-bar-deco { transform: translateX(200%); }
+.tab-rd-4:checked ~ .tab-slider, .tab-rd-4:checked ~ .tab-bar-deco { transform: translateX(300%); }
+
+/* Mobile Responsive: Thu nhỏ tab nếu màn hình bé */
+@media (max-width: 450px) {
+    .tabs-wrapper { --tab-width: 75px; --tab-height: 35px; }
+    .tab-label { font-size: 12px; }
+}

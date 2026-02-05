@@ -321,9 +321,13 @@ function switchTab(type) {
     document.getElementById('searchInput').value = '';
     changeSortMode('date_desc'); 
 
-    const activeBtn = document.querySelector('.tab-btn.active');
-    if(activeBtn) activeBtn.classList.remove('active');
-    document.getElementById(`tab-${type}`).classList.add('active');
+    // CẬP NHẬT GIAO DIỆN TAB MỚI
+    // Tự động check vào radio button tương ứng
+    const radioBtn = document.getElementById(`tab-${type}-radio`);
+    if (radioBtn) radioBtn.checked = true;
+
+    // Load lại dữ liệu
+    updateDataPipeline();
 }
 
 function handleClick(key, type, driveId) {
@@ -399,36 +403,48 @@ document.addEventListener('click', () => {
 
 function showContextMenu(e, key, isItem) {
     e.preventDefault();
-    e.stopPropagation(); 
-    contextTargetId = key; 
+    e.stopPropagation();
+    contextTargetId = key;
 
+    const contextMenu = document.getElementById('contextMenu');
+    const menuFile = document.getElementById('ctx-file-actions');
+    const menuBg = document.getElementById('ctx-bg-actions');
     const menuSetSort = document.getElementById('menuSetSort');
-    const targetItem = dataMap[key];
-    
-    if (targetItem && targetItem.type === 'folder' && isAdmin) {
-        menuSetSort.style.display = 'flex';
-    } else {
-        menuSetSort.style.display = 'none';
-    }
 
-    let top = e.clientY;
-    let left = e.clientX;
-    contextMenu.style.display = 'block'; 
-    if (left + contextMenu.offsetWidth > window.innerWidth) left = window.innerWidth - contextMenu.offsetWidth - 10;
-    if (top + contextMenu.offsetHeight > window.innerHeight) top = window.innerHeight - contextMenu.offsetHeight - 10;
-    contextMenu.style.top = `${top}px`;
-    contextMenu.style.left = `${left}px`;
-
-    const menuItems = document.getElementById('menu-item');
-    const menuBg = document.getElementById('menu-bg');
+    // Reset hiển thị
+    menuFile.style.display = 'none';
+    menuBg.style.display = 'none';
 
     if (isItem) {
-        menuItems.style.display = 'block';
-        menuBg.style.display = 'none';
+        // Nếu click vào file/thư mục
+        menuFile.style.display = 'block';
+        
+        // Logic hiển thị nút "Sắp xếp" cho Folder
+        const targetItem = dataMap[key];
+        if (targetItem && targetItem.type === 'folder' && isAdmin) {
+            menuSetSort.style.display = 'flex'; // Dùng flex để giữ layout của .item
+        } else {
+            menuSetSort.style.display = 'none';
+        }
     } else {
-        menuItems.style.display = 'none';
+        // Nếu click vào vùng trống
         menuBg.style.display = 'block';
     }
+
+    // Xử lý vị trí menu để không bị tràn màn hình
+    contextMenu.style.display = 'block';
+    let top = e.clientY;
+    let left = e.clientX;
+    
+    // Lấy kích thước menu thực tế
+    const menuWidth = 260; // Theo CSS .context-card width
+    const menuHeight = contextMenu.offsetHeight || 300; // Ước lượng nếu chưa render kịp
+
+    if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
+    if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 10;
+
+    contextMenu.style.top = `${top}px`;
+    contextMenu.style.left = `${left}px`;
 }
 
 // --- MODAL & PREVIEW ---
