@@ -1067,7 +1067,7 @@ let incomingChunks = []; // Mảng chứa các mảnh file nhận được
 let receivedSize = 0; // Dung lượng đã nhận
 
 // Cấu hình Chunk (Mảnh file): 64KB là mức an toàn cho WebRTC/PeerJS để không bị nghẽn
-const CHUNK_SIZE = 256 * 1024; 
+const CHUNK_SIZE = 64 * 1024; 
 
 if (!myPeerId) {
     myPeerId = 'wind_' + Math.floor(Math.random() * 9000 + 1000); 
@@ -1078,7 +1078,16 @@ function initWindDrop() {
     console.log("🚀 Khởi động Wind Drop P2P...");
     document.getElementById('dropStatus').innerText = "Đang kết nối...";
 
-    myPeer = new Peer(myPeerId, { debug: 1 });
+    myPeer = new Peer(myPeerId, {
+        debug: 1,
+        config: {
+            'iceServers': [
+                { url: 'stun:stun.l.google.com:19302' },
+                { url: 'stun:stun1.l.google.com:19302' },
+                { url: 'stun:stun2.l.google.com:19302' }
+            ]
+        }
+    });
 
     myPeer.on('open', (id) => {
         myPeerId = id;
@@ -1192,13 +1201,14 @@ function uploadFileP2P(file, targetPeerId) {
     }
 
     showToast(`Đang kết nối tới ${targetPeerId}...`);
-    const conn = myPeer.connect(targetPeerId);
+    
+    // [CẬP NHẬT] Thêm reliable: true để ổn định hơn trên Mobile
+    const conn = myPeer.connect(targetPeerId, {
+        reliable: true 
+    });
 
     conn.on('open', () => {
-        // [FIX ZIP] Nếu file.type rỗng, gán mặc định là binary để không bị lỗi thành txt
         const safeType = file.type || 'application/octet-stream';
-
-        // Gửi Metadata trước
         conn.send({
             type: 'meta',
             fileName: file.name,
@@ -1210,15 +1220,12 @@ function uploadFileP2P(file, targetPeerId) {
     conn.on('data', (response) => {
         if (response.type === 'ack') {
             if (response.status === 'ok') {
-                // BẮT ĐẦU GỬI FILE
                 activeConnection = conn;
                 isTransferring = true;
                 startTransferUI(file.name, 'sending');
-                
-                // Gọi hàm cắt nhỏ và gửi
                 sendFileInChunks(file, conn);
             } else if (response.status === 'busy') {
-                showToast("⚠️ Đối phương đang bận nhận file khác!");
+                showToast("⚠️ Đối phương đang bận!");
                 conn.close();
             } else {
                 showToast("❌ Bị từ chối!");
@@ -1230,13 +1237,23 @@ function uploadFileP2P(file, targetPeerId) {
             resetTransferState();
         }
     });
+    
+    // Thêm bắt lỗi khi kết nối chết bất ngờ
+    conn.on('close', () => {
+        if(isTransferring) {
+            console.log("Kết nối bị đóng đột ngột");
+            // Không reset ngay để tránh nháy UI nếu nó tự reconnect
+        }
+    });
 }
 
 // Hàm cắt file và gửi tuần tự (Async Loop - Bản Ổn Định Cao)
 async function sendFileInChunks(file, conn) {
     let offset = 0;
     
-    // Hàm đọc file an toàn
+    // [CẤU HÌNH] Giữ nguyên 64KB là an toàn nhất
+    const CHUNK_SIZE = 64 * 1024; 
+
     const readSlice = (start, end) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -1248,18 +1265,30 @@ async function sendFileInChunks(file, conn) {
 
     try {
         while (offset < file.size) {
-            // 1. Kiểm tra nếu người dùng bấm Hủy
             if (!isTransferring) break; 
             
-            // 2. [QUAN TRỌNG] Kiểm tra xem kết nối còn sống không?
             if (!conn || !conn.open) {
                 throw new Error("Mất kết nối với người nhận!");
             }
 
+            // Kiểm tra áp lực lên thiết bị nhận (Backpressure)
+            // Nếu bộ đệm > 0 (tức là gói tin trước chưa gửi đi hết), ta phải đợi.
+            // Mobile rất dễ bị tồn đọng bộ đệm này.
+            if (conn.dataChannel.bufferedAmount > 0) {
+                // Đợi cho đến khi bộ đệm vơi bớt
+                await new Promise(r => setTimeout(r, 20)); 
+                
+                // Nếu vẫn còn đầy quá (mạng quá yếu), đợi thêm chút nữa
+                if (conn.dataChannel.bufferedAmount > 512 * 1024) { // > 512KB
+                     await new Promise(r => setTimeout(r, 100));
+                }
+                continue; // Thử lại vòng lặp, chưa gửi gói mới vội
+            }
+
+            // Nếu đường thông thoáng, đọc và gửi gói tiếp theo
             const end = Math.min(offset + CHUNK_SIZE, file.size);
             const arrayBuffer = await readSlice(offset, end);
             
-            // 3. Gửi dữ liệu
             conn.send({
                 type: 'chunk',
                 data: arrayBuffer
@@ -1267,32 +1296,24 @@ async function sendFileInChunks(file, conn) {
 
             offset = end;
             
-            // 4. Cập nhật UI
+            // Cập nhật UI
             const percent = (offset / file.size) * 100;
             updateTransferUI(percent, 'Đang gửi...');
-
-            // 5. [CƠ CHẾ CHỐNG TRÀN BỘ NHỚ]
-            // Kiểm tra bộ đệm của trình duyệt. Nếu đang tồn đọng quá nhiều dữ liệu chưa gửi đi được
-            // thì chúng ta dừng lại đợi nó gửi xong rồi mới bơm tiếp.
-            if (conn.dataChannel.bufferedAmount > 1024 * 1024) { // Nếu tồn > 1MB
-                // Đợi 50ms cho mạng thở
-                await new Promise(r => setTimeout(r, 50));
-            } else {
-                // Nếu mạng khỏe, chỉ cần nghỉ cực ngắn để không đơ UI
-                await new Promise(r => setTimeout(r, 1)); 
-            }
+            
+            // Nghỉ cực ngắn để UI không bị đơ
+            // Không cần nghỉ lâu vì ta đã có cơ chế check bufferedAmount ở trên
+            await new Promise(r => setTimeout(r, 1)); 
         }
 
         if (isTransferring) {
             showToast("✅ Đã gửi xong!");
             resetTransferState();
-            // Giữ kết nối thêm 2s để đảm bảo gói tin cuối đến nơi rồi mới đóng
             setTimeout(() => { if(conn.open) conn.close(); }, 2000); 
         }
 
     } catch (err) {
         console.error("Lỗi gửi file:", err);
-        showActionModal({ title: "Lỗi đường truyền", desc: "Kết nối bị gián đoạn. Vui lòng thử lại!", type: 'alert' });
+        showActionModal({ title: "Lỗi đường truyền", desc: "Mất kết nối tới thiết bị. Hãy thử lại!", type: 'alert' });
         resetTransferState();
     }
 }
@@ -1428,5 +1449,4 @@ function setupDragDrop(element, targetId) {
         };
         input.click();
     };
-
 }
