@@ -627,14 +627,63 @@ function renameItemUI() {
     });
 }
 
+// Hàm bổ trợ: Tìm tất cả ID con cháu (đệ quy)
+function getDescendantIds(targetId) {
+    let ids = [];
+    
+    // Lọc ra các item con trực tiếp của targetId từ biến toàn cục allData
+    // (Vì allData đã chứa toàn bộ dữ liệu tải về nên ta không cần query lại server)
+    const children = allData.filter(item => item.parentId === targetId);
+    
+    children.forEach(child => {
+        ids.push(child.key); // Thêm con vào danh sách xóa
+        
+        // Nếu con là folder, tiếp tục đào sâu tìm cháu chắt
+        if (child.type === 'folder') {
+            ids = ids.concat(getDescendantIds(child.key));
+        }
+    });
+    
+    return ids;
+}
+
 function deleteItem() {
-    if (!isAdmin) { showActionModal({ title: "Thông báo", desc: "Cần quyền Admin!", type: 'alert' }); return; }
+    // 1. Kiểm tra quyền Admin
+    if (!isAdmin) { 
+        showActionModal({ title: "Thông báo", desc: "Cần quyền Admin!", type: 'alert' }); 
+        return; 
+    }
+
+    // 2. Xác nhận xóa
     showActionModal({
         title: "Xóa mục này?",
-        desc: "Hành động này không thể hoàn tác.",
+        desc: "LƯU Ý: Nếu là thư mục, toàn bộ file bên trong sẽ bị xóa vĩnh viễn!",
         type: 'confirm',
         onConfirm: () => {
-            db.ref('videos/' + contextTargetId).remove();
+            // A. Chuẩn bị danh sách ID cần xóa
+            // Bao gồm chính nó và tất cả con cháu (nếu có)
+            const allIdsToDelete = [contextTargetId, ...getDescendantIds(contextTargetId)];
+            
+            // B. Tạo object update để xóa hàng loạt (Multi-path update)
+            // Kỹ thuật này giúp chỉ gửi 1 request lên server thay vì gửi hàng trăm request
+            const updates = {};
+            allIdsToDelete.forEach(id => {
+                updates['videos/' + id] = null; // Gán null nghĩa là xóa
+            });
+
+            // C. Thực thi xóa
+            db.ref().update(updates)
+                .then(() => {
+                    showToast(`Đã xóa vĩnh viễn ${allIdsToDelete.length} mục.`);
+                    // Nếu đang đứng trong thư mục vừa bị xóa (trường hợp hiếm), quay về root
+                    if (contextTargetId === currentFolderId) {
+                        navigateTo('root');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showActionModal({ title: "Lỗi", desc: "Không thể xóa dữ liệu: " + err.message, type: 'alert' });
+                });
         }
     });
 }
