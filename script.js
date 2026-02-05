@@ -1250,9 +1250,17 @@ function uploadFileP2P(file, targetPeerId) {
 // Hàm cắt file và gửi tuần tự (Async Loop - Bản Ổn Định Cao)
 async function sendFileInChunks(file, conn) {
     let offset = 0;
+    const CHUNK_SIZE = 64 * 1024; // 64KB là chuẩn vàng của WebRTC
     
-    // [CẤU HÌNH] Giữ nguyên 64KB là an toàn nhất
-    const CHUNK_SIZE = 64 * 1024; 
+    // [TỰ ĐỘNG NHẬN DIỆN THIẾT BỊ]
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // CẤU HÌNH BỘ ĐỆM (BUFFER):
+    // - PC: Cho phép đệm tới 8MB (Tốc độ bàn thờ)
+    // - Mobile: Giới hạn 1MB (An toàn tuyệt đối)
+    const MAX_BUFFER_THRESHOLD = isMobile ? 1 * 1024 * 1024 : 8 * 1024 * 1024; 
+
+    let lastUpdateTime = 0; // Biến dùng để throttle UI (giảm giật lag giao diện)
 
     const readSlice = (start, end) => {
         return new Promise((resolve, reject) => {
@@ -1265,27 +1273,20 @@ async function sendFileInChunks(file, conn) {
 
     try {
         while (offset < file.size) {
-            if (!isTransferring) break; 
-            
-            if (!conn || !conn.open) {
-                throw new Error("Mất kết nối với người nhận!");
+            // Kiểm tra trạng thái
+            if (!isTransferring) break;
+            if (!conn || !conn.open) throw new Error("Mất kết nối!");
+
+            // [TỐI ƯU 1] CƠ CHẾ VAN TỰ ĐỘNG
+            // Kiểm tra xem mạng có đang bị nghẽn không?
+            if (conn.dataChannel.bufferedAmount > MAX_BUFFER_THRESHOLD) {
+                 // Nếu nghẽn: Đợi 5ms cho mạng thở rồi kiểm tra lại
+                 // (PC hiếm khi vào đây nếu mạng khỏe, nên tốc độ sẽ rất nhanh)
+                 await new Promise(r => setTimeout(r, 5)); 
+                 continue;
             }
 
-            // Kiểm tra áp lực lên thiết bị nhận (Backpressure)
-            // Nếu bộ đệm > 0 (tức là gói tin trước chưa gửi đi hết), ta phải đợi.
-            // Mobile rất dễ bị tồn đọng bộ đệm này.
-            if (conn.dataChannel.bufferedAmount > 0) {
-                // Đợi cho đến khi bộ đệm vơi bớt
-                await new Promise(r => setTimeout(r, 20)); 
-                
-                // Nếu vẫn còn đầy quá (mạng quá yếu), đợi thêm chút nữa
-                if (conn.dataChannel.bufferedAmount > 512 * 1024) { // > 512KB
-                     await new Promise(r => setTimeout(r, 100));
-                }
-                continue; // Thử lại vòng lặp, chưa gửi gói mới vội
-            }
-
-            // Nếu đường thông thoáng, đọc và gửi gói tiếp theo
+            // [TỐI ƯU 2] ĐỌC VÀ GỬI LIÊN TỤC
             const end = Math.min(offset + CHUNK_SIZE, file.size);
             const arrayBuffer = await readSlice(offset, end);
             
@@ -1296,24 +1297,32 @@ async function sendFileInChunks(file, conn) {
 
             offset = end;
             
-            // Cập nhật UI
-            const percent = (offset / file.size) * 100;
-            updateTransferUI(percent, 'Đang gửi...');
+            // [TỐI ƯU 3] UI UPDATE THÔNG MINH
+            // Thay vì đếm gói tin, ta dùng thời gian thực.
+            // Chỉ cập nhật thanh tiến trình mỗi 100ms một lần.
+            // Việc này giúp CPU không phải vẽ lại giao diện liên tục -> Dành sức gửi file.
+            const now = Date.now();
+            if (now - lastUpdateTime > 100 || offset === file.size) {
+                const percent = (offset / file.size) * 100;
+                updateTransferUI(percent, 'Đang gửi...');
+                lastUpdateTime = now;
+            }
             
-            // Nghỉ cực ngắn để UI không bị đơ
-            // Không cần nghỉ lâu vì ta đã có cơ chế check bufferedAmount ở trên
-            await new Promise(r => setTimeout(r, 1)); 
+            // ⚠️ QUAN TRỌNG: Đã loại bỏ hoàn toàn lệnh "setTimeout" vô lý ở cuối vòng lặp.
+            // Nếu mạng khỏe, vòng lặp sẽ chạy max tốc độ của CPU/Disk.
         }
 
         if (isTransferring) {
+            updateTransferUI(100, 'Hoàn tất');
             showToast("✅ Đã gửi xong!");
             resetTransferState();
-            setTimeout(() => { if(conn.open) conn.close(); }, 2000); 
+            // Đóng kết nối an toàn
+            setTimeout(() => { if(conn.open) conn.close(); }, 1000); 
         }
 
     } catch (err) {
         console.error("Lỗi gửi file:", err);
-        showActionModal({ title: "Lỗi đường truyền", desc: "Mất kết nối tới thiết bị. Hãy thử lại!", type: 'alert' });
+        showActionModal({ title: "Lỗi đường truyền", desc: "Mất kết nối. Vui lòng thử lại!", type: 'alert' });
         resetTransferState();
     }
 }
