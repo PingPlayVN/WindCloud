@@ -1055,6 +1055,8 @@ function exportPalette() {
 // ==============================================
 // --- APP: WIND DROP PRO (TRUE P2P - WebRTC) ---
 // ==============================================
+const isMyDeviceMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const myDeviceType = isMyDeviceMobile ? 'mobile' : 'pc';
 
 let myPeer = null;
 let myPeerId = sessionStorage.getItem('wind_peer_id');
@@ -1141,7 +1143,6 @@ function setupIncomingConnection(conn) {
                 return;
             }
 
-            // Lưu thông tin file sắp nhận
             window.incomingFileMeta = data;
             
             showActionModal({
@@ -1149,11 +1150,14 @@ function setupIncomingConnection(conn) {
                 desc: `${data.fileName}\n📦 Kích thước: ${formatSize(data.fileSize)}`,
                 type: 'confirm',
                 onConfirm: () => {
-                    // Chấp nhận
-                    conn.send({ type: 'ack', status: 'ok' });
-                    startTransferUI(data.fileName, 'receiving');
+                    // [QUAN TRỌNG] Gửi kèm loại thiết bị của mình cho người gửi biết đường điều chỉnh
+                    conn.send({ 
+                        type: 'ack', 
+                        status: 'ok',
+                        deviceType: myDeviceType // 'mobile' hoặc 'pc'
+                    });
                     
-                    // Khởi tạo bộ nhớ đệm
+                    startTransferUI(data.fileName, 'receiving');
                     activeConnection = conn;
                     isTransferring = true;
                     incomingChunks = [];
@@ -1162,22 +1166,14 @@ function setupIncomingConnection(conn) {
             });
         }
         
-        // 2. Nhận MẢNH FILE (Chunk)
+        // ... (Các phần xử lý chunk và cancel giữ nguyên như cũ) ...
         else if (data.type === 'chunk') {
-            incomingChunks.push(data.data); // data.data là ArrayBuffer
+            incomingChunks.push(data.data);
             receivedSize += data.data.byteLength;
-            
-            // Cập nhật UI
             const percent = (receivedSize / window.incomingFileMeta.fileSize) * 100;
             updateTransferUI(percent, 'Đang tải xuống...');
-
-            // Nếu đã nhận đủ
-            if (receivedSize >= window.incomingFileMeta.fileSize) {
-                finishDownload();
-            }
+            if (receivedSize >= window.incomingFileMeta.fileSize) finishDownload();
         }
-        
-        // 3. Xử lý Lệnh HỦY từ phía gửi
         else if (data.type === 'cancel') {
             showToast("❌ Người gửi đã hủy chuyển tệp!");
             resetTransferState();
@@ -1192,20 +1188,17 @@ function setupIncomingConnection(conn) {
     });
 }
 
-// --- NGƯỜI GỬI (SENDER LOGIC - CHUNKING) ---
+// --- NGƯỜI GỬI (SENDER LOGIC) ---
 function uploadFileP2P(file, targetPeerId) {
     if (!myPeer) return;
     if (isTransferring) {
-        showToast("⚠️ Đang chuyển tệp khác, vui lòng đợi!");
+        showToast("⚠️ Đang bận chuyển tệp khác!");
         return;
     }
 
     showToast(`Đang kết nối tới ${targetPeerId}...`);
-    
-    // [CẬP NHẬT] Thêm reliable: true để ổn định hơn trên Mobile
-    const conn = myPeer.connect(targetPeerId, {
-        reliable: true 
-    });
+    // Dùng reliable: true để ổn định
+    const conn = myPeer.connect(targetPeerId, { reliable: true });
 
     conn.on('open', () => {
         const safeType = file.type || 'application/octet-stream';
@@ -1223,7 +1216,14 @@ function uploadFileP2P(file, targetPeerId) {
                 activeConnection = conn;
                 isTransferring = true;
                 startTransferUI(file.name, 'sending');
-                sendFileInChunks(file, conn);
+                
+                // [QUAN TRỌNG] Lấy loại thiết bị của người nhận (mặc định là mobile cho an toàn nếu không có)
+                const receiverType = response.deviceType || 'mobile';
+                console.log(`📡 Đang gửi từ [${myDeviceType}] sang [${receiverType}]`);
+
+                // Gọi hàm gửi file với thông tin thiết bị đích
+                sendFileInChunks(file, conn, receiverType);
+
             } else if (response.status === 'busy') {
                 showToast("⚠️ Đối phương đang bận!");
                 conn.close();
@@ -1238,29 +1238,46 @@ function uploadFileP2P(file, targetPeerId) {
         }
     });
     
-    // Thêm bắt lỗi khi kết nối chết bất ngờ
     conn.on('close', () => {
-        if(isTransferring) {
-            console.log("Kết nối bị đóng đột ngột");
-            // Không reset ngay để tránh nháy UI nếu nó tự reconnect
-        }
+        if(isTransferring) console.log("Kết nối đóng.");
     });
 }
 
-// Hàm cắt file và gửi tuần tự (Async Loop - Bản Ổn Định Cao)
-async function sendFileInChunks(file, conn) {
+// Hàm cắt file và gửi (Phiên bản Ổn định PC-to-PC)
+async function sendFileInChunks(file, conn, receiverType) {
     let offset = 0;
-    const CHUNK_SIZE = 64 * 1024; // 64KB là chuẩn vàng của WebRTC
-    
-    // [TỰ ĐỘNG NHẬN DIỆN THIẾT BỊ]
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    // CẤU HÌNH BỘ ĐỆM (BUFFER):
-    // - PC: Cho phép đệm tới 8MB (Tốc độ bàn thờ)
-    // - Mobile: Giới hạn 1MB (An toàn tuyệt đối)
-    const MAX_BUFFER_THRESHOLD = isMobile ? 1 * 1024 * 1024 : 8 * 1024 * 1024; 
+    const CHUNK_SIZE = 64 * 1024; // 64KB chuẩn vàng
+    let chunkCounter = 0; 
+    let lastUpdateTime = 0;
 
-    let lastUpdateTime = 0; // Biến dùng để throttle UI (giảm giật lag giao diện)
+    // --- CẤU HÌNH TỐC ĐỘ (ĐÃ TINH CHỈNH) ---
+    let maxBufferThreshold; 
+    let throttleInterval;   
+    let sleepTime;          
+
+    if (myDeviceType === 'pc' && receiverType === 'pc') {
+        // [SCENARIO 1: PC -> PC] (Đã Fix lỗi mất kết nối)
+        // Giảm bộ đệm xuống 8MB (thay vì 16MB) để tránh sốc mạng
+        maxBufferThreshold = 8 * 1024 * 1024; 
+        
+        // [QUAN TRỌNG] Không được để = 0. Phải cho nghỉ để duy trì kết nối.
+        // Cứ gửi 100 gói (6.4MB) thì nghỉ 1ms. 
+        // 1ms không làm chậm tốc độ nhưng đủ để CPU xử lý tín hiệu ngầm.
+        throttleInterval = 100; 
+        sleepTime = 1;
+    } 
+    else if (myDeviceType === 'pc' && receiverType === 'mobile') {
+        // [SCENARIO 2: PC -> Mobile] Chậm lại để bảo vệ điện thoại
+        maxBufferThreshold = 2 * 1024 * 1024; 
+        throttleInterval = 10; // 10 gói...
+        sleepTime = 20;        // ...nghỉ 20ms
+    } 
+    else {
+        // [SCENARIO 3: Mobile -> Mobile / Mobile -> PC]
+        maxBufferThreshold = 4 * 1024 * 1024; 
+        throttleInterval = 50; 
+        sleepTime = 5;         
+    }
 
     const readSlice = (start, end) => {
         return new Promise((resolve, reject) => {
@@ -1273,56 +1290,53 @@ async function sendFileInChunks(file, conn) {
 
     try {
         while (offset < file.size) {
-            // Kiểm tra trạng thái
             if (!isTransferring) break;
             if (!conn || !conn.open) throw new Error("Mất kết nối!");
 
-            // [TỐI ƯU 1] CƠ CHẾ VAN TỰ ĐỘNG
-            // Kiểm tra xem mạng có đang bị nghẽn không?
-            if (conn.dataChannel.bufferedAmount > MAX_BUFFER_THRESHOLD) {
-                 // Nếu nghẽn: Đợi 5ms cho mạng thở rồi kiểm tra lại
-                 // (PC hiếm khi vào đây nếu mạng khỏe, nên tốc độ sẽ rất nhanh)
-                 await new Promise(r => setTimeout(r, 5)); 
+            // 1. BACKPRESSURE: Kiểm tra "ống nước"
+            if (conn.dataChannel.bufferedAmount > maxBufferThreshold) {
+                 await new Promise(r => setTimeout(r, 5)); // Đợi ngắn hơn chút (5ms)
                  continue;
             }
 
-            // [TỐI ƯU 2] ĐỌC VÀ GỬI LIÊN TỤC
             const end = Math.min(offset + CHUNK_SIZE, file.size);
             const arrayBuffer = await readSlice(offset, end);
             
-            conn.send({
-                type: 'chunk',
-                data: arrayBuffer
-            });
+            try {
+                conn.send({ type: 'chunk', data: arrayBuffer });
+            } catch (e) {
+                console.warn("Lỗi gửi gói tin, đang thử lại...", e);
+                await new Promise(r => setTimeout(r, 100)); // Đợi xíu rồi thử lại vòng sau
+                continue; 
+            }
 
             offset = end;
+            chunkCounter++;
             
-            // [TỐI ƯU 3] UI UPDATE THÔNG MINH
-            // Thay vì đếm gói tin, ta dùng thời gian thực.
-            // Chỉ cập nhật thanh tiến trình mỗi 100ms một lần.
-            // Việc này giúp CPU không phải vẽ lại giao diện liên tục -> Dành sức gửi file.
+            // 2. THROTTLING CHỦ ĐỘNG (Bắt buộc cho mọi thiết bị)
+            if (throttleInterval > 0 && chunkCounter % throttleInterval === 0) {
+                await new Promise(r => setTimeout(r, sleepTime)); 
+            }
+
+            // 3. UI UPDATE (Throttle update để giảm tải CPU)
             const now = Date.now();
             if (now - lastUpdateTime > 100 || offset === file.size) {
                 const percent = (offset / file.size) * 100;
                 updateTransferUI(percent, 'Đang gửi...');
                 lastUpdateTime = now;
             }
-            
-            // ⚠️ QUAN TRỌNG: Đã loại bỏ hoàn toàn lệnh "setTimeout" vô lý ở cuối vòng lặp.
-            // Nếu mạng khỏe, vòng lặp sẽ chạy max tốc độ của CPU/Disk.
         }
 
         if (isTransferring) {
             updateTransferUI(100, 'Hoàn tất');
             showToast("✅ Đã gửi xong!");
             resetTransferState();
-            // Đóng kết nối an toàn
             setTimeout(() => { if(conn.open) conn.close(); }, 1000); 
         }
 
     } catch (err) {
         console.error("Lỗi gửi file:", err);
-        showActionModal({ title: "Lỗi đường truyền", desc: "Mất kết nối. Vui lòng thử lại!", type: 'alert' });
+        showActionModal({ title: "Lỗi đường truyền", desc: "Kết nối bị gián đoạn.", type: 'alert' });
         resetTransferState();
     }
 }
