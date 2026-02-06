@@ -475,13 +475,34 @@ window.openContextItem = function() {
 
 // --- MEDIA MODAL ---
 function openMedia(id, type, title) {
+    // Tìm vị trí hiện tại của item trong danh sách đã lọc
+    const currentIndex = processedData.findIndex(item => item.id === id);
+    
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
     content.innerHTML = '';
     content.className = 'modal-content'; 
+    
+    // --- [THÊM MỚI] Xử lý class riêng cho từng loại file ---
     if (type === 'doc') content.classList.add('view-doc');
+    if (type === 'image') content.classList.add('view-image');
 
     modal.style.display = 'flex';
+    
+    // Nút Next/Prev Logic
+    let navBtns = '';
+    if (type === 'image' && currentIndex !== -1) {
+        const prevItem = processedData[currentIndex - 1];
+        const nextItem = processedData[currentIndex + 1];
+        
+        if (prevItem && prevItem.type === 'image') {
+            navBtns += `<button class="nav-btn prev" onclick="event.stopPropagation(); openMedia('${prevItem.id}', 'image', '${prevItem.title}')">❮</button>`;
+        }
+        if (nextItem && nextItem.type === 'image') {
+            navBtns += `<button class="nav-btn next" onclick="event.stopPropagation(); openMedia('${nextItem.id}', 'image', '${nextItem.title}')">❯</button>`;
+        }
+    }
+
     content.innerHTML = `
         <div class="media-window">
             <div class="media-header">
@@ -489,6 +510,7 @@ function openMedia(id, type, title) {
                 <button class="btn-close-media" onclick="document.getElementById('mediaModal').style.display='none'">✕</button>
             </div>
             <div class="media-body">
+                ${navBtns}
                 ${type === 'image' 
                     ? `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" class="media-content loaded">`
                     : `<iframe src="https://drive.google.com/file/d/${id}/preview" class="media-content loaded" allow="autoplay"></iframe>`
