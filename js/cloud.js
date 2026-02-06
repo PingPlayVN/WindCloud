@@ -19,8 +19,30 @@ function handleImgError(img) {
     img.style.padding = "20px";
 }
 
+function renderSkeleton() {
+    const grid = document.getElementById('grid');
+    if(!grid) return;
+    let html = '';
+    // Tạo giả 12 cái thẻ skeleton
+    for(let i=0; i<12; i++) {
+        html += `
+        <div class="card skeleton-card">
+            <div class="thumb-box skeleton" style="height:150px; width:100%"></div>
+            <div class="card-footer" style="gap:10px">
+                <div class="skeleton" style="width:30px; height:30px; border-radius:50%"></div>
+                <div class="skeleton" style="height:15px; width:60%; border-radius:4px"></div>
+            </div>
+        </div>`;
+    }
+    grid.innerHTML = html;
+}
+
+// [FIX] Gọi Skeleton NGAY LẬP TỨC khi file JS chạy (để lấp đầy màn hình lúc chờ mạng)
+renderSkeleton();
+
 // --- DATA FETCHING ---
 db.ref('videos').on('value', (snapshot) => {
+    // Không gọi renderSkeleton() ở đây nữa vì lúc này đã có dữ liệu rồi
     allData = [];
     dataMap = {}; 
     snapshot.forEach(child => {
@@ -63,53 +85,75 @@ function updateDataPipeline() {
 
     processedData = filtered;
     renderLimit = 24; 
-    renderGrid();     
+    renderGrid(false); // false = Reset (vẽ lại từ đầu)
 }
 
-function renderGrid() {
+// Hàm sinh HTML cho từng item (Tách ra để tái sử dụng)
+function generateItemHTML(data) {
+    const isFolder = data.type === 'folder';
+    let icon = isFolder ? '📁' : (data.type === 'image' ? '📷' : (data.type === 'doc' ? '📄' : '📦'));
+    const thumbUrl = !isFolder ? `https://drive.google.com/thumbnail?id=${data.id}&sz=w400` : '';
+    let thumbContent = '';
+    
+    if (isFolder) {
+        thumbContent = `<div class="folder-icon">📁</div>`;
+    } else if (data.type === 'other') {
+        thumbContent = `<div style="font-size:40px">📦</div>`; 
+    } else {
+        thumbContent = `<img src="${thumbUrl}" loading="lazy" decoding="async" onerror="handleImgError(this)">`;
+    }
+
+    const downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
+    const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
+    const downloadBtn = !isFolder ? `<a href="${downloadLink}" class="btn-download" title="Tải xuống" target="_blank" onclick="event.stopPropagation()">${downloadIcon}</a>` : '';
+    const playOverlay = (!isFolder && data.type === 'video') ? `<div class="play-overlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>` : '';
+
+    return `
+        <div class="card ${isFolder ? 'is-folder' : ''}" 
+             oncontextmenu="showContextMenu(event, '${data.key}', true)"
+             onclick="handleClick('${data.key}', '${data.type}', '${data.id}')">
+            <div class="thumb-box">${thumbContent}${playOverlay}</div>
+            <div class="card-footer">
+                <div class="file-info">
+                    ${!isFolder ? `<span style="margin-right:5px">${icon}</span>` : ''}
+                    <span class="file-name" title="${data.title}">${data.title}</span>
+                </div>
+                ${downloadBtn}
+            </div>
+        </div>
+    `;
+}
+
+// [TỐI ƯU HIỆU NĂNG] Render Grid thông minh
+function renderGrid(append = false) {
     const grid = document.getElementById('grid');
+    
+    // Xử lý trường hợp trống
     if (processedData.length === 0) {
         let msg = currentSearchTerm ? `Không tìm thấy "${currentSearchTerm}"` : "Thư mục trống";
         grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:var(--text-sub); margin-top:50px;">${msg}</p>`;
         return;
     }
 
-    const itemsToRender = processedData.slice(0, renderLimit);
-    const htmlBuffer = itemsToRender.map(data => {
-        const isFolder = data.type === 'folder';
-        let icon = isFolder ? '📁' : (data.type === 'image' ? '📷' : (data.type === 'doc' ? '📄' : '📦'));
-        const thumbUrl = !isFolder ? `https://drive.google.com/thumbnail?id=${data.id}&sz=w400` : '';
-        let thumbContent = '';
-        
-        if (isFolder) {
-            thumbContent = `<div class="folder-icon">📁</div>`;
-        } else if (data.type === 'other') {
-            thumbContent = `<div style="font-size:40px">📦</div>`; 
-        } else {
-            thumbContent = `<img src="${thumbUrl}" loading="lazy" decoding="async" onerror="handleImgError(this)">`;
-        }
+    // Xác định khoảng item cần vẽ
+    // Nếu append=true (cuộn trang), bắt đầu từ số lượng hiện có. 
+    // Nếu reset (lọc/search), bắt đầu từ 0.
+    const startIndex = append ? document.querySelectorAll('.media-grid .card').length : 0;
+    const itemsToRender = processedData.slice(startIndex, renderLimit);
 
-        const downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
-        const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
-        const downloadBtn = !isFolder ? `<a href="${downloadLink}" class="btn-download" title="Tải xuống" target="_blank" onclick="event.stopPropagation()">${downloadIcon}</a>` : '';
-        const playOverlay = (!isFolder && data.type === 'video') ? `<div class="play-overlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>` : '';
+    // Nếu không có gì mới để vẽ thì thôi
+    if (itemsToRender.length === 0) return;
 
-        return `
-            <div class="card ${isFolder ? 'is-folder' : ''}" 
-                 oncontextmenu="showContextMenu(event, '${data.key}', true)"
-                 onclick="handleClick('${data.key}', '${data.type}', '${data.id}')">
-                <div class="thumb-box">${thumbContent}${playOverlay}</div>
-                <div class="card-footer">
-                    <div class="file-info">
-                        ${!isFolder ? `<span style="margin-right:5px">${icon}</span>` : ''}
-                        <span class="file-name" title="${data.title}">${data.title}</span>
-                    </div>
-                    ${downloadBtn}
-                </div>
-            </div>
-        `;
-    }).join('');
-    grid.innerHTML = htmlBuffer;
+    // Tạo chuỗi HTML
+    const htmlBuffer = itemsToRender.map(data => generateItemHTML(data)).join('');
+
+    if (append) {
+        // Cách mới: Chỉ chèn thêm vào cuối, không vẽ lại cái cũ
+        grid.insertAdjacentHTML('beforeend', htmlBuffer);
+    } else {
+        // Cách cũ: Vẽ lại từ đầu (Dùng khi chuyển tab, search...)
+        grid.innerHTML = htmlBuffer;
+    }
 }
 
 // --- VIEW & SCROLL ---
@@ -117,7 +161,8 @@ window.initViewMode = function() {
     const savedMode = localStorage.getItem('viewMode');
     if (savedMode === 'list') {
         currentViewMode = 'list';
-        document.getElementById('grid').classList.add('list-view');
+        const grid = document.getElementById('grid');
+        if(grid) grid.classList.add('list-view');
         const btn = document.getElementById('viewBtn');
         if(btn) btn.innerText = '▦';
     }
@@ -140,9 +185,12 @@ window.toggleViewMode = function() {
     }
 }
 
+// [TỐI ƯU] Sự kiện cuộn trang
 window.addEventListener('scroll', () => {
-    if (renderLimit < processedData.length && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-        renderLimit += 24; renderGrid();      
+    // Chỉ tải thêm khi cuộn gần đáy và còn dữ liệu chưa hiển thị
+    if (renderLimit < processedData.length && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 300) {
+        renderLimit += 24; 
+        renderGrid(true); // true = Chế độ Append (Gắn thêm)
     }
 });
 
@@ -253,14 +301,15 @@ window.showContextMenu = function(e, key, isItem) {
     const menuWidth = 260; 
     const menuHeight = contextMenu.offsetHeight || 300; 
 
+    // Logic thông minh: Mở menu lên trên nếu sát đáy
     if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
-    if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 10;
+    if (top + menuHeight > window.innerHeight) top = e.clientY - menuHeight; // Mở ngược lên
 
     contextMenu.style.top = `${top}px`;
     contextMenu.style.left = `${left}px`;
 }
 
-// --- ADMIN ACTIONS (Fix biến window.isAdmin) ---
+// --- ADMIN ACTIONS ---
 
 window.editLinkUI = function() {
     if (!window.isAdmin) return window.showToast("Cần quyền Admin!");

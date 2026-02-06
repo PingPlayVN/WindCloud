@@ -249,3 +249,25 @@ if (savedTheme === 'dark') {
     const cb = document.getElementById('theme-checkbox');
     if(cb) cb.checked = true;
 }
+
+// --- 7. PWA REGISTRATION ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then((reg) => {
+                console.log('PWA Service Worker đã đăng ký!', reg.scope);
+            })
+            .catch((err) => {
+                console.log('Lỗi đăng ký PWA:', err);
+            });
+    });
+}
+
+// Bắt sự kiện cài đặt để hiển thị nút cài đặt (nếu muốn làm nâng cao sau này)
+window.deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.deferredPrompt = e;
+    // Sau này có thể hiện nút "Cài đặt ứng dụng" và gọi window.deferredPrompt.prompt()
+    console.log("App sẵn sàng để cài đặt!");
+});
