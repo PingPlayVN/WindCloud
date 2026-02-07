@@ -9,6 +9,7 @@ let isTransferring = false;
 let activeConnection = null;
 let incomingChunks = [];
 let receivedSize = 0;
+let currentWriter = null;
 
 if (!myPeerId) {
     myPeerId = 'wind_' + Math.floor(Math.random() * 9000 + 1000); 
@@ -275,7 +276,6 @@ async function sendFileInChunks(file, conn, receiverType) {
 }
 
 function setupIncomingConnection(conn) {
-    // [FIX 3] Gán activeConnection ngay khi có người kết nối tới
     activeConnection = conn;
 
     conn.on('data', (data) => {
@@ -288,50 +288,66 @@ function setupIncomingConnection(conn) {
                 type: 'confirm',
                 onConfirm: () => {
                     isTransferring = true;
-                    // Gán lại lần nữa cho chắc chắn khi bắt đầu nhận
                     activeConnection = conn; 
                     conn.send({ type: 'ack', status: 'ok', deviceType: myDeviceType });
                     
                     document.getElementById('transfer-panel').style.display = 'block';
                     document.getElementById('tf-filename').innerText = data.fileName;
-                    incomingChunks = [];
+                    
+                    // [NÂNG CẤP] Khởi tạo StreamSaver thay vì mảng Array
+                    // Tạo luồng ghi trực tiếp xuống ổ cứng
+                    const fileStream = streamSaver.createWriteStream(data.fileName, {
+                        size: data.fileSize // Khai báo kích thước để hiện thanh tiến độ trình duyệt
+                    });
+                    
+                    // Lấy writer để ghi dữ liệu sau này
+                    window.currentWriter = fileStream.getWriter();
                     receivedSize = 0;
                 }
             });
             
         } else if (data.type === 'chunk') {
-            // Nếu đã bị hủy thì không nhận thêm
-            if (!isTransferring) return; 
+            if (!isTransferring || !window.currentWriter) return; 
 
-            incomingChunks.push(data.data);
+            // [NÂNG CẤP] Ghi thẳng vào ổ cứng, không lưu RAM
+            // data.data là ArrayBuffer, cần chuyển thành Uint8Array để ghi
+            window.currentWriter.write(new Uint8Array(data.data));
+            
             receivedSize += data.data.byteLength;
             
+            // Cập nhật giao diện (Giữ nguyên logic cũ)
             const percent = (receivedSize / window.incomingMeta.fileSize) * 100;
             updateTransferUI(percent, 'Đang nhận...');
 
+            // Khi nhận xong
             if(receivedSize >= window.incomingMeta.fileSize) {
-                const blob = new Blob(incomingChunks, { type: window.incomingMeta.fileType });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = window.incomingMeta.fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                // Đóng luồng ghi file
+                if (window.currentWriter) {
+                    window.currentWriter.close();
+                    window.currentWriter = null;
+                }
                 
                 resetTransferState();
-                window.showToast("Đã tải xong!");
+                window.showToast("Đã lưu file thành công!");
             }
         } else if (data.type === 'cancel') {
-            // [FIX 4] Xử lý khi người gửi bấm Hủy
             window.showToast("⛔ Người gửi đã hủy chuyển tệp.");
+            // Nếu hủy giữa chừng, đóng writer và báo lỗi cho trình duyệt biết
+            if (window.currentWriter) {
+                window.currentWriter.abort("Người gửi đã hủy");
+                window.currentWriter = null;
+            }
             resetTransferState();
         }
     });
 
     conn.on('close', () => {
         if (isTransferring) {
-            // Chỉ thông báo lỗi nếu đang chuyển mà bị ngắt, 
-            // còn nếu đã xong hoặc đã hủy thì bỏ qua
+            window.showToast("Mất kết nối!");
+            if (window.currentWriter) {
+                window.currentWriter.close(); // Hoặc .abort() tùy ý
+                window.currentWriter = null;
+            }
             resetTransferState();
         }
     });
@@ -345,8 +361,10 @@ function updateTransferUI(percent, text) {
 function resetTransferState() {
     isTransferring = false;
     activeConnection = null;
-    incomingChunks = [];
+    // Không còn incomingChunks nữa
     receivedSize = 0;
+    window.currentWriter = null; // Reset writer
+    
     const panel = document.getElementById('transfer-panel');
     if(panel) panel.style.display = 'none';
 }
