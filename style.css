@@ -1386,11 +1386,41 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; bo
         width: 90%; z-index: 100; margin: 0;
         box-shadow: 0 5px 20px rgba(0,0,0,0.3);
     }
+    
+    /* ✅ NEW: Better mobile transfer panel */
+    .transfer-info {
+        padding: 12px;
+        flex: 1;
+    }
+    
+    .tf-icon { font-size: 28px; }
+    
+    .progress-track { height: 4px; }
+    
+    .btn-cancel-transfer { 
+        padding: 8px 16px;
+        font-size: 13px;
+        border-radius: 16px;
+    }
 }
 
-/* Thêm vào cuối file style.css */
+/* ✅ NEW: Ultra-small screens (iPhone 12 mini, small Android) */
+@media (max-width: 375px) {
+    .drop-header h1 { font-size: 1.5rem; }
+    .drop-header p { font-size: 12px; }
+    
+    .radar-zone { width: 250px; height: 250px; }
+    .my-device-center { width: 60px; height: 60px; font-size: 12px; }
+    
+    .peer-user { width: 60px; }
+    .peer-icon { width: 42px; height: 42px; font-size: 18px; }
+    .peer-user span { font-size: 9px; padding: 2px 4px; max-width: 60px; }
+    
+    #transfer-panel { width: 95%; bottom: 10px; }
+}
+
+/* Giới hạn độ dài tên trên mobile để không bị tràn */
 @media (max-width: 600px) {
-    /* Giới hạn độ dài tên trên mobile để không bị tràn */
     .peer-user span {
         max-width: 70px; /* Giới hạn chiều rộng tên */
         font-size: 10px; /* Chữ nhỏ lại chút */
