@@ -9,7 +9,6 @@ let isTransferring = false;
 let activeConnection = null;
 let incomingChunks = [];
 let receivedSize = 0;
-let currentWriter = null;
 
 if (!myPeerId) {
     myPeerId = 'wind_' + Math.floor(Math.random() * 9000 + 1000); 
@@ -190,98 +189,76 @@ function uploadFileP2P(file, targetPeerId) {
     });
 }
 
-// --- THUẬT TOÁN ADAPTIVE CHUNKING ---
 async function sendFileInChunks(file, conn, receiverType) {
     let offset = 0;
-    
-    // Cấu hình thuật toán thích ứng
-    let chunkSize = 64 * 1024; // Khởi điểm: 64KB
-    const MAX_CHUNK_SIZE = 1024 * 1024; // Tối đa: 1MB (Tăng tốc độ mạng LAN)
-    const MIN_CHUNK_SIZE = 16 * 1024;   // Tối thiểu: 16KB (Cho mạng yếu)
-    
-    // Cấu hình bộ đệm (Backpressure)
-    // Mobile RAM yếu nên giữ buffer thấp hơn PC
-    const MAX_BUFFERED_AMOUNT = (receiverType === 'mobile' || myDeviceType === 'mobile') 
-        ? 8 * 1024 * 1024  // 8MB cho Mobile
-        : 16 * 1024 * 1024; // 16MB cho PC
-
+    const CHUNK = 64 * 1024; // Chunk 64KB (Kích thước chuẩn tối ưu cho PeerJS)
     let lastUpdateTime = 0;
-    let lastChunkDuration = 0;
 
-    // Thiết lập ngưỡng báo động thấp cho WebRTC
+    // 1. Cấu hình High Water Mark (Ngưỡng tràn bộ nhớ đệm)
+    // Tăng giới hạn bộ đệm lên cao hơn để tận dụng tốc độ mạng LAN/Wifi 5GHz
+    let highWaterMark = 16 * 1024 * 1024; // PC: 16MB buffer
+
+    if (myDeviceType === 'mobile' || receiverType === 'mobile') {
+        // Mobile bộ nhớ ít hơn, giảm buffer xuống để tránh crash trình duyệt
+        highWaterMark = 16 * 1024 * 1024; // Mobile: 8MB buffer
+    }
+
+    // Thiết lập ngưỡng thấp: Khi buffer giảm xuống mức này, sự kiện sẽ được kích hoạt để gửi tiếp
     try {
         if (conn.dataChannel) {
             conn.dataChannel.bufferedAmountLowThreshold = 65536; // 64KB
         }
-    } catch (e) { console.warn("Browser not support bufferedAmountLowThreshold"); }
+    } catch (e) {
+        console.warn("Trình duyệt không hỗ trợ bufferedAmountLowThreshold", e);
+    }
 
     try {
-        const fileReader = new FileReader(); // Dùng FileReader tái sử dụng để giảm GC (Garbage Collection)
-
         while (offset < file.size) {
+            // Kiểm tra xem người dùng có hủy hoặc mất kết nối không
             if (!isTransferring || !conn.open) break;
 
-            // 1. BACKPRESSURE: Kiểm soát dòng chảy
-            // Nếu "ống nước" đang đầy, hãy chờ nó rút bớt nước
-            if (conn.dataChannel.bufferedAmount > MAX_BUFFERED_AMOUNT) {
+            // 2. BACKPRESSURE CONTROL (Kiểm soát tốc độ thông minh)
+            // Nếu hàng đợi đang đầy quá ngưỡng, dừng lại chờ nó vơi bớt
+            if (conn.dataChannel.bufferedAmount > highWaterMark) {
                 await new Promise(resolve => {
                     const onLow = () => {
                         conn.dataChannel.removeEventListener('bufferedamountlow', onLow);
                         resolve();
                     };
                     conn.dataChannel.addEventListener('bufferedamountlow', onLow);
-                    // Fallback: Nếu mạng lag không báo event, tự check lại sau 500ms
+                    
+                    // Fallback an toàn: Nếu mạng bị lag và sự kiện không nổ sau 1s, tự động check lại
+                    // Giúp tránh tình trạng treo tiến trình mãi mãi
                     setTimeout(() => {
                         conn.dataChannel.removeEventListener('bufferedamountlow', onLow);
                         resolve();
-                    }, 500);
+                    }, 800); 
                 });
             }
 
-            // 2. CHUẨN BỊ DỮ LIỆU
-            const chunkStartTime = Date.now();
-            const slice = file.slice(offset, offset + chunkSize);
+            // 3. Đọc file và Gửi
+            const slice = file.slice(offset, offset + CHUNK);
             const buffer = await slice.arrayBuffer();
-
-            // 3. GỬI DỮ LIỆU
+            
             try {
                 conn.send({ type: 'chunk', data: buffer });
             } catch (err) {
-                console.warn("Lỗi gửi chunk, thử lại...", err);
-                // Nếu lỗi, giảm ngay size gói tin và thử lại vòng sau (không tăng offset)
-                chunkSize = Math.max(MIN_CHUNK_SIZE, chunkSize / 2);
-                await new Promise(r => setTimeout(r, 500)); // Nghỉ 1 chút
-                continue; 
+                console.warn("Lỗi gửi chunk (có thể do mất kết nối):", err);
+                break;
             }
 
-            // 4. THUẬT TOÁN THÍCH ỨNG (ADAPTIVE LOGIC)
-            const chunkEndTime = Date.now();
-            const duration = chunkEndTime - chunkStartTime;
+            offset += CHUNK;
 
-            // Nếu gửi quá nhanh (< 50ms) -> Mạng tốt -> Tăng size để gửi được nhiều hơn
-            if (duration < 50 && chunkSize < MAX_CHUNK_SIZE) {
-                chunkSize *= 2; 
-                // console.log("🚀 Tăng tốc độ: Gói tin lên " + chunkSize/1024 + "KB");
-            }
-            // Nếu gửi quá chậm (> 200ms) -> Mạng nghẽn -> Giảm size để gói tin đi mượt hơn
-            else if (duration > 200 && chunkSize > MIN_CHUNK_SIZE) {
-                chunkSize = Math.ceil(chunkSize / 2);
-                // console.log("🐢 Mạng chậm: Giảm gói tin xuống " + chunkSize/1024 + "KB");
-            }
-
-            // 5. CẬP NHẬT TIẾN TRÌNH
-            offset += buffer.byteLength; // Dùng byteLength thực tế
-            
-            // Chỉ update UI mỗi 100ms để đỡ lag Main Thread
-            if (chunkEndTime - lastUpdateTime > 100 || offset >= file.size) {
+            // 4. Cập nhật UI (Throttle)
+            // Chỉ cập nhật UI mỗi 100ms để dành CPU cho việc gửi file
+            const now = Date.now();
+            if (now - lastUpdateTime > 100 || offset >= file.size) {
                 const percent = (offset / file.size) * 100;
-                // Tính tốc độ truyền (MB/s) - Optional
-                // const speed = (chunkSize / duration) * 1000 / 1024 / 1024; 
+                updateTransferUI(percent, 'Đang gửi...');
+                lastUpdateTime = now;
                 
-                updateTransferUI(percent, `Đang gửi...`); 
-                lastUpdateTime = chunkEndTime;
-                
-                // Nhường thread cho UI vẽ lại (quan trọng)
+                // QUAN TRỌNG: Nhường 1 chút thời gian (0ms) cho Main Thread vẽ lại UI
+                // Giúp thanh tiến trình mượt mà, không bị đơ trình duyệt
                 await new Promise(r => setTimeout(r, 0));
             }
         }
@@ -291,13 +268,14 @@ async function sendFileInChunks(file, conn, receiverType) {
             resetTransferState();
         }
     } catch (e) {
-        console.error("Transfer Critical Error:", e);
-        window.showToast("Lỗi truyền tải: " + e.message);
+        console.error("Transfer Error:", e);
+        window.showToast("Lỗi truyền tải file: " + e.message);
         resetTransferState();
     }
 }
 
 function setupIncomingConnection(conn) {
+    // [FIX 3] Gán activeConnection ngay khi có người kết nối tới
     activeConnection = conn;
 
     conn.on('data', (data) => {
@@ -310,66 +288,50 @@ function setupIncomingConnection(conn) {
                 type: 'confirm',
                 onConfirm: () => {
                     isTransferring = true;
+                    // Gán lại lần nữa cho chắc chắn khi bắt đầu nhận
                     activeConnection = conn; 
                     conn.send({ type: 'ack', status: 'ok', deviceType: myDeviceType });
                     
                     document.getElementById('transfer-panel').style.display = 'block';
                     document.getElementById('tf-filename').innerText = data.fileName;
-                    
-                    // [NÂNG CẤP] Khởi tạo StreamSaver thay vì mảng Array
-                    // Tạo luồng ghi trực tiếp xuống ổ cứng
-                    const fileStream = streamSaver.createWriteStream(data.fileName, {
-                        size: data.fileSize // Khai báo kích thước để hiện thanh tiến độ trình duyệt
-                    });
-                    
-                    // Lấy writer để ghi dữ liệu sau này
-                    window.currentWriter = fileStream.getWriter();
+                    incomingChunks = [];
                     receivedSize = 0;
                 }
             });
             
         } else if (data.type === 'chunk') {
-            if (!isTransferring || !window.currentWriter) return; 
+            // Nếu đã bị hủy thì không nhận thêm
+            if (!isTransferring) return; 
 
-            // [NÂNG CẤP] Ghi thẳng vào ổ cứng, không lưu RAM
-            // data.data là ArrayBuffer, cần chuyển thành Uint8Array để ghi
-            window.currentWriter.write(new Uint8Array(data.data));
-            
+            incomingChunks.push(data.data);
             receivedSize += data.data.byteLength;
             
-            // Cập nhật giao diện (Giữ nguyên logic cũ)
             const percent = (receivedSize / window.incomingMeta.fileSize) * 100;
             updateTransferUI(percent, 'Đang nhận...');
 
-            // Khi nhận xong
             if(receivedSize >= window.incomingMeta.fileSize) {
-                // Đóng luồng ghi file
-                if (window.currentWriter) {
-                    window.currentWriter.close();
-                    window.currentWriter = null;
-                }
+                const blob = new Blob(incomingChunks, { type: window.incomingMeta.fileType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = window.incomingMeta.fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
                 
                 resetTransferState();
-                window.showToast("Đã lưu file thành công!");
+                window.showToast("Đã tải xong!");
             }
         } else if (data.type === 'cancel') {
+            // [FIX 4] Xử lý khi người gửi bấm Hủy
             window.showToast("⛔ Người gửi đã hủy chuyển tệp.");
-            // Nếu hủy giữa chừng, đóng writer và báo lỗi cho trình duyệt biết
-            if (window.currentWriter) {
-                window.currentWriter.abort("Người gửi đã hủy");
-                window.currentWriter = null;
-            }
             resetTransferState();
         }
     });
 
     conn.on('close', () => {
         if (isTransferring) {
-            window.showToast("Mất kết nối!");
-            if (window.currentWriter) {
-                window.currentWriter.close(); // Hoặc .abort() tùy ý
-                window.currentWriter = null;
-            }
+            // Chỉ thông báo lỗi nếu đang chuyển mà bị ngắt, 
+            // còn nếu đã xong hoặc đã hủy thì bỏ qua
             resetTransferState();
         }
     });
@@ -383,10 +345,8 @@ function updateTransferUI(percent, text) {
 function resetTransferState() {
     isTransferring = false;
     activeConnection = null;
-    // Không còn incomingChunks nữa
+    incomingChunks = [];
     receivedSize = 0;
-    window.currentWriter = null; // Reset writer
-    
     const panel = document.getElementById('transfer-panel');
     if(panel) panel.style.display = 'none';
 }
