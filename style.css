@@ -1670,17 +1670,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; bo
     transform: translateY(0);
 }
 
-.btn-play.secondary { 
-    background:transparent; 
-    border:1px solid var(--border); 
-    color:var(--text-main);
-}
-
-.btn-play.secondary:hover { 
-    background: var(--hover-bg);
-    border-color: var(--primary);
-    color: var(--primary);
-}
+/* removed .btn-play.secondary (no longer used) */
 
 .btn-fullscreen { 
     background: linear-gradient(90deg,var(--primary),#34a853); 
