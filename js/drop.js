@@ -34,6 +34,7 @@ let currentWriter = null;
 let transferTimeoutId = null;
 let lastChunkTime = 0;
 let transferWatchdogInterval = null;
+let progressUpdateInterval = null;  // ✅ UI update timer for smooth progress display
 
 // ✅ TRANSFER QUEUE untuk múltiple files
 let transferQueue = [];
@@ -326,13 +327,15 @@ function announcePresence() {
     try {
         if (window.dropHeartbeatInterval) clearInterval(window.dropHeartbeatInterval);
     } catch (e) {}
+    // ✅ Faster heartbeat on mobile for quicker peer discovery (8s on mobile, 12s on desktop)
+    const heartbeatInterval = isMyDeviceMobile ? 8000 : 12000;
     window.dropHeartbeatInterval = setInterval(() => {
         try {
             userRef.update({ lastSeen: firebase.database.ServerValue.TIMESTAMP });
         } catch (e) {
             console.warn('Heartbeat update failed', e);
         }
-    }, 15000); // every 15s
+    }, heartbeatInterval);
 }
 
 function renderPeers(users) {
@@ -484,33 +487,38 @@ async function uploadFileP2P(file, targetPeerId) {
         console.log('⛔ [Sender] Connection closed');
     });
 
-    // Add a timeout to detect if open never fires
-    setTimeout(() => {
-        if (!conn.open) {
-            console.warn('⚠️ [Sender] Connection still not open after 3s, state:', {
+    // ✅ Connection timeout: if not open after 5s, show error and allow retry
+    let connectionTimeout = setTimeout(() => {
+        if (!conn.open && !metadataSent) {
+            console.warn('⚠️ [Sender] Connection timeout after 5s, state:', {
                 open: conn.open,
                 dataChannel: conn.dataChannel ? conn.dataChannel.readyState : 'none'
             });
+            window.showToast('⏳ Kết nối chậm, đang thử lại...');
+            conn.close();
+            // Retry connection after brief delay
+            setTimeout(() => uploadFileP2P(file, targetPeerId), 500);
         }
-    }, 3000);
+    }, 5000);
 
     conn.on('open', () => {
         console.log('✅ [Sender] Connection OPEN! DataChannel state:', conn.dataChannel?.readyState);
         sendMetadata();
     });
 
-    // Check if already open (event might have fired before handler was attached)
+    // ✅ Check if already open (event might have fired before handler was attached) - faster check (20ms)
     setTimeout(() => {
         if (conn.open && !metadataSent) {
             console.log('⚡ [Sender] Connection was already open, sending metadata now');
             sendMetadata();
         }
-    }, 100);
+    }, 20);
 
     let metadataSent = false;
     function sendMetadata() {
         if (metadataSent) return;
         metadataSent = true;
+        clearTimeout(connectionTimeout); // ✅ Cancel retry timeout since connection succeeded
         const safeType = file.type || 'application/octet-stream';
         console.log('📤 [Sender] Sending metadata:', file.name, file.size);
         conn.send({ 
@@ -813,6 +821,15 @@ function setupIncomingConnection(conn) {
                             resetTransferState();
                         }
                     }, 3000);
+                    
+                    // ✅ Start periodic UI update (even if chunks arrive infrequently)
+                    if (progressUpdateInterval) clearInterval(progressUpdateInterval);
+                    progressUpdateInterval = setInterval(() => {
+                        if (isTransferring && window.incomingMeta && receivedSize > 0) {
+                            const percent = (receivedSize / window.incomingMeta.fileSize) * 100;
+                            updateTransferUI(percent, 'Nhận');
+                        }
+                    }, TRANSFER_CONFIG.UI_UPDATE_INTERVAL);
                 }
             });
             
@@ -922,9 +939,67 @@ function downloadBlobFile(chunks, fileName) {
     }
 }
 
+let transferStartTime = 0;
+let lastTransferUpdate = 0;
+let lastTransferBytes = 0;
+
 function updateTransferUI(percent, text) {
-    document.getElementById('tf-progress').style.width = percent + '%';
-    document.getElementById('tf-status').innerText = `${text} ${Math.floor(percent)}%`;
+    const now = Date.now();
+    
+    // Initialize timing on first call
+    if (!transferStartTime) {
+        transferStartTime = now;
+        lastTransferUpdate = now;
+        lastTransferBytes = 0;
+    }
+    
+    const elapsed = (now - transferStartTime) / 1000; // seconds
+    const progressBar = document.getElementById('tf-progress');
+    const statusEl = document.getElementById('tf-status');
+    
+    if (!progressBar || !statusEl) return;
+    
+    progressBar.style.width = percent + '%';
+    
+    // Calculate speed (bytes/sec)
+    let speedText = '';
+    if (elapsed > 0.5) {
+        const fileSize = window.incomingMeta?.fileSize || receivedSize;
+        const currentBytes = receivedSize;
+        const speed = currentBytes / elapsed;
+        
+        // Format speed
+        if (speed > 1024 * 1024) {
+            speedText = ` @ ${(speed / (1024*1024)).toFixed(1)} MB/s`;
+        } else if (speed > 1024) {
+            speedText = ` @ ${(speed / 1024).toFixed(1)} KB/s`;
+        } else {
+            speedText = ` @ ${speed.toFixed(0)} B/s`;
+        }
+        
+        // Calculate ETA
+        if (percent < 100 && speed > 0) {
+            const remaining = fileSize - currentBytes;
+            const etaSeconds = Math.ceil(remaining / speed);
+            let etaText = '';
+            if (etaSeconds < 60) {
+                etaText = ` - ${etaSeconds}s`;
+            } else {
+                const mins = Math.floor(etaSeconds / 60);
+                const secs = etaSeconds % 60;
+                etaText = ` - ${mins}m${secs}s`;
+            }
+            speedText += etaText;
+        }
+    }
+    
+    statusEl.innerText = `${text} ${Math.floor(percent)}%${speedText}`;
+}
+
+function formatBytes(bytes) {
+    if (bytes > 1024 * 1024) return (bytes / (1024*1024)).toFixed(1) + ' MB';
+    if (bytes > 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return bytes + ' B';
 }
 
 function resetTransferState() {
@@ -932,6 +1007,7 @@ function resetTransferState() {
     activeConnection = null;
     receivedSize = 0;
     window.currentWriter = null;
+    transferStartTime = 0; // Reset timing
     
     // ✅ Clear timeout properly
     if (transferTimeoutId) {
@@ -941,6 +1017,10 @@ function resetTransferState() {
     if (transferWatchdogInterval) {
         clearInterval(transferWatchdogInterval);
         transferWatchdogInterval = null;
+    }
+    if (progressUpdateInterval) {
+        clearInterval(progressUpdateInterval);
+        progressUpdateInterval = null;
     }
     
     const panel = document.getElementById('transfer-panel');
