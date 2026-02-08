@@ -31,6 +31,9 @@
         <li class="menu-item" onclick="switchApp('drop')">
             <span class="icon">📡</span> Wind Drop
         </li>
+        <li class="menu-item" onclick="switchApp('windgame')" id="menu-windgame">
+            <span class="icon">🕹️</span> Wind Game
+        </li>
         <div style="height:1px; background:var(--border); margin:10px 15px;"></div>
 
         <li class="menu-item" id="loginBtn" onclick="showLogin()">
@@ -179,7 +182,25 @@
         </div>
     </div>
 </div>
-    
+
+    <!-- === Wind Game In-App Tab === -->
+    <div id="app-windgame" style="display: none;">
+        <div class="windgame-container">
+            <div class="windgame-header">
+                <h1>🎮 Wind Game</h1>
+                <p>Chọn game từ danh sách dưới đây để chơi. Nhấn "Chơi Ngay" để vào game hoặc "Tab Mới" để chơi trong tab riêng.</p>
+                <div style="margin-top:10px; display:flex; gap:8px;">
+                    <button class="btn-action" onclick="switchApp('cloud')">Quay lại</button>
+                </div>
+            </div>
+
+            <!-- Game cards grid (rendered by js/windgame.js) -->
+            <div class="game-grid" id="windgame-grid">
+                <!-- cards will be injected here -->
+            </div>
+        </div>
+    </div>
+
     <div id="app-drop" style="display: none;">
     <div class="drop-container">
         <div class="drop-header">
@@ -201,6 +222,18 @@
         <div class="drop-status" id="dropStatus">
             Đang quét tìm thiết bị quanh đây...
         </div>
+        
+        <!-- ✅ Connection Status Bar -->
+        <div id="connectionStatus" style="display: none;" class="connection-status">
+            <div class="connection-info">
+                <span id="connStatusText">🔗 Đang kết nối...</span>
+                <span id="connTime">0s</span>
+            </div>
+            <div class="connection-progress">
+                <div class="connection-fill" id="connBar"></div>
+            </div>
+        </div>
+        
         <div id="transfer-panel" style="display: none;">
             <div class="transfer-info">
                 <div class="tf-icon">📂</div>
@@ -368,6 +401,8 @@
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js"></script>
 <script src="js/core.js"></script>
+
+<script src="js/windgame.js"></script>
 
 <script src="js/cloud.js"></script>
 

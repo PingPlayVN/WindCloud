@@ -1348,6 +1348,367 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; bo
     display: inline-block;
 }
 
+/* ✅ Connection Status Bar */
+.connection-status {
+    width: 100%; max-width: 300px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    margin-top: 16px;
+    box-shadow: var(--shadow-md);
+    animation: slideUpFade 0.3s ease-out;
+}
+
+.connection-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-sub);
+    margin-bottom: 10px;
+}
+
+.connection-info #connStatusText {
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.connection-info #connTime {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.connection-progress {
+    width: 100%;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.connection-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #34a853);
+    width: 0%;
+    transition: width 0.2s ease-out;
+    animation: connPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes connPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* --- Wind Game styles --- */
+.windgame-container {
+    width: 100%; max-width: 980px; margin: 20px auto; padding: 16px;
+    background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    animation: slideInContainer 0.5s ease-out;
+}
+
+@keyframes slideInContainer {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.windgame-header h1 { 
+    margin: 0; 
+    font-size: 1.4rem;
+    animation: slideInLeft 0.6s ease-out;
+}
+
+.windgame-header p { 
+    margin: 6px 0 12px 0; 
+    color: var(--text-sub);
+    animation: slideInLeft 0.7s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.windgame-frame-area { 
+    margin-top: 12px; 
+    border-radius: 10px; 
+    overflow: hidden; 
+    border: 1px solid var(--border);
+    animation: fadeInUp 0.6s ease-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.3s ease;
+}
+
+.windgame-frame-area:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.windgame-frame-header { 
+    display:flex; 
+    justify-content:flex-end; 
+    padding:6px; 
+    background: linear-gradient(90deg, rgba(0,0,0,0.02), transparent);
+    animation: slideInDown 0.4s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.windgame-frame-header .btn-close { 
+    background: transparent; 
+    border: none; 
+    font-size: 18px; 
+    cursor:pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.windgame-frame-header .btn-close:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(1.1);
+}
+
+.windgame-frame-area iframe { 
+    width: 100%; 
+    height: 640px; 
+    display:block; 
+    border:0;
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Fullscreen mode styling */
+.windgame-fullscreen-mode {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    z-index: 99999 !important;
+    animation: zoomIn 0.4s ease-out;
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.windgame-fullscreen-mode iframe {
+    height: 100% !important;
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Game grid & cards */
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.game-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: popIn 0.5s ease-out backwards;
+}
+
+/* Staggered animation for cards */
+.game-card:nth-child(1) { animation-delay: 0.05s; }
+.game-card:nth-child(2) { animation-delay: 0.1s; }
+.game-card:nth-child(3) { animation-delay: 0.15s; }
+.game-card:nth-child(4) { animation-delay: 0.2s; }
+.game-card:nth-child(5) { animation-delay: 0.25s; }
+.game-card:nth-child(n+6) { animation-delay: 0.3s; }
+
+@keyframes popIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8) rotateY(-10deg);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) rotateY(0);
+    }
+}
+
+.game-card:hover { 
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary);
+}
+
+.game-thumb { 
+    width:100%; 
+    height:110px; 
+    background:#f3f4f6; 
+    border-radius:8px; 
+    object-fit:cover;
+    transition: transform 0.3s ease;
+}
+
+.game-card:hover .game-thumb {
+    transform: scale(1.05);
+}
+
+.game-title { 
+    font-weight:600; 
+    font-size:14px; 
+    color:var(--text-main);
+    transition: color 0.3s ease;
+}
+
+.game-card:hover .game-title {
+    color: var(--primary);
+}
+
+.game-desc { 
+    font-size:12px; 
+    color:var(--text-sub);
+    transition: color 0.3s ease;
+}
+
+.game-actions { 
+    margin-top:auto; 
+    display:flex; 
+    gap:8px;
+}
+
+.btn-play { 
+    flex:1; 
+    background:var(--primary); 
+    color:white; 
+    border:none; 
+    padding:8px 10px; 
+    border-radius:8px; 
+    cursor:pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-play::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    transition: left 0.3s ease;
+}
+
+.btn-play:hover::before {
+    left: 100%;
+}
+
+.btn-play:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(26, 115, 232, 0.3);
+}
+
+.btn-play:active {
+    transform: translateY(0);
+}
+
+.btn-play.secondary { 
+    background:transparent; 
+    border:1px solid var(--border); 
+    color:var(--text-main);
+}
+
+.btn-play.secondary:hover { 
+    background: var(--hover-bg);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-fullscreen { 
+    background: linear-gradient(90deg,var(--primary),#34a853); 
+    color:white; 
+    border:none; 
+    padding:8px; 
+    border-radius:8px; 
+    cursor:pointer;
+}
+
+.btn-external { 
+    background: #fff; 
+    color: var(--primary); 
+    border:1px solid var(--primary); 
+    padding:8px 10px; 
+    border-radius:8px;
+    transition: all 0.2s ease;
+}
+
+.btn-external:hover { 
+    background: rgba(26,115,232,0.06);
+    transform: translateX(2px);
+}
+
+@media (max-width: 700px) {
+    .windgame-frame-area iframe { height: calc(100vh - 220px); }
+}
+
 /* Transfer Panel (Giữ nguyên logic cũ, chỉ chỉnh lại cho đẹp) */
 #transfer-panel {
     width: 100%; max-width: 420px;
