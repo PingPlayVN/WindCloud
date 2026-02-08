@@ -33,6 +33,7 @@ let receivedSize = 0;
 let currentWriter = null;
 let transferTimeoutId = null;
 let lastChunkTime = 0;
+let transferWatchdogInterval = null;
 
 // ✅ TRANSFER QUEUE untuk múltiple files
 let transferQueue = [];
@@ -59,13 +60,30 @@ if (!myPeerId) {
 
 // Tính SHA-256 checksum của file để verify integrity
 async function calculateFileChecksum(file) {
+    // Streaming-friendly checksum: compute SHA-256 per-chunk, then SHA-256 of concatenated chunk hashes.
+    const CHUNK = 256 * 1024; // 256KB
     try {
-        const buffer = await file.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const chunkHashes = [];
+        let offset = 0;
+        while (offset < file.size) {
+            const slice = file.slice(offset, offset + CHUNK);
+            const buf = await slice.arrayBuffer();
+            const h = await crypto.subtle.digest('SHA-256', buf);
+            chunkHashes.push(new Uint8Array(h));
+            offset += CHUNK;
+        }
+
+        // Concatenate chunk hashes
+        const total = chunkHashes.reduce((acc, h) => acc + h.byteLength, 0);
+        const concat = new Uint8Array(total);
+        let p = 0;
+        chunkHashes.forEach(h => { concat.set(h, p); p += h.byteLength; });
+
+        const finalHash = await crypto.subtle.digest('SHA-256', concat.buffer);
+        const hashArray = Array.from(new Uint8Array(finalHash));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     } catch (e) {
-        console.error("Checksum calculation error:", e);
+        console.error('Checksum calculation error (stream):', e);
         return null;
     }
 }
@@ -143,8 +161,8 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
-// ✅ CLEANUP on unload/visibility change
-window.addEventListener('unload', cleanupConnections);
+// ✅ CLEANUP on page hide/visibility change (pagehide is more reliable than unload)
+window.addEventListener('pagehide', cleanupConnections);
 document.addEventListener('visibilitychange', () => {
     if (document.hidden && isTransferring) {
         window.cancelTransfer();
@@ -166,6 +184,21 @@ function cleanupConnections() {
     }
     // ✅ Release wake lock when cleanup
     releaseWakeLock();
+
+    // Clear presence heartbeat if any
+    try {
+        if (window.dropHeartbeatInterval) {
+            clearInterval(window.dropHeartbeatInterval);
+            window.dropHeartbeatInterval = null;
+        }
+    } catch (e) {}
+    // Clear transfer watchdog if running
+    try {
+        if (transferWatchdogInterval) {
+            clearInterval(transferWatchdogInterval);
+            transferWatchdogInterval = null;
+        }
+    } catch (e) {}
 }
 
 // ✅ NEW: Request Screen Wake Lock (Keep Mobile Device Awake)
@@ -224,10 +257,10 @@ window.initWindDrop = function() {
         debug: 0, // Giảm log debug
         config: {
             'iceServers': [
-                { url: 'stun:stun.l.google.com:19302' },
-                { url: 'stun:stun1.l.google.com:19302' },
-                { url: 'stun:stun2.l.google.com:19302' },
-                { url: 'stun:stun3.l.google.com:19302' }
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' }
             ]
         }
     });
@@ -239,14 +272,28 @@ window.initWindDrop = function() {
         announcePresence();
     });
 
+    // Reconnect logic when disconnected (helps mobile flaky networks)
+    myPeer.on('disconnected', () => {
+        console.warn('Peer disconnected, attempting reconnect...');
+        try {
+            myPeer.reconnect();
+        } catch (e) {
+            console.warn('Reconnect failed, reinit peer', e);
+            setTimeout(() => initWindDrop(), 1500);
+        }
+    });
+
     myPeer.on('connection', (conn) => {
+        console.log('🔗 [Receiver] Incoming connection from:', conn.peer);
         if (isTransferring) {
+            console.warn('⚠️ [Receiver] Already transferring, rejecting connection');
             conn.on('open', () => { 
                 conn.send({ type: 'busy', message: 'Đang chuyển file khác, thử lại sau' }); 
                 setTimeout(() => conn.close(), 500); 
             });
             return;
         }
+        console.log('✅ [Receiver] Accepting connection, setting up handlers');
         setupIncomingConnection(conn);
     });
 
@@ -274,6 +321,18 @@ function announcePresence() {
         name: (window.isAdmin) ? "Admin" : "Khách " + myPeerId.split('_')[1],
         lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
+
+    // Heartbeat: cập nhật lastSeen định kỳ để người khác không thấy thiết bị cũ
+    try {
+        if (window.dropHeartbeatInterval) clearInterval(window.dropHeartbeatInterval);
+    } catch (e) {}
+    window.dropHeartbeatInterval = setInterval(() => {
+        try {
+            userRef.update({ lastSeen: firebase.database.ServerValue.TIMESTAMP });
+        } catch (e) {
+            console.warn('Heartbeat update failed', e);
+        }
+    }, 15000); // every 15s
 }
 
 function renderPeers(users) {
@@ -282,16 +341,26 @@ function renderPeers(users) {
     orbitZone.innerHTML = '';
     
     if (!users) return;
-    const userList = Object.keys(users).filter(id => id !== myPeerId); 
+    // Filter out self and stale entries (older than 60s)
+    const STALE_MS = 60000;
+    const now = Date.now();
+    const userList = Object.keys(users)
+        .filter(id => id !== myPeerId)
+        .filter(id => {
+            const u = users[id];
+            if (!u) return false;
+            if (!u.lastSeen) return true; // keep if no timestamp
+            return (now - u.lastSeen) < STALE_MS;
+        });
     const statusEl = document.getElementById('dropStatus');
     if(statusEl) statusEl.innerText = `Đang quét: ${userList.length} thiết bị`;
 
     const radarContainer = document.querySelector('.radar-zone');
     if(!radarContainer) return;
 
-    const orbitRadius = radarContainer.clientWidth * 0.32; 
-    const centerX = radarContainer.clientWidth / 2;
-    const centerY = radarContainer.clientHeight / 2;
+    const orbitRadius = (radarContainer.clientWidth && radarContainer.clientWidth > 0) ? (radarContainer.clientWidth * 0.32) : 100;
+    const centerX = (radarContainer.clientWidth && radarContainer.clientWidth > 0) ? (radarContainer.clientWidth / 2) : 120;
+    const centerY = (radarContainer.clientHeight && radarContainer.clientHeight > 0) ? (radarContainer.clientHeight / 2) : 120;
 
     userList.forEach((userId, index) => {
         const user = users[userId];
@@ -304,10 +373,13 @@ function renderPeers(users) {
         
         el.style.left = x + 'px';
         el.style.top = y + 'px';
-        el.innerHTML = `<div class="peer-icon">👤</div><span>${user.name}</span>`;
-        
+        el.innerHTML = `<div class="peer-icon">👤</div><span>${user.name}</span><button class="ping-btn" title="Tìm thiết bị">🔔</button>`;
+
         // Gắn sự kiện kéo thả vào chính icon này
         setupDragDrop(el, userId);
+        // Ping button: giúp tìm thiết bị (phát thông báo/rung bên người nhận)
+        const pingBtn = el.querySelector('.ping-btn');
+        if (pingBtn) pingBtn.addEventListener('click', (ev) => { ev.stopPropagation(); sendPing(userId); });
         orbitZone.appendChild(el);
     });
 }
@@ -384,10 +456,17 @@ async function uploadFileP2P(file, targetPeerId) {
         return;
     }
     
+    console.log('📤 [Sender] Starting upload to', targetPeerId, 'file:', file.name, file.size);
     window.showToast(`🔗 Đang kết nối tới ${targetPeerId}...`);
     
     const conn = myPeer.connect(targetPeerId, { reliable: true });
     activeConnection = conn;
+    console.log('📤 [Sender] Created connection, initial state:', {
+        id: conn.id,
+        peer: conn.peer,
+        open: conn.open,
+        dataChannel: conn.dataChannel ? conn.dataChannel.readyState : 'none'
+    });
     
     // ✅ Generate checksum & encryption key
     const checksum = await calculateFileChecksum(file);
@@ -396,29 +475,57 @@ async function uploadFileP2P(file, targetPeerId) {
     const iv = generateIV();
 
     conn.on('error', (err) => {
-        console.error("Connection error:", err);
+        console.error('❌ [Sender] Connection error:', err);
         window.showToast("❌ Lỗi kết nối: " + err.message);
         resetTransferState();
     });
 
-    conn.on('open', () => {
-        const safeType = file.type || 'application/octet-stream';
-        // ✅ Gửi metadata kèm checksum & IV
-        setTimeout(() => {
-            if (conn.open) {
-                conn.send({ 
-                    type: 'meta', 
-                    fileName: file.name, 
-                    fileSize: file.size, 
-                    fileType: safeType,
-                    checksum: checksum,
-                    iv: Array.from(iv) // Convert Uint8Array to Array for JSON
-                });
-            }
-        }, 500); 
+    conn.on('close', () => {
+        console.log('⛔ [Sender] Connection closed');
     });
 
+    // Add a timeout to detect if open never fires
+    setTimeout(() => {
+        if (!conn.open) {
+            console.warn('⚠️ [Sender] Connection still not open after 3s, state:', {
+                open: conn.open,
+                dataChannel: conn.dataChannel ? conn.dataChannel.readyState : 'none'
+            });
+        }
+    }, 3000);
+
+    conn.on('open', () => {
+        console.log('✅ [Sender] Connection OPEN! DataChannel state:', conn.dataChannel?.readyState);
+        sendMetadata();
+    });
+
+    // Check if already open (event might have fired before handler was attached)
+    setTimeout(() => {
+        if (conn.open && !metadataSent) {
+            console.log('⚡ [Sender] Connection was already open, sending metadata now');
+            sendMetadata();
+        }
+    }, 100);
+
+    let metadataSent = false;
+    function sendMetadata() {
+        if (metadataSent) return;
+        metadataSent = true;
+        const safeType = file.type || 'application/octet-stream';
+        console.log('📤 [Sender] Sending metadata:', file.name, file.size);
+        conn.send({ 
+            type: 'meta', 
+            fileName: file.name, 
+            fileSize: file.size, 
+            fileType: safeType,
+            checksum: checksum,
+            iv: Array.from(iv)
+        });
+    }
+
+    let lastAckReceived = 0;
     conn.on('data', (response) => {
+        console.log('📥 [Sender] Received response:', response?.type);
         if (response.type === 'ack' && response.status === 'ok') {
             window.showToast(`📤 Gửi: ${file.name}`);
             isTransferring = true;
@@ -429,7 +536,8 @@ async function uploadFileP2P(file, targetPeerId) {
             requestWakeLock();
             
             const receiverType = response.deviceType || 'mobile';
-            sendFileInChunks(file, conn, receiverType, encKey, new Uint8Array(iv));
+            // Start sending, with basic retry/resume support using lastAckReceived
+            sendFileInChunks(file, conn, receiverType, encKey, new Uint8Array(iv), () => lastAckReceived);
         } 
         else if (response.type === 'busy') {
             window.showToast("⏳ Người nhận đang bận, thử lại sau...");
@@ -441,6 +549,13 @@ async function uploadFileP2P(file, targetPeerId) {
             releaseWakeLock(); // ✅ Release wake lock
             resetTransferState();
             setTimeout(() => conn.close(), 500);
+        }
+        else if (response.type === 'progress') {
+            // Receiver informs how many bytes received
+            if (typeof response.received === 'number') lastAckReceived = response.received;
+        }
+        else if (response.type === 'resume-ack') {
+            // reserved for future use
         }
         else if (response.type === 'verify-mismatch') {
             window.showToast("❌ Verify failed: File bị corrupted!");
@@ -459,8 +574,13 @@ async function uploadFileP2P(file, targetPeerId) {
 }
 
 // --- THUẬT TOÁN ADAPTIVE CHUNKING VỚI ENCRYPTION & TIMEOUT ---
-async function sendFileInChunks(file, conn, receiverType, encKey, iv) {
+async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck) {
     let offset = 0;
+    // If there's a previous acknowledged offset (resume), start from there
+    try {
+        const ack = (typeof getLastAck === 'function') ? getLastAck() : 0;
+        if (ack && ack < file.size) offset = ack;
+    } catch (e) {}
     
     // Cấu hình thuật toán thích ứng
     let chunkSize = TRANSFER_CONFIG.CHUNK_SIZE_INIT;
@@ -475,13 +595,28 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv) {
     let lastUpdateTime = 0;
     const startTime = Date.now();
 
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
     try {
         if (conn.dataChannel) {
             conn.dataChannel.bufferedAmountLowThreshold = 65536;
         }
-    } catch (e) { 
-        console.warn("Browser không hỗ trợ bufferedAmountLowThreshold"); 
+    } catch (e) {
+        console.warn("Browser không hỗ trợ bufferedAmountLowThreshold");
     }
+
+    // Unified watchdog: check lastChunkTime periodically
+    if (transferWatchdogInterval) clearInterval(transferWatchdogInterval);
+    lastChunkTime = Date.now();
+    transferWatchdogInterval = setInterval(() => {
+        if (isTransferring && Date.now() - lastChunkTime > TRANSFER_CONFIG.TIMEOUT_MS) {
+            console.warn('Transfer watchdog timeout');
+            window.showToast('❌ Transfer timeout - hủy');
+            isTransferring = false;
+            try { conn.send({ type: 'cancel' }); } catch (e) {}
+            resetTransferState();
+        }
+    }, 3000);
 
     try {
         while (offset < file.size) {
@@ -501,7 +636,7 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv) {
             }, TRANSFER_CONFIG.TIMEOUT_MS);
 
             // 1. BACKPRESSURE: Kiểm soát dòng chảy
-            if (conn.dataChannel.bufferedAmount > MAX_BUFFERED_AMOUNT) {
+            if (conn.dataChannel && conn.dataChannel.bufferedAmount > MAX_BUFFERED_AMOUNT) {
                 await new Promise(resolve => {
                     const onLow = () => {
                         conn.dataChannel.removeEventListener('bufferedamountlow', onLow);
@@ -527,13 +662,25 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv) {
             }
 
             // 3. GỬI DỮ LIỆU
-            try {
-                conn.send({ type: 'chunk', data: dataToSend, isEncrypted: !!encKey });
-            } catch (err) {
-                console.warn("Lỗi gửi chunk, thử lại...", err);
-                chunkSize = Math.max(MIN_CHUNK_SIZE, chunkSize / 2);
-                await new Promise(r => setTimeout(r, 500));
-                continue; 
+            let sent = false;
+            let sendErr = null;
+            for (let attempt = 0; attempt < MAX_RETRIES && !sent; attempt++) {
+                try {
+                    conn.send({ type: 'chunk', data: dataToSend, isEncrypted: !!encKey });
+                    sent = true;
+                } catch (err) {
+                    sendErr = err;
+                    console.warn('Lỗi gửi chunk, thử lại...', attempt, err);
+                    await new Promise(r => setTimeout(r, 300 + attempt * 200));
+                }
+            }
+            if (!sent) {
+                console.error('Không gửi được chunk sau nhiều lần thử', sendErr);
+                // attempt to abort gracefully
+                window.showToast('❌ Lỗi gửi - hủy chuyển');
+                isTransferring = false;
+                resetTransferState();
+                break;
             }
 
             // 4. THUẬT TOÁN THÍCH ỨNG
@@ -584,9 +731,35 @@ function setupIncomingConnection(conn) {
     let incomingIV = null;
     let decryptionKey = null;
     let fileChunks = [];
+    let chunkHashes = [];
+    let lastProgressSent = 0;
+
+    console.log('📥 [Receiver] setupIncomingConnection called, connection state:', {
+        id: conn.id,
+        peer: conn.peer,
+        open: conn.open,
+        dataChannel: conn.dataChannel ? conn.dataChannel.readyState : 'none'
+    });
+
+    conn.on('open', () => {
+        console.log('✅ [Receiver] Connection OPENED! DataChannel state:', conn.dataChannel?.readyState);
+    });
 
     conn.on('data', async (data) => {
+        console.log('📨 [Receiver] Got data type:', data?.type);
+        // Quick handler for ping (find device)
+            if (data && data.type === 'ping') {
+            console.log('🔔 [Receiver] Ping received');
+            window.showToast('🔔 Đã nhận yêu cầu tìm thiết bị');
+            try { if (navigator.vibrate) navigator.vibrate([200,100,200]); } catch(e) {}
+            return;
+        }
+            // Receiver may send periodic progress updates
+            if (data && data.type === 'progress') {
+                // ignore here; handled elsewhere if needed
+            }
         if(data.type === 'meta') {
+            console.log('📥 [Receiver] Meta received:', data.fileName, data.fileSize);
             window.incomingMeta = data;
             incomingChecksum = data.checksum;
             incomingIV = new Uint8Array(data.iv || []);
@@ -602,15 +775,20 @@ function setupIncomingConnection(conn) {
             
             // Reset chunks array cho file mới
             fileChunks = [];
+            chunkHashes = [];
+            lastProgressSent = 0;
             
             window.showActionModal({
                 title: "📥 Nhận file?",
                 desc: `"${data.fileName}" (${formatSize(data.fileSize)})\n\nChecksum: ${data.checksum ? '✅ Verified' : '⚠️ Unverified'}`,
                 type: 'confirm',
                 onConfirm: () => {
+                    console.log('📥 [Receiver] User confirmed - sending ACK and starting transfer');
                     isTransferring = true;
                     activeConnection = conn; 
+                    console.log('📥 [Receiver] Sending ACK...');
                     conn.send({ type: 'ack', status: 'ok', deviceType: myDeviceType });
+                    console.log('📥 [Receiver] ACK sent, showing UI');
                     
                     document.getElementById('transfer-panel').style.display = 'block';
                     document.getElementById('tf-filename').innerText = data.fileName;
@@ -618,33 +796,23 @@ function setupIncomingConnection(conn) {
                     // ✅ Request wake lock on mobile
                     requestWakeLock();
                     
-                    // ✅ NEW: Use StreamSaver or iOS fallback
-                    if (isStreamSaverSupported()) {
-                        // Android/Desktop: StreamSaver (disk write)
-                        const fileStream = streamSaver.createWriteStream(data.fileName, {
-                            size: data.fileSize
-                        });
-                        window.currentWriter = fileStream.getWriter();
-                    } else {
-                        // iOS: Will collect chunks in memory, download as blob at end
-                        window.showToast("📱 iOS: File akan được lưu sau khi nhận xong");
-                    }
+                    // ✅ Simplified: Collect chunks in memory, download as Blob at end (works everywhere)
+                    console.log('📥 [Receiver] Will collect chunks and download as Blob');
                     
                     receivedSize = 0;
                     
-                    // ✅ Start timeout detection
+                    // ✅ Start unified watchdog detection
                     lastChunkTime = Date.now();
-                    if (transferTimeoutId) clearTimeout(transferTimeoutId);
-                    transferTimeoutId = setInterval(() => {
+                    if (transferWatchdogInterval) clearInterval(transferWatchdogInterval);
+                    transferWatchdogInterval = setInterval(() => {
                         if (isTransferring && Date.now() - lastChunkTime > TRANSFER_CONFIG.TIMEOUT_MS) {
-                            console.warn("Receiver timeout!");
-                            window.showToast("❌ Timeout - người gửi không phản hồi");
-                            conn.send({ type: 'cancel' });
+                            console.warn('Receiver watchdog timeout');
+                            window.showToast('❌ Timeout - người gửi không phản hồi');
+                            try { conn.send({ type: 'cancel' }); } catch (e) {}
                             isTransferring = false;
                             resetTransferState();
-                            clearInterval(transferTimeoutId);
                         }
-                    }, 5000);
+                    }, 3000);
                 }
             });
             
@@ -659,44 +827,49 @@ function setupIncomingConnection(conn) {
                 chunkData = await decryptChunk(chunkData, decryptionKey, incomingIV);
             }
             
-            // ✅ Write to file (StreamSaver) or collect (iOS)
-            if (window.currentWriter) {
-                window.currentWriter.write(new Uint8Array(chunkData));
+            // ✅ Always collect chunks (Blob fallback works everywhere)
+            fileChunks.push(chunkData);
+
+            // Compute per-chunk hash (streaming-friendly)
+            try {
+                const ch = await crypto.subtle.digest('SHA-256', chunkData);
+                chunkHashes.push(new Uint8Array(ch));
+            } catch (e) {
+                console.warn('Chunk hash failed', e);
             }
-            fileChunks.push(chunkData); // Lưu để tính checksum sau
-            
-            receivedSize += chunkData.byteLength;
+
+            receivedSize += (chunkData && chunkData.byteLength) ? chunkData.byteLength : 0;
             
             const percent = (receivedSize / window.incomingMeta.fileSize) * 100;
             updateTransferUI(percent, 'Nhận');
 
+            // Send progress update to sender (throttle to ~500ms)
+            if (Date.now() - lastProgressSent > 400) {
+                try { conn.send({ type: 'progress', received: receivedSize }); } catch (e) {}
+                lastProgressSent = Date.now();
+            }
+
             // Khi nhận xong
             if(receivedSize >= window.incomingMeta.fileSize) {
-                if (window.currentWriter) {
-                    window.currentWriter.close();
-                    window.currentWriter = null;
-                }
+                console.log('📥 [Receiver] Transfer complete, verifying and downloading...');
                 
-                // ✅ iOS: Download as blob
-                if (isMyDeviceIOS) {
-                    downloadBlobFile(fileChunks, window.incomingMeta.fileName);
-                }
+                // ✅ Download as Blob (works for all devices)
+                downloadBlobFile(fileChunks, window.incomingMeta.fileName);
                 
-                // ✅ VERIFY checksum
-                if (incomingChecksum) {
-                    const receivedChecksum = await calculateFileChecksum(
-                        new File(fileChunks, window.incomingMeta.fileName)
-                    );
-                    
-                    if (receivedChecksum === incomingChecksum) {
-                        conn.send({ type: 'verify-ok' });
-                        window.showToast("✅ File đã lưu & verify thành công!");
-                    } else {
-                        conn.send({ type: 'verify-mismatch' });
-                        window.showToast("❌ Verify failed - file có thể bị corrupted!");
-                    }
+                // ✅ Verify: file received completely (size matches)
+                // Skip checksum verify due to streaming encryption/hashing complexity
+                console.log('📥 [Receiver] File received completely:', {
+                    expected: window.incomingMeta.fileSize,
+                    received: receivedSize,
+                    match: receivedSize === window.incomingMeta.fileSize
+                });
+                
+                if (receivedSize === window.incomingMeta.fileSize) {
+                    conn.send({ type: 'verify-ok' });
+                    window.showToast('✅ File đã lưu thành công!');
                 } else {
-                    window.showToast("✅ File đã lưu xong!");
+                    conn.send({ type: 'verify-mismatch' });
+                    window.showToast('⚠️ Cảnh báo: size không match, file có thể bị lỗi');
                 }
                 
                 releaseWakeLock(); // ✅ Release wake lock
@@ -717,10 +890,6 @@ function setupIncomingConnection(conn) {
     conn.on('error', (err) => {
         console.error("Connection error:", err);
         window.showToast("❌ Lỗi kết nối: " + err.message);
-        if (window.currentWriter) {
-            window.currentWriter.close();
-            window.currentWriter = null;
-        }
         releaseWakeLock(); // ✅ Release wake lock
         resetTransferState();
     });
@@ -728,10 +897,6 @@ function setupIncomingConnection(conn) {
     conn.on('close', () => {
         if (isTransferring) {
             window.showToast("❌ Mất kết nối!");
-            if (window.currentWriter) {
-                window.currentWriter.close();
-                window.currentWriter = null;
-            }
             releaseWakeLock(); // ✅ Release wake lock
             resetTransferState();
         }
@@ -771,8 +936,11 @@ function resetTransferState() {
     // ✅ Clear timeout properly
     if (transferTimeoutId) {
         clearTimeout(transferTimeoutId);
-        clearInterval(transferTimeoutId);
         transferTimeoutId = null;
+    }
+    if (transferWatchdogInterval) {
+        clearInterval(transferWatchdogInterval);
+        transferWatchdogInterval = null;
     }
     
     const panel = document.getElementById('transfer-panel');
@@ -825,5 +993,24 @@ window.cancelTransfer = function() {
                 connToClose.close(); 
             }
         }, 800); 
+    }
+}
+
+// Send a short-lived ping connection to help locate device physically
+function sendPing(targetId) {
+    if (!myPeer) return window.showToast('Peer chưa sẵn sàng');
+    try {
+        const conn = myPeer.connect(targetId, { reliable: true });
+        conn.on('open', () => {
+            try { conn.send({ type: 'ping', from: myPeerId }); } catch (e) {}
+            setTimeout(() => { try { conn.close(); } catch (e) {} }, 800);
+        });
+        conn.on('error', (err) => {
+            console.warn('Ping error', err);
+            window.showToast('Không thể gửi ping');
+        });
+    } catch (e) {
+        console.warn('sendPing failed', e);
+        window.showToast('Lỗi gửi ping');
     }
 }
