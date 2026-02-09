@@ -603,96 +603,71 @@ window.openContextItem = function() {
 }
 
 // --- MEDIA MODAL ---
+// Properly close media modal
 window.closeMedia = function() {
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
-    
-    const sourceItem = dataMap[window.appClipboard.id];
-    if (!sourceItem) return;
+    if (modal) modal.style.display = 'none';
+    if (content) content.innerHTML = '';
+    // reset any global index
+    window.currentMediaIndex = -1;
+}
 
-    // Prevent pasting into a descendant of source (would create cycle)
-    if (sourceItem.type === 'folder') {
-        const descendants = getDescendantIds(sourceItem.key);
-        if (descendants.includes(window.currentFolderId)) return window.showToast("Không thể dán vào thư mục con của chính nó!");
+// Open media viewer modal for image/video/docs
+window.openMedia = function(id, type, title) {
+    const modal = document.getElementById('mediaModal');
+    const content = document.getElementById('modalContent');
+    if (!modal || !content) return;
+
+    // find index in processedData for navigation
+    let index = -1;
+    for (let i = 0; i < processedData.length; i++) {
+        if (processedData[i].id === id) { index = i; break; }
     }
+    window.currentMediaIndex = index;
 
-    // CUT: simple update
-    if (window.appClipboard.action === 'cut') {
-        const updates = {
-            parentId: window.currentFolderId,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        };
-        if (sourceItem.type === 'folder') updates.tabCategory = currentTab;
-        else updates.type = currentTab;
-        return db.ref('videos/' + window.appClipboard.id).update(updates)
-            .then(() => {
-                window.showToast("Đã di chuyển");
-                window.appClipboard = { action: null, id: null };
-            }).catch(err => window.showToast("Lỗi khi di chuyển"));
-    }
-
-    // COPY: handle files and folders
-    if (window.appClipboard.action === 'copy') {
-        if (sourceItem.type === 'folder') {
-            // deep copy entire folder tree under currentFolderId
-            deepCopyFolder(sourceItem.key, window.currentFolderId)
-                .then(() => window.showToast("Đã dán thư mục (bản sao)"))
-                .catch(() => window.showToast("Lỗi khi dán thư mục"));
-        } else {
-            // file copy: duplicate entry with unique name
-            const newTitle = generateUniqueName(sourceItem.title || 'File', window.currentFolderId);
-            const newItem = Object.assign({}, sourceItem, {
-                title: newTitle,
-                parentId: window.currentFolderId,
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                type: currentTab
-            });
-            delete newItem.key;
-            db.ref('videos').push(newItem).then(() => window.showToast("Đã dán bản sao"))
-                .catch(() => window.showToast("Lỗi khi dán"));
-        }
-    }
-    if (type === 'image') content.classList.add('view-image');
-
-    modal.style.display = 'flex';
-    
-    // Logic nút Next/Prev
+    // Logic nút Next/Prev (only for images)
     let navBtns = '';
-    if (type === 'image' && currentIndex !== -1) {
-        const prevItem = processedData[currentIndex - 1];
-        const nextItem = processedData[currentIndex + 1];
-        
+    if (type === 'image' && index !== -1) {
+        const prevItem = processedData[index - 1];
+        const nextItem = processedData[index + 1];
         if (prevItem && prevItem.type === 'image') {
-            navBtns += `<button class="nav-btn prev" onclick="event.stopPropagation(); openMedia('${prevItem.id}', 'image', '${prevItem.title}')">❮</button>`;
+            navBtns += `<button class="nav-btn prev" onclick="event.stopPropagation(); openMedia('${prevItem.id}', 'image', '${prevItem.title.replace(/'/g, "\\'")}')">❮</button>`;
         }
         if (nextItem && nextItem.type === 'image') {
-            navBtns += `<button class="nav-btn next" onclick="event.stopPropagation(); openMedia('${nextItem.id}', 'image', '${nextItem.title}')">❯</button>`;
+            navBtns += `<button class="nav-btn next" onclick="event.stopPropagation(); openMedia('${nextItem.id}', 'image', '${nextItem.title.replace(/'/g, "\\'")}')">❯</button>`;
         }
     }
 
-    // Render HTML - Nút X gọi hàm closeMedia()
+    // choose content
+    let bodyHtml = '';
+    if (type === 'image') {
+        bodyHtml = `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" class="media-content loaded">`;
+    } else {
+        bodyHtml = `<iframe 
+               src="https://drive.google.com/file/d/${id}/preview" 
+               class="media-content loaded" 
+               allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
+               allowfullscreen 
+               webkitallowfullscreen 
+               mozallowfullscreen></iframe>`;
+    }
+
+    // Render modal
     content.innerHTML = `
         <div class="media-window">
             <div class="media-header">
-                <h3 class="media-title">${title}</h3>
+                <h3 class="media-title">${(title||'Viewer').replace(/</g,'&lt;')}</h3>
                 <button class="btn-close-media" onclick="closeMedia()">✕</button>
             </div>
             <div class="media-body">
                 ${navBtns}
-                ${type === 'image' 
-                    ? `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" class="media-content loaded">`
-                    : `<iframe 
-    		           src="https://drive.google.com/file/d/${id}/preview" 
-    			   class="media-content loaded" 
-    			   allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
-    			   allowfullscreen 
-    			   webkitallowfullscreen 
-    			   mozallowfullscreen>
-		       </iframe>`
-                }
+                ${bodyHtml}
             </div>
         </div>
     `;
+
+    modal.style.display = 'flex';
 }
 
 // --- ADMIN TOOL INPUT ---
