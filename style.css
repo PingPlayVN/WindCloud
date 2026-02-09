@@ -540,6 +540,11 @@ input[type="text"]:focus, input[type="password"]:focus {
     animation: zoomIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Hạn chế chiều cao tổng để header luôn hiển thị và tránh tràn */
+.media-window {
+    max-height: 90vh;
+}
+
 @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 /* Thanh tiêu đề */
@@ -548,6 +553,13 @@ input[type="text"]:focus, input[type="password"]:focus {
     padding: 12px 16px;
     background: rgba(255,255,255,0.05);
     border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Đảm bảo header luôn hiển thị trên desktop (header sẽ bị override trên mobile) */
+.media-header {
+    position: sticky;
+    top: 0;
+    z-index: 60;
 }
 
 .media-title {
@@ -576,10 +588,20 @@ input[type="text"]:focus, input[type="password"]:focus {
     display: flex; justify-content: center; align-items: center;
 }
 
+/* Giữ phần nội dung có thể cuộn bên trong, tránh tràn ra ngoài modal */
+.media-body {
+    max-height: calc(90vh - 64px);
+    overflow: auto;
+}
+
 /* Nội dung (Iframe/Img) */
 .media-content {
     width: 100%; height: 100%;
     border: none; object-fit: contain;
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    margin: 0 auto;
     opacity: 0; transition: opacity 0.5s ease; /* Fade in khi tải xong */
 }
 .media-content.loaded { opacity: 1; }
@@ -607,6 +629,31 @@ input[type="text"]:focus, input[type="password"]:focus {
 .modal-content.view-doc .media-body {
     aspect-ratio: auto; /* Bỏ tỷ lệ 16:9 */
     flex: 1; /* Chiếm hết chiều cao còn lại */
+}
+
+/* Khi xem tài liệu/ảnh: đảm bảo phần body không tràn và nội dung co vừa */
+.modal-content.view-doc .media-body {
+    max-height: calc(90vh - 64px);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ảnh đứng/nhỏ: co lại vừa trong vùng xem */
+.modal-content.view-doc .media-body img.media-content {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Iframe (Google Drive preview): chiếm hết vùng .media-body và có thể cuộn */
+.modal-content.view-doc .media-body iframe.media-content {
+    width: 100%;
+    height: 100%;
+    border: none;
 }
 
 /* --- MOBILE RESPONSIVE --- */
