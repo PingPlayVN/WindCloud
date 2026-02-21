@@ -222,7 +222,15 @@ window.handleClick = function(key, type, driveId) {
         } else {
             updateDataPipeline();
         }
+    } else if (type === 'other') {
+        // [ĐÃ SỬA]: Chặn hiển thị cửa sổ preview đối với tab "File khác" (other)
+        // Cách 1: Không làm gì cả khi click (chỉ dùng nút tải xuống trên thẻ)
+        return; 
+        
+        // Cách 2 (Khuyến nghị): Click vào file sẽ tự động mở tab tải xuống/xem link gốc
+        // window.open(`https://drive.google.com/uc?export=download&id=${driveId}`, '_blank');
     } else {
+        // Vẫn giữ preview cho ảnh, video, tài liệu
         const item = dataMap[key];
         openMedia(driveId, type, item ? item.title : 'Viewer');
     }
