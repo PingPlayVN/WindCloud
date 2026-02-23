@@ -92,18 +92,23 @@ function updateDataPipeline() {
 function generateItemHTML(data) {
     const isFolder = data.type === 'folder';
     let icon = isFolder ? '📁' : (data.type === 'image' ? '📷' : (data.type === 'doc' ? '📄' : '📦'));
-    const thumbUrl = !isFolder ? `https://drive.google.com/thumbnail?id=${data.id}&sz=w400` : '';
+    
+    // Nhận diện file không phải từ Google Drive (Direct URL)
+    const isDirectLink = data.source === 'dropbox' || (data.id && String(data.id).startsWith('http'));
+    
+    const thumbUrl = (!isFolder && !isDirectLink) ? `https://drive.google.com/thumbnail?id=${data.id}&sz=w400` : '';
     let thumbContent = '';
     
     if (isFolder) {
         thumbContent = `<div class="folder-icon">📁</div>`;
-    } else if (data.type === 'other') {
+    } else if (data.type === 'other' || isDirectLink) {
         thumbContent = `<div style="font-size:40px">📦</div>`; 
     } else {
         thumbContent = `<img src="${thumbUrl}" loading="lazy" decoding="async" onerror="handleImgError(this)">`;
     }
 
-    const downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
+    // Phân luồng link tải dựa theo source
+    const downloadLink = isDirectLink ? data.id : `https://drive.google.com/uc?export=download&id=${data.id}`;
     const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
     const downloadBtn = !isFolder ? `<a href="${downloadLink}" class="btn-download" title="Tải xuống" target="_blank" onclick="event.stopPropagation()">${downloadIcon}</a>` : '';
     const playOverlay = (!isFolder && data.type === 'video') ? `<div class="play-overlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>` : '';
@@ -601,7 +606,9 @@ window.pasteItem = function() {
 window.downloadItem = function() {
     const item = dataMap[contextTargetId];
     if (item && item.type !== 'folder') {
-        window.open(`https://drive.google.com/uc?export=download&id=${item.id}`, '_blank');
+        const isDirectLink = item.source === 'dropbox' || String(item.id).startsWith('http');
+        const link = isDirectLink ? item.id : `https://drive.google.com/uc?export=download&id=${item.id}`;
+        window.open(link, '_blank');
     }
 }
 
@@ -692,20 +699,33 @@ window.toggleAdminTool = function() {
 window.addToCloud = function() {
     if (!window.isAdmin) return;
     const url = document.getElementById('mediaUrl').value;
-    const id = window.extractFileId(url);
-    const title = document.getElementById('mediaTitle').value || ("File " + id?.substring(0,5));
-    if (id) {
+    const extractedIdOrUrl = window.extractFileId(url);
+    
+    // KIỂM TRA NGHIỆP VỤ: Chỉ cho phép Dropbox ở tab "File khác" (other)
+    const isDropbox = url.includes('dropbox.com');
+    if (isDropbox && currentTab !== 'other') {
+        return window.showToast("❌ Link Dropbox chỉ được hỗ trợ trong mục 'File khác'!");
+    }
+
+    // Xử lý title mặc định cho Dropbox
+    const title = document.getElementById('mediaTitle').value || ("File " + (isDropbox ? "Dropbox" : extractedIdOrUrl?.substring(0,5)));
+    
+    if (extractedIdOrUrl) {
         db.ref('videos').push({
-            id: id, title: title, type: currentTab, 
+            id: extractedIdOrUrl, 
+            title: title, 
+            type: currentTab, 
             parentId: window.currentFolderId, 
-            timestamp: firebase.database.ServerValue.TIMESTAMP
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            // Thêm trường 'source' để quy hoạch kiến trúc (sẵn sàng mở rộng cho OneDrive/S3 sau này)
+            source: isDropbox ? 'dropbox' : 'drive' 
         });
         document.getElementById('mediaUrl').value = '';
         document.getElementById('mediaTitle').value = '';
         toggleAdminTool();
-        window.showToast("Thêm tệp thành công!"); 
+        window.showToast("✅ Thêm tệp thành công!"); 
     } else {
-        window.showToast("Link không hợp lệ");
+        window.showToast("❌ Link không hợp lệ");
     }
 }
 
