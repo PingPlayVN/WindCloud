@@ -336,24 +336,55 @@ window.goToWindGameTab = function() {
     console.log('Wind Game tab is now active');
 }
 
-// --- 7. PWA REGISTRATION ---
+// --- 7. PWA REGISTRATION (VỚI TỰ ĐỘNG CẬP NHẬT CACHE) ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
             .then((reg) => {
                 console.log('PWA Service Worker đã đăng ký!', reg.scope);
+
+                // Lắng nghe sự kiện khi trình duyệt tải về một file sw.js mới (Có bản update)
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    
+                    newWorker.addEventListener('statechange', () => {
+                        // Khi Service Worker mới đã tải xong và đang trong trạng thái chờ (waiting)
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            
+                            // Gọi Modal thông báo cho người dùng
+                            window.showActionModal({
+                                title: "🚀 Cập nhật phiên bản mới",
+                                desc: "Hệ thống vừa có bản vá lỗi và tính năng mới. Bấm 'Đồng ý' để làm mới ứng dụng ngay!",
+                                type: 'confirm',
+                                onConfirm: () => {
+                                    // Gửi lệnh ép Service Worker mới kích hoạt
+                                    newWorker.postMessage('SKIP_WAITING');
+                                }
+                            });
+                        }
+                    });
+                });
             })
             .catch((err) => {
                 console.log('Lỗi đăng ký PWA:', err);
             });
+
+        // Sự kiện này bùng nổ khi Service Worker mới (vừa skipWaiting ở trên) chính thức nắm quyền
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                refreshing = true;
+                // Tự động tải lại trang để nạp toàn bộ code CSS/JS mới từ Cache mới
+                window.location.reload();
+            }
+        });
     });
 }
 
-// Bắt sự kiện cài đặt để hiển thị nút cài đặt (nếu muốn làm nâng cao sau này)
+// Bắt sự kiện cài đặt để hiển thị nút cài đặt
 window.deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     window.deferredPrompt = e;
-    // Sau này có thể hiện nút "Cài đặt ứng dụng" và gọi window.deferredPrompt.prompt()
     console.log("App sẵn sàng để cài đặt!");
 });
