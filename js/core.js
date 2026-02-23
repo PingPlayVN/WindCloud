@@ -62,10 +62,14 @@ window.showToast = function(msg) {
 window.extractFileId = function(url) {
     if (!url) return null;
     
-    // Bổ sung hỗ trợ Dropbox: Trả về trực tiếp URL đã được format để tải thẳng
+    // Xử lý Dropbox
     if (url.includes('dropbox.com')) {
-        // Mẹo tối ưu (Best Practice): Thay thế dl=0 thành dl=1 để bắt ép trình duyệt tải file (Direct Download)
-        return url.replace('dl=0', 'dl=1'); 
+        let finalUrl = url.replace('dl=0', 'dl=1'); // Ép tải trực tiếp
+        // Đảm bảo luôn có giao thức mạng để trình duyệt không bị nhầm lẫn
+        if (!finalUrl.startsWith('http')) {
+            finalUrl = 'https://' + finalUrl;
+        }
+        return finalUrl; 
     }
 
     // Logic mặc định của Google Drive

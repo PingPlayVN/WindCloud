@@ -93,22 +93,27 @@ function generateItemHTML(data) {
     const isFolder = data.type === 'folder';
     let icon = isFolder ? '📁' : (data.type === 'image' ? '📷' : (data.type === 'doc' ? '📄' : '📦'));
     
-    // Nhận diện file không phải từ Google Drive (Direct URL)
-    const isDirectLink = data.source === 'dropbox' || (data.id && String(data.id).startsWith('http'));
+    // Nhận diện Dropbox hoặc file có link trực tiếp
+    const isDirectLink = data.source === 'dropbox' || (data.id && (String(data.id).startsWith('http') || String(data.id).includes('dropbox')));
     
-    const thumbUrl = (!isFolder && !isDirectLink) ? `https://drive.google.com/thumbnail?id=${data.id}&sz=w400` : '';
     let thumbContent = '';
-    
     if (isFolder) {
         thumbContent = `<div class="folder-icon">📁</div>`;
     } else if (data.type === 'other' || isDirectLink) {
         thumbContent = `<div style="font-size:40px">📦</div>`; 
     } else {
+        const thumbUrl = `https://drive.google.com/thumbnail?id=${data.id}&sz=w400`;
         thumbContent = `<img src="${thumbUrl}" loading="lazy" decoding="async" onerror="handleImgError(this)">`;
     }
 
-    // Phân luồng link tải dựa theo source
-    const downloadLink = isDirectLink ? data.id : `https://drive.google.com/uc?export=download&id=${data.id}`;
+    // Xử lý một biến downloadLink duy nhất
+    let downloadLink = '';
+    if (isDirectLink) {
+        downloadLink = String(data.id).startsWith('http') ? data.id : 'https://' + data.id;
+    } else {
+        downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
+    }
+
     const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
     const downloadBtn = !isFolder ? `<a href="${downloadLink}" class="btn-download" title="Tải xuống" target="_blank" onclick="event.stopPropagation()">${downloadIcon}</a>` : '';
     const playOverlay = (!isFolder && data.type === 'video') ? `<div class="play-overlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>` : '';
@@ -220,7 +225,6 @@ window.handleClick = function(key, type, driveId) {
         currentSearchTerm = '';
         document.getElementById('searchInput').value = '';
         
-        // Áp dụng sắp xếp riêng nếu có
         const folder = dataMap[key];
         if (folder && folder.defaultSort) {
             changeSortMode(folder.defaultSort);
@@ -228,14 +232,13 @@ window.handleClick = function(key, type, driveId) {
             updateDataPipeline();
         }
     } else if (type === 'other') {
-        // [ĐÃ SỬA]: Chặn hiển thị cửa sổ preview đối với tab "File khác" (other)
-        // Cách 1: Không làm gì cả khi click (chỉ dùng nút tải xuống trên thẻ)
-        return; 
+        // [FIXED] Lấy data file và ép link tải khi user bấm thẳng vào Thẻ
+        const item = dataMap[key];
+        const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
         
-        // Cách 2 (Khuyến nghị): Click vào file sẽ tự động mở tab tải xuống/xem link gốc
-        // window.open(`https://drive.google.com/uc?export=download&id=${driveId}`, '_blank');
+        let link = isDirectLink ? (String(item.id).startsWith('http') ? item.id : 'https://' + item.id) : `https://drive.google.com/uc?export=download&id=${item.id}`;
+        window.open(link, '_blank');
     } else {
-        // Vẫn giữ preview cho ảnh, video, tài liệu
         const item = dataMap[key];
         openMedia(driveId, type, item ? item.title : 'Viewer');
     }
@@ -606,8 +609,14 @@ window.pasteItem = function() {
 window.downloadItem = function() {
     const item = dataMap[contextTargetId];
     if (item && item.type !== 'folder') {
-        const isDirectLink = item.source === 'dropbox' || String(item.id).startsWith('http');
-        const link = isDirectLink ? item.id : `https://drive.google.com/uc?export=download&id=${item.id}`;
+        const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
+        
+        let link = '';
+        if (isDirectLink) {
+            link = String(item.id).startsWith('http') ? item.id : 'https://' + item.id;
+        } else {
+            link = `https://drive.google.com/uc?export=download&id=${item.id}`;
+        }
         window.open(link, '_blank');
     }
 }
