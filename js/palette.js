@@ -1,5 +1,7 @@
 // js/palette.js
 
+// palette.js uses global showToast from utils (attached to window); no import needed
+
 let currentPaletteHex = [];
 
 function updatePaletteSystem() {
@@ -195,3 +197,10 @@ function HSLToHex(h, s, l) {
     if (b.length == 1) b = "0" + b;
     return "#" + r + g + b;
 }
+
+// Expose functions to global scope so `core.js` / HTML can call them
+window.updatePaletteSystem = updatePaletteSystem;
+window.randomBaseColor = randomBaseColor;
+window.exportPalette = exportPalette;
+window.exportPaletteJSON = exportPaletteJSON;
+window.copyColor = copyColor;

@@ -1,6 +1,8 @@
 // js/drop.js - IMPROVED VERSION v2.1 (Mobile Optimized)
 // Features: E2E Encryption, Checksum Verification, Timeout Detection, Memory Leak Prevention, iOS Support
 
+// drop.js uses global showToast from utils (attached to window); no import needed
+
 const isMyDeviceMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 const isMyDeviceIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isMyDeviceAndroid = /Android/.test(navigator.userAgent);

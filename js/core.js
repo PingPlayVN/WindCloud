@@ -1,5 +1,7 @@
 // js/core.js
 
+import { extractFileId, showActionModal, closeActionModal } from './utils.js';
+
 // --- 1. FIREBASE CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyDeQBdoFn7GSISvbApUm3cYibNXLnnfx7U",
@@ -24,6 +26,8 @@ window.appClipboard = { action: null, id: null };
 window.currentFolderId = null; 
 
 // --- 3. SYSTEM UTILS ---
+// helpers are attached to window by utils.js; only db/export handled elsewhere
+
 function initDeviceLimit() {
     const activeRef = db.ref('active_sessions');
     const myDeviceRef = activeRef.push(); 
@@ -50,93 +54,6 @@ function initDeviceLimit() {
     });
 }
 initDeviceLimit();
-
-window.showToast = function(msg) {
-    const toast = document.getElementById('toast');
-    if(!toast) return;
-    toast.innerText = msg;
-    toast.className = "show";
-    setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
-}
-
-window.extractFileId = function(url) {
-    if (!url) return null;
-    
-    // Xử lý Dropbox
-    if (url.includes('dropbox.com')) {
-        let finalUrl = url.replace('dl=0', 'dl=1'); // Ép tải trực tiếp
-        // Đảm bảo luôn có giao thức mạng để trình duyệt không bị nhầm lẫn
-        if (!finalUrl.startsWith('http')) {
-            finalUrl = 'https://' + finalUrl;
-        }
-        return finalUrl; 
-    }
-
-    // Logic mặc định của Google Drive
-    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
-    return match ? (match[1] || match[2]) : null;
-}
-
-// --- 4. MODAL SYSTEM (ĐÃ SỬA LỖI CRASH DOM) ---
-// Thay vì cloneNode, ta lấy element trực tiếp mỗi lần gọi hàm
-window.showActionModal = function({ title, desc, type, initialValue = '', onConfirm }) {
-    const acModal = document.getElementById('actionModal');
-    const acTitle = document.getElementById('acModalTitle');
-    const acDesc = document.getElementById('acModalDesc');
-    const acInput = document.getElementById('acModalInput');
-    const acSelect = document.getElementById('acModalSelect');
-    const acBtn = document.getElementById('acModalBtn');
-    const acCancelBtn = document.querySelector('.btn-modal-cancel');
-
-    if(!acModal) return;
-
-    // Reset trạng thái
-    acModal.style.display = 'flex';
-    acTitle.innerText = title;
-    acDesc.innerText = desc || '';
-    acInput.style.display = 'none';
-    acDesc.style.display = 'none';
-    acSelect.style.display = 'none';
-    acCancelBtn.style.display = 'block';
-
-    // Xử lý Input
-    if (type === 'prompt') {
-        acInput.style.display = 'block';
-        acInput.value = initialValue;
-        setTimeout(() => acInput.focus(), 100);
-    } 
-    else if (type === 'select') {
-        acSelect.style.display = 'block';
-        acSelect.value = initialValue || 'date_desc';
-    }
-    else if (type === 'confirm') {
-        acDesc.style.display = 'block';
-    }
-    else if (type === 'alert') {
-        acDesc.style.display = 'block';
-        acCancelBtn.style.display = 'none';
-    }
-
-    // Gán sự kiện Click mới (ghi đè sự kiện cũ)
-    acBtn.onclick = () => {
-        let value = null;
-        if (type === 'prompt') value = acInput.value;
-        if (type === 'select') value = acSelect.value;
-        
-        if (onConfirm) onConfirm(value);
-        window.closeActionModal();
-    };
-
-    // Sự kiện Enter
-    acInput.onkeydown = (e) => {
-        if (e.key === 'Enter') acBtn.click();
-    };
-}
-
-window.closeActionModal = function() {
-    const acModal = document.getElementById('actionModal');
-    if(acModal) acModal.style.display = 'none';
-}
 
 // --- 5. AUTH SYSTEM ---
 window.showLogin = function() {
@@ -346,21 +263,66 @@ if ('serviceWorker' in navigator) {
                 // Lắng nghe sự kiện khi trình duyệt tải về một file sw.js mới (Có bản update)
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
-                    
+
                     newWorker.addEventListener('statechange', () => {
                         // Khi Service Worker mới đã tải xong và đang trong trạng thái chờ (waiting)
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            
-                            // Gọi Modal thông báo cho người dùng
-                            window.showActionModal({
-                                title: "🚀 Cập nhật phiên bản mới",
-                                desc: "Hệ thống vừa có bản vá lỗi và tính năng mới. Bấm 'Đồng ý' để làm mới ứng dụng ngay!",
-                                type: 'confirm',
-                                onConfirm: () => {
-                                    // Gửi lệnh ép Service Worker mới kích hoạt
-                                    newWorker.postMessage('SKIP_WAITING');
-                                }
-                            });
+                            // Show a non-blocking update banner so user can refresh when ready
+                            if (!document.getElementById('updateBanner')) {
+                                const banner = document.createElement('div');
+                                banner.id = 'updateBanner';
+                                banner.style.position = 'fixed';
+                                banner.style.left = '0';
+                                banner.style.right = '0';
+                                banner.style.bottom = '16px';
+                                banner.style.zIndex = '9999';
+                                banner.style.display = 'flex';
+                                banner.style.justifyContent = 'center';
+                                banner.style.pointerEvents = 'auto';
+
+                                const inner = document.createElement('div');
+                                inner.style.background = 'linear-gradient(90deg,#fff,#f7f7f7)';
+                                inner.style.border = '1px solid rgba(0,0,0,0.08)';
+                                inner.style.boxShadow = '0 6px 20px rgba(0,0,0,0.08)';
+                                inner.style.padding = '12px 14px';
+                                inner.style.borderRadius = '8px';
+                                inner.style.display = 'flex';
+                                inner.style.alignItems = 'center';
+                                inner.style.gap = '12px';
+                                inner.style.maxWidth = '720px';
+
+                                const msg = document.createElement('div');
+                                msg.innerText = 'Phiên bản mới đã sẵn sàng. Làm mới để cập nhật.';
+                                msg.style.color = 'var(--text)';
+
+                                const btnRefresh = document.createElement('button');
+                                btnRefresh.innerText = 'Làm mới';
+                                btnRefresh.style.background = 'var(--primary)';
+                                btnRefresh.style.color = '#fff';
+                                btnRefresh.style.border = 'none';
+                                btnRefresh.style.padding = '8px 12px';
+                                btnRefresh.style.borderRadius = '6px';
+                                btnRefresh.style.cursor = 'pointer';
+
+                                const btnDismiss = document.createElement('button');
+                                btnDismiss.innerText = 'Đóng';
+                                btnDismiss.style.background = 'transparent';
+                                btnDismiss.style.border = 'none';
+                                btnDismiss.style.cursor = 'pointer';
+
+                                btnRefresh.onclick = (ev) => {
+                                    ev.stopPropagation();
+                                    try { newWorker.postMessage('SKIP_WAITING'); } catch (e) {}
+                                    banner.remove();
+                                };
+                                btnDismiss.onclick = (ev) => { ev.stopPropagation(); banner.remove(); };
+
+                                inner.appendChild(msg);
+                                inner.appendChild(btnRefresh);
+                                inner.appendChild(btnDismiss);
+                                banner.appendChild(inner);
+                                document.body.appendChild(banner);
+                            }
                         }
                     });
                 });
@@ -378,6 +340,18 @@ if ('serviceWorker' in navigator) {
                 window.location.reload();
             }
         });
+
+        // Listen to messages from service worker (e.g., activation notice)
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.addEventListener('message', (ev) => {
+                try {
+                    const data = ev.data || {};
+                    if (data && data.type === 'SW_ACTIVATED') {
+                        if (window.showToast) window.showToast('Ứng dụng đã được cập nhật (cache: ' + (data.cache || '') + ')');
+                    }
+                } catch (e) { /* ignore */ }
+            });
+        }
     });
 }
 
@@ -388,3 +362,10 @@ window.addEventListener('beforeinstallprompt', (e) => {
     window.deferredPrompt = e;
     console.log("App sẵn sàng để cài đặt!");
 });
+
+// --- EXPORTS & GLOBAL ATTACHMENTS ---
+// make firebase handles accessible to other modules that rely on globals
+window.db = db;
+window.auth = auth;
+
+export { db, auth };

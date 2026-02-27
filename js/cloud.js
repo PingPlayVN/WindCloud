@@ -1,5 +1,8 @@
 // js/cloud.js
 
+import { handleImgError, renderSkeleton } from './utils.js';
+import { db } from './core.js';
+
 let currentTab = 'video';
 let currentSortMode = 'date_desc';
 let currentSearchTerm = ''; 
@@ -10,32 +13,6 @@ let processedData = [];
 let renderLimit = 24;   
 let searchTimeout = null; 
 let contextTargetId = null;
-
-// --- UTILS ---
-function handleImgError(img) {
-    img.onerror = null; 
-    img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e0e0e0'%3E%3Cpath d='M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z'/%3E%3C/svg%3E";
-    img.style.objectFit = "contain";
-    img.style.padding = "20px";
-}
-
-function renderSkeleton() {
-    const grid = document.getElementById('grid');
-    if(!grid) return;
-    let html = '';
-    // Tạo giả 12 cái thẻ skeleton
-    for(let i=0; i<12; i++) {
-        html += `
-        <div class="card skeleton-card">
-            <div class="thumb-box skeleton" style="height:150px; width:100%"></div>
-            <div class="card-footer" style="gap:10px">
-                <div class="skeleton" style="width:30px; height:30px; border-radius:50%"></div>
-                <div class="skeleton" style="height:15px; width:60%; border-radius:4px"></div>
-            </div>
-        </div>`;
-    }
-    grid.innerHTML = html;
-}
 
 // [FIX] Gọi Skeleton NGAY LẬP TỨC khi file JS chạy (để lấp đầy màn hình lúc chờ mạng)
 renderSkeleton();
@@ -115,7 +92,10 @@ function generateItemHTML(data) {
     }
 
     const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
-    const downloadBtn = !isFolder ? `<a href="${downloadLink}" class="btn-download" title="Tải xuống" target="_blank" onclick="event.stopPropagation()">${downloadIcon}</a>` : '';
+    // Use data attributes and delegate click to avoid embedding raw URLs in HTML
+    const safeTitle = (data.title || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const safeLink = (downloadLink || '').replace(/'/g, "\\'");
+    const downloadBtn = !isFolder ? `<button type="button" class="btn-download" title="Tải xuống" data-link='${safeLink}' data-title='${safeTitle}'>${downloadIcon}</button>` : '';
     const playOverlay = (!isFolder && data.type === 'video') ? `<div class="play-overlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>` : '';
 
     return `
@@ -232,12 +212,41 @@ window.handleClick = function(key, type, driveId) {
             updateDataPipeline();
         }
     } else if (type === 'other') {
-        // [FIXED] Lấy data file và ép link tải khi user bấm thẳng vào Thẻ
+        // For "other" file type: show confirmation modal before downloading
         const item = dataMap[key];
+        if (!item) return;
         const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
-        
-        let link = isDirectLink ? (String(item.id).startsWith('http') ? item.id : 'https://' + item.id) : `https://drive.google.com/uc?export=download&id=${item.id}`;
-        window.open(link, '_blank');
+        const link = isDirectLink ? (String(item.id).startsWith('http') ? item.id : 'https://' + item.id) : `https://drive.google.com/uc?export=download&id=${item.id}`;
+
+        if (window.confirmDownload) {
+            window.confirmDownload(link, item.title);
+        } else if (window.showActionModal) {
+            window.showActionModal({
+                title: 'Tải xuống tệp',
+                desc: `Bạn có muốn tải xuống "${item.title}" không?`,
+                type: 'confirm',
+                onConfirm: () => {
+                    window.open(link, '_blank');
+                }
+            });
+        } else {
+            window.open(link, '_blank');
+        }
+    } else if (type === 'doc') {
+        // For document files: prefer in-app preview for Google Drive IDs, fall back to download for direct links
+        const item = dataMap[key];
+        if (!item) return;
+        const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
+        const link = isDirectLink ? (String(item.id).startsWith('http') ? item.id : 'https://' + item.id) : `https://drive.google.com/uc?export=download&id=${item.id}`;
+
+        // If this is a direct link (Dropbox/HTTP), show download confirm; otherwise open preview modal
+        if (isDirectLink) {
+            if (window.confirmDownload) window.confirmDownload(link, item.title);
+            else window.open(link, '_blank');
+        } else {
+            // driveId may be an ID; use openMedia to show preview iframe
+            openMedia(driveId, 'doc', item ? item.title : 'Document');
+        }
     } else {
         const item = dataMap[key];
         openMedia(driveId, type, item ? item.title : 'Viewer');
@@ -610,14 +619,14 @@ window.downloadItem = function() {
     const item = dataMap[contextTargetId];
     if (item && item.type !== 'folder') {
         const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
-        
         let link = '';
         if (isDirectLink) {
             link = String(item.id).startsWith('http') ? item.id : 'https://' + item.id;
         } else {
             link = `https://drive.google.com/uc?export=download&id=${item.id}`;
         }
-        window.open(link, '_blank');
+        if (window.confirmDownload) window.confirmDownload(link, item.title);
+        else window.open(link, '_blank');
     }
 }
 
@@ -761,3 +770,17 @@ function sanitizeName(name) {
     if (name.length > 100) name = name.slice(0, 100);
     return name;
 }
+
+// Delegate download button clicks to avoid inline JS and escaping issues
+// Use capture phase so we intercept the click before parent handlers (card onclick)
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest ? e.target.closest('.btn-download') : null;
+    if (!btn) return;
+    // Intercept early to prevent parent onclick from firing (which opens preview)
+    try { e.stopPropagation(); e.preventDefault(); } catch (err) {}
+    const link = btn.getAttribute('data-link');
+    const title = btn.getAttribute('data-title') || '';
+    if (!link) return;
+    if (window.confirmDownload) window.confirmDownload(link, title);
+    else window.open(link, '_blank');
+}, true);
