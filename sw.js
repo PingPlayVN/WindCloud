@@ -1,15 +1,18 @@
 // sw.js - Service Worker
 
-const CACHE_NAME = 'wind-share-v9.2'; // Đổi tên này nếu bạn update code để ép trình duyệt tải lại
+const CACHE_NAME = 'wind-share-v9.4'; // Đổi tên này nếu bạn update code để ép trình duyệt tải lại
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
     './icon.png',
     './js/core.js',
+    './js/utils.js',
     './js/cloud.js',
+    './js/windgame.js',
     './js/drop.js',
     './js/palette.js',
+    './manifest.json',
     // Cache luôn các thư viện ngoài để chạy nhanh hơn
     'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js',
     'https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js',
@@ -40,6 +43,12 @@ self.addEventListener('activate', (e) => {
         })
     );
     self.clients.claim();
+    // Notify clients that a new service worker has activated (useful for debug/UX)
+    self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+            try { client.postMessage({ type: 'SW_ACTIVATED', cache: CACHE_NAME }); } catch(e) {}
+        });
+    });
 });
 
 // 3. Bắt sự kiện lấy dữ liệu (Fetch) - Ưu tiên Cache, nếu không có mới tải mạng
