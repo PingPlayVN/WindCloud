@@ -114,36 +114,51 @@ function generateItemHTML(data) {
     `;
 }
 
-// [TỐI ƯU HIỆU NĂNG] Render Grid thông minh
+// [TỐI ƯU HIỆU NĂNG] Render Grid chống DOM Thrashing
 function renderGrid(append = false) {
     const grid = document.getElementById('grid');
     
     // Xử lý trường hợp trống
     if (processedData.length === 0) {
         let msg = currentSearchTerm ? `Không tìm thấy "${currentSearchTerm}"` : "Thư mục trống";
-        grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:var(--text-sub); margin-top:50px;">${msg}</p>`;
+        // Thay thế nội dung bằng replaceChildren thay vì innerHTML để an toàn và tối ưu hơn
+        const p = document.createElement('p');
+        p.style.cssText = "grid-column:1/-1; text-align:center; color:var(--text-sub); margin-top:50px;";
+        p.textContent = msg;
+        grid.replaceChildren(p);
         return;
     }
 
     // Xác định khoảng item cần vẽ
-    // Nếu append=true (cuộn trang), bắt đầu từ số lượng hiện có. 
-    // Nếu reset (lọc/search), bắt đầu từ 0.
-    const startIndex = append ? document.querySelectorAll('.media-grid .card').length : 0;
+    // [Tối ưu]: Tránh dùng querySelectorAll('.media-grid .card'), thay bằng grid.children.length (O(1))
+    const startIndex = append ? grid.children.length : 0;
     const itemsToRender = processedData.slice(startIndex, renderLimit);
 
     // Nếu không có gì mới để vẽ thì thôi
     if (itemsToRender.length === 0) return;
 
-    // Tạo chuỗi HTML
-    const htmlBuffer = itemsToRender.map(data => generateItemHTML(data)).join('');
-
-    if (append) {
-        // Cách mới: Chỉ chèn thêm vào cuối, không vẽ lại cái cũ
-        grid.insertAdjacentHTML('beforeend', htmlBuffer);
-    } else {
-        // Cách cũ: Vẽ lại từ đầu (Dùng khi chuyển tab, search...)
-        grid.innerHTML = htmlBuffer;
+    // 1. Tạo DocumentFragment (DOM ảo trên RAM)
+    const fragment = document.createDocumentFragment();
+    const tempDiv = document.createElement('div');
+    
+    // Tạo chuỗi HTML và parse nó thành các DOM Node thực thụ
+    tempDiv.innerHTML = itemsToRender.map(data => generateItemHTML(data)).join('');
+    
+    // Di chuyển các Node từ tempDiv sang fragment
+    while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
     }
+
+    // 2. Đồng bộ tác vụ render với Paint Cycle của trình duyệt
+    requestAnimationFrame(() => {
+        if (append) {
+            // Chèn thêm vào cuối (KHÔNG gây reflow lại toàn trang)
+            grid.appendChild(fragment);
+        } else {
+            // Cách mới: Dùng replaceChildren cực kì tối ưu so với innerHTML = ''
+            grid.replaceChildren(fragment);
+        }
+    });
 }
 
 // --- VIEW & SCROLL ---
