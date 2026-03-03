@@ -17,32 +17,32 @@
     <link rel="icon" href="./icon.png"> </head>
 <body>
 
-<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div id="sidebar-overlay"></div>
 <nav id="main-sidebar">
     <div class="sidebar-header">
         <h3>Wind Apps</h3>
-        <button class="btn-close-sidebar" onclick="toggleSidebar()">✕</button>
+        <button class="btn-close-sidebar" id="btnCloseSidebar">✕</button>
     </div>
     <ul class="sidebar-menu">
-        <li class="menu-item active" onclick="switchApp('cloud')">
+        <li class="menu-item active" data-app="cloud">
             <span class="icon">☁️</span> Cloud Storage
         </li>
-        <li class="menu-item" onclick="switchApp('palette')">
+        <li class="menu-item" data-app="palette">
             <span class="icon">🎨</span> Color Studio
         </li>
-        <li class="menu-item" onclick="switchApp('drop')">
+        <li class="menu-item" data-app="drop">
             <span class="icon">📡</span> Wind Drop
         </li>
-        <li class="menu-item" onclick="switchApp('windgame')" id="menu-windgame">
+        <li class="menu-item" data-app="windgame" id="menu-windgame">
             <span class="icon">🕹️</span> Wind Game
         </li>
         <div style="height:1px; background:var(--border); margin:10px 15px;"></div>
 
-        <li class="menu-item" id="loginBtn" onclick="showLogin()">
+        <li class="menu-item" id="loginBtn">
             <span class="icon">🔐</span> Admin Access
         </li>
         
-        <li class="menu-item" id="logoutBtn" onclick="logout()" style="display:none; color: var(--danger);">
+        <li class="menu-item" id="logoutBtn" style="display:none; color: var(--danger);">
             <span class="icon">🚪</span> Đăng xuất
         </li>
     </ul>
@@ -56,14 +56,14 @@
         <h2>⚠️ Server Quá Tải</h2>
         <p>Hệ thống đang giới hạn tối đa <strong>20 người</strong> truy cập cùng lúc để đảm bảo tốc độ.</p>
         <p>Vui lòng quay lại sau ít phút!</p>
-        <button onclick="location.reload()" class="btn-submit">Thử lại ngay</button>
+        <button id="btnRetry" class="btn-submit">Thử lại ngay</button>
     </div>
 </div>
 
 <div class="container" id="mainContainer">
     <header>
         <div class="logo-area">
-            <button class="btn-menu" onclick="toggleSidebar()">
+            <button class="btn-menu" id="btnMenu">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
 
@@ -72,8 +72,8 @@
         </div>
         
         <div style="display:flex; align-items:center; gap:10px;">
-            <label class="theme-switch">
-                <input type="checkbox" class="theme-switch__checkbox" id="theme-checkbox" onchange="toggleTheme()">
+                <label class="theme-switch">
+                <input type="checkbox" class="theme-switch__checkbox" id="theme-checkbox">
                 <div class="theme-switch__container">
                     <div class="theme-switch__clouds"></div>
                     <div class="theme-switch__stars-container">
@@ -96,16 +96,16 @@
     <div id="app-cloud">
         <div class="toolbar">
             <div class="tabs-wrapper">
-                <input type="radio" id="tab-video-radio" name="tabs" class="tab-rd-1" checked onclick="switchTab('video')">
+                <input type="radio" id="tab-video-radio" name="tabs" class="tab-rd-1" checked data-tab="video">
                 <label for="tab-video-radio" class="tab-label" style="--index: 0"><span>Video</span></label>
 
-                <input type="radio" id="tab-image-radio" name="tabs" class="tab-rd-2" onclick="switchTab('image')">
+                <input type="radio" id="tab-image-radio" name="tabs" class="tab-rd-2" data-tab="image">
                 <label for="tab-image-radio" class="tab-label" style="--index: 1"><span>Hình ảnh</span></label>
 
-                <input type="radio" id="tab-doc-radio" name="tabs" class="tab-rd-3" onclick="switchTab('doc')">
+                <input type="radio" id="tab-doc-radio" name="tabs" class="tab-rd-3" data-tab="doc">
                 <label for="tab-doc-radio" class="tab-label" style="--index: 2"><span>Tài liệu</span></label>
 
-                <input type="radio" id="tab-other-radio" name="tabs" class="tab-rd-4" onclick="switchTab('other')">
+                <input type="radio" id="tab-other-radio" name="tabs" class="tab-rd-4" data-tab="other">
                 <label for="tab-other-radio" class="tab-label" style="--index: 3"><span>File khác</span></label>
 
                 <div class="tab-bar-deco"></div>
@@ -114,32 +114,32 @@
 
             <div class="tools-right" style="display:flex; gap:10px; align-items:center;">
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm..." oninput="handleSearch(this.value)">
+                    <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm...">
                 </div>
-                <button class="btn-header icon-btn" onclick="toggleViewMode()" id="viewBtn" title="Đổi giao diện">⊞</button>
-                <select id="sortSelect" onchange="changeSortMode(this.value)" class="sort-select">
+                <button class="btn-header icon-btn" id="viewBtn" title="Đổi giao diện">⊞</button>
+                <select id="sortSelect" class="sort-select">
                     <option value="date_desc">📅 Mới nhất</option>
                     <option value="date_asc">📅 Cũ nhất</option>
                     <option value="name_asc">🔤 Tên (A-Z)</option>
                     <option value="name_desc">🔤 Tên (Z-A)</option>
                 </select>
-                <button id="btnNew" class="btn-header" onclick="toggleAdminTool()" style="display:none; background: var(--primary); color: white; border:none; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">+ Thêm</button>
+                <button id="btnNew" class="btn-header" style="display:none; background: var(--primary); color: white; border:none; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">+ Thêm</button>
             </div>
         </div>
 
         <div class="breadcrumb" id="breadcrumb">
-            <span class="crumb-item" onclick="navigateTo('root')">Trang chủ</span>
+            <span class="crumb-item" data-target="root">Trang chủ</span>
         </div>
 
         <div class="input-section" id="adminTool">
             <div class="input-header" style="display:flex; justify-content:space-between; margin-bottom: 10px;">
                 <h4>Upload Tệp</h4>
-                <span style="cursor:pointer; font-size: 20px; color: #5f6368;" onclick="toggleAdminTool()">✕</span>
+                <span style="cursor:pointer; font-size: 20px; color: #5f6368;" id="closeAdminTool">✕</span>
             </div>
             <div class="input-row">
-                <input type="text" id="mediaUrl" placeholder="Dán Link Google Drive vào đây..." oninput="autoFillID()">
+                <input type="text" id="mediaUrl" placeholder="Dán Link Google Drive vào đây...">
                 <input type="text" id="mediaTitle" placeholder="Tên hiển thị (Tùy chọn)...">
-                <button class="btn-submit" onclick="addToCloud()">Lưu Tệp</button>
+                <button class="btn-submit" id="btnSaveCloud">Lưu Tệp</button>
             </div>
         </div>
 
@@ -157,14 +157,14 @@
             <div class="control-group">
                 <label>Màu chủ đạo</label>
                 <div class="color-picker-wrapper">
-                    <input type="color" id="baseColorInput" value="#1a73e8" oninput="updatePaletteSystem()">
+                    <input type="color" id="baseColorInput" value="#1a73e8">
                     <span id="baseColorHex">#1A73E8</span>
                 </div>
             </div>
 
             <div class="control-group">
                 <label>Quy tắc phối màu</label>
-                <select id="harmonyRule" class="harmony-select" onchange="updatePaletteSystem()">
+                <select id="harmonyRule" class="harmony-select">
                     <option value="analogous">Tương đồng (Analogous)</option>
                     <option value="monochromatic">Đơn sắc (Monochromatic)</option>
                     <option value="complementary">Bổ túc (Complementary)</option>
@@ -179,9 +179,9 @@
             </div>
         
         <div class="palette-actions-bottom">
-            <button class="btn-action" onclick="randomBaseColor()">🎲 Random Màu Gốc</button>
-            <button class="btn-action primary" onclick="exportPalette()">📋 Copy Cả Bảng</button>
-            <button class="btn-action" onclick="exportPaletteJSON()">⬇️ Xuất .json</button>
+            <button class="btn-action" data-palette-action="random">🎲 Random Màu Gốc</button>
+            <button class="btn-action primary" data-palette-action="copy">📋 Copy Cả Bảng</button>
+            <button class="btn-action" data-palette-action="export">⬇️ Xuất .json</button>
         </div>
     </div>
 </div>
@@ -193,7 +193,7 @@
                 <h1>🎮 Wind Game</h1>
                 <p>Chọn game từ danh sách dưới đây để chơi. Nhấn "Chơi Ngay" để vào game hoặc "Tab Mới" để chơi trong tab riêng.</p>
                 <div style="margin-top:10px; display:flex; gap:8px;">
-                    <button class="btn-action" onclick="switchApp('cloud')">Quay lại</button>
+                    <button class="btn-action" data-app="cloud">Quay lại</button>
                 </div>
             </div>
 
@@ -248,7 +248,7 @@
             <div class="progress-track">
                 <div class="progress-fill" id="tf-progress"></div>
             </div>
-            <button class="btn-cancel-transfer" onclick="cancelTransfer()">Hủy bỏ</button>
+            <button class="btn-cancel-transfer" id="btnCancelTransfer">Hủy bỏ</button>
         </div>
     </div>
 </div>
@@ -262,7 +262,7 @@
     <div class="context-card">
         <div id="ctx-file-actions" style="display:none;">
             <ul class="list">
-                <li class="item" onclick="openContextItem()">
+                <li class="item" data-action="open">
                     <span class="label">Mở / Xem</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -270,21 +270,21 @@
                     </svg>
                 </li>
                 
-                <li class="item" onclick="downloadItem()">
+                <li class="item" data-action="download">
                     <span class="label">Tải xuống</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                 </li>
 
-                <li class="item" onclick="renameItemUI()">
+                <li class="item" data-action="rename">
                     <span class="label">Đổi tên</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                 </li>
                 
-                <li class="item" id="menuSetSort" onclick="setFolderSortUI()" style="display:none">
+                <li class="item" id="menuSetSort" style="display:none">
                     <span class="label">Cài đặt sắp xếp</span>
                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -296,19 +296,19 @@
             <div class="separator"></div>
 
             <ul class="list">
-                 <li class="item" onclick="copyItem()">
+                 <li class="item" data-action="copy">
                     <span class="label">Sao chép (Copy)</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                 </li>
-                 <li class="item" onclick="cutItem()">
+                 <li class="item" data-action="cut">
                     <span class="label">Di chuyển (Cut)</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
                     </svg>
                 </li>
-                 <li class="item" onclick="editLinkUI()">
+                 <li class="item" data-action="editlink">
                     <span class="label">Sửa Link gốc</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -319,7 +319,7 @@
             <div class="separator"></div>
 
             <ul class="list">
-                <li class="item delete" onclick="deleteItem()">
+                <li class="item delete" data-action="delete">
                     <span class="label">Xóa vĩnh viễn</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -330,19 +330,19 @@
 
         <div id="ctx-bg-actions" style="display:none;">
             <ul class="list">
-                <li class="item" onclick="createFolderUI()">
+                <li class="item" data-action="createFolder">
                     <span class="label">Tạo thư mục mới</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                     </svg>
                 </li>
-                <li class="item" onclick="pasteItem()">
+                <li class="item" data-action="paste">
                     <span class="label">Dán (Paste)</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                 </li>
-                <li class="item" onclick="location.reload()">
+                <li class="item" data-action="reload">
                     <span class="label">Làm mới trang</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -358,7 +358,7 @@
     <div class="modal-content" id="modalContent"></div>
 </div>
 
-<div id="overlay" onclick="closeLogin()"></div>
+<div id="overlay"></div>
 <div id="login-panel" style="display: none;">
     <div class="admin-card">
         <div class="title">Admin Login</div>
@@ -366,12 +366,12 @@
             <input class="admin-input" id="adminEmail" name="email" placeholder="Email" type="email">
             <input class="admin-input" id="adminPass" name="password" placeholder="Password" type="password">
             
-            <button class="admin-btn" id="btnLogin" type="button" onclick="loginAdmin()">Truy cập!</button>
+                <button class="admin-btn" id="btnLogin" type="button">Truy cập!</button>
             
             <p id="loginError" style="color:red; font-size:13px; display:none; margin:0; text-align:center"></p>
         </form>
         
-        <button onclick="closeLogin()" class="btn-close-login">Đóng cửa sổ</button>
+        <button id="btnCloseLogin" class="btn-close-login">Đóng cửa sổ</button>
     </div>
 </div>
 
@@ -392,7 +392,7 @@
         </select>
         
         <div class="modal-btn-group">
-            <button class="btn-modal-cancel" onclick="closeActionModal()">Hủy</button>
+            <button class="btn-modal-cancel" id="acModalCancel">Hủy</button>
             <button class="btn-modal-confirm" id="acModalBtn">Đồng ý</button>
         </div>
     </div>
