@@ -1,6 +1,8 @@
 // js/palette.js
 
-// palette.js uses global showToast from utils (attached to window); no import needed
+import { showToast } from './utils.js';
+
+// palette.js uses `showToast` from utils
 
 let currentPaletteHex = [];
 
@@ -198,9 +200,5 @@ function HSLToHex(h, s, l) {
     return "#" + r + g + b;
 }
 
-// Expose functions to global scope so `core.js` / HTML can call them
-window.updatePaletteSystem = updatePaletteSystem;
-window.randomBaseColor = randomBaseColor;
-window.exportPalette = exportPalette;
-window.exportPaletteJSON = exportPaletteJSON;
-window.copyColor = copyColor;
+// Export functions for ES module consumers
+export { updatePaletteSystem, randomBaseColor, exportPalette, exportPaletteJSON, copyColor };

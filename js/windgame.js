@@ -38,7 +38,7 @@
                 <div class="game-title">${escapeHtml(g.title)}</div>
                 <div class="game-desc">${escapeHtml(g.desc)}</div>
                 <div class="game-actions">
-                    <button class="btn-play" onclick="launchGame('${g.url}')">Chơi Ngay</button>
+                    <button class="btn-play" data-url="${g.url}">Chơi Ngay</button>
                 </div>`;
             // open on card click as well
             card.onclick = (ev) => {

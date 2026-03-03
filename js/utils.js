@@ -10,7 +10,6 @@ export function showToast(msg) {
     toast.className = "show";
     setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
 }
-window.showToast = showToast;
 
 export function extractFileId(url) {
     if (!url) return null;
@@ -24,7 +23,6 @@ export function extractFileId(url) {
     const match = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
     return match ? (match[1] || match[2]) : null;
 }
-window.extractFileId = extractFileId;
 
 export function handleImgError(img) {
     img.onerror = null;
@@ -32,7 +30,6 @@ export function handleImgError(img) {
     img.style.objectFit = "contain";
     img.style.padding = "20px";
 }
-window.handleImgError = handleImgError;
 
 export function renderSkeleton(gridElement) {
     const grid = gridElement || document.getElementById('grid');
@@ -96,18 +93,17 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
         if (e.key === 'Enter') acBtn.click();
     };
 }
-window.showActionModal = showActionModal;
 
 export function closeActionModal() {
     const acModal = document.getElementById('actionModal');
     if (acModal) acModal.style.display = 'none';
 }
-window.closeActionModal = closeActionModal;
 
 // Confirm then download helper
 export function confirmDownload(link, title = 'tệp') {
-    if (window.showActionModal) {
-        window.showActionModal({
+    // Use local showActionModal if available
+    if (typeof showActionModal === 'function') {
+        showActionModal({
             title: 'Tải xuống',
             desc: `Bạn có muốn tải xuống "${title}" không?`,
             type: 'confirm',
@@ -119,4 +115,3 @@ export function confirmDownload(link, title = 'tệp') {
         window.open(link, '_blank');
     }
 }
-window.confirmDownload = confirmDownload;

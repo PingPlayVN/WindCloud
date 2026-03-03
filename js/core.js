@@ -1,6 +1,8 @@
 // js/core.js
 
-import { extractFileId, showActionModal, closeActionModal } from './utils.js';
+import { extractFileId, showActionModal, closeActionModal, showToast } from './utils.js';
+import { updatePaletteSystem } from './palette.js';
+import { initWindDrop } from './drop.js';
 
 // --- 1. FIREBASE CONFIG ---
 const firebaseConfig = {
@@ -56,7 +58,7 @@ function initDeviceLimit() {
 initDeviceLimit();
 
 // --- 5. AUTH SYSTEM ---
-window.showLogin = function() {
+function showLogin() {
     const sidebar = document.getElementById('main-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     if(sidebar) sidebar.classList.remove('open');
@@ -69,12 +71,12 @@ window.showLogin = function() {
     if(errEl) errEl.style.display = 'none';
 }
 
-window.closeLogin = function() {
+function closeLogin() {
     document.getElementById('overlay').style.display = 'none';
     document.getElementById('login-panel').style.display = 'none';
 }
 
-window.loginAdmin = function() {
+function loginAdmin() {
     const email = document.getElementById('adminEmail').value;
     const pass = document.getElementById('adminPass').value;
     const btn = document.getElementById('btnLogin');
@@ -84,8 +86,8 @@ window.loginAdmin = function() {
     
     auth.signInWithEmailAndPassword(email, pass)
         .then(() => {
-            window.closeLogin();
-            window.showToast("Xin chào Admin! 👋");
+            closeLogin();
+            showToast("Xin chào Admin! 👋");
         })
         .catch((error) => {
             if(errObj) {
@@ -98,9 +100,9 @@ window.loginAdmin = function() {
         });
 }
 
-window.logout = function() {
+function logout() {
     auth.signOut().then(() => {
-        window.showToast("Đã đăng xuất");
+        showToast("Đã đăng xuất");
         setTimeout(() => location.reload(), 1000);
     });
 }
@@ -126,15 +128,15 @@ auth.onAuthStateChanged((user) => {
 });
 
 // --- 6. NAVIGATION & THEME ---
-window.toggleSidebar = function() {
+function toggleSidebar() {
     const sidebar = document.getElementById('main-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
 }
 
-window.switchApp = function(appName) {
-    window.toggleSidebar();
+function switchApp(appName) {
+    toggleSidebar();
     const menuItems = document.querySelectorAll('.sidebar-menu .menu-item');
     menuItems.forEach(item => item.classList.remove('active'));
 
@@ -161,8 +163,8 @@ window.switchApp = function(appName) {
         if(typeof initWindDrop === 'function') initWindDrop();
     }
     else if (appName === 'windgame') {
-        // mark the clicked menu item active (by attribute match)
-        const el = document.querySelector(`.sidebar-menu .menu-item[onclick="switchApp('windgame')"]`);
+        // mark the clicked menu item active (by data-app match)
+        const el = document.querySelector(`.sidebar-menu .menu-item[data-app="windgame"]`);
         if (el) el.classList.add('active');
         document.getElementById('app-windgame').style.display = 'block';
         document.title = "Wind Cloud - Wind Game";
@@ -170,7 +172,7 @@ window.switchApp = function(appName) {
     }
 }
 
-window.toggleTheme = function() {
+function toggleTheme() {
     const checkbox = document.getElementById('theme-checkbox');
     if (checkbox.checked) {
         document.documentElement.setAttribute('data-theme', 'dark');
@@ -197,7 +199,7 @@ function checkAndRestoreWindGame() {
         window.history.replaceState({}, document.title, window.location.pathname);
         // Use setTimeout to ensure all elements are rendered
         setTimeout(() => {
-            window.goToWindGameTab();
+            goToWindGameTab();
         }, 50);
         return;
     }
@@ -209,7 +211,7 @@ function checkAndRestoreWindGame() {
         sessionStorage.removeItem('returnToWindGame');
         // Use setTimeout to ensure all elements are rendered
         setTimeout(() => {
-            window.goToWindGameTab();
+            goToWindGameTab();
         }, 50);
     }
 }
@@ -222,9 +224,32 @@ if (document.readyState === 'loading') {
     checkAndRestoreWindGame();
 }
 
+// --- UI Wiring (attachUI) ---
+(function attachUI(){
+    const btnMenu = document.getElementById('btnMenu'); if (btnMenu) btnMenu.addEventListener('click', toggleSidebar);
+    const btnCloseSidebar = document.getElementById('btnCloseSidebar'); if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', toggleSidebar);
+
+    // sidebar menu items
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const app = item.dataset.app;
+            if (app) switchApp(app);
+        });
+    });
+
+    // Login / logout
+    const loginBtn = document.getElementById('loginBtn'); if (loginBtn) loginBtn.addEventListener('click', showLogin);
+    const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.addEventListener('click', logout);
+    const btnCloseLogin = document.getElementById('btnCloseLogin'); if (btnCloseLogin) btnCloseLogin.addEventListener('click', closeLogin);
+    const btnLogin = document.getElementById('btnLogin'); if (btnLogin) btnLogin.addEventListener('click', loginAdmin);
+
+    // Theme toggle
+    const themeCb = document.getElementById('theme-checkbox'); if (themeCb) themeCb.addEventListener('change', toggleTheme);
+})();
+
 // Also check on page visibility (for bfcache scenario)
 window.addEventListener('pageshow', checkAndRestoreWindGame);
-window.goToWindGameTab = function() {
+function goToWindGameTab() {
     console.log('goToWindGameTab() called - switching to Wind Game tab...');
     // Clear query parameters to avoid loops
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -238,7 +263,7 @@ window.goToWindGameTab = function() {
     });
 
     // Mark windgame as active
-    const el = document.querySelector(`.sidebar-menu .menu-item[onclick="switchApp('windgame')"]`);
+    const el = document.querySelector(`.sidebar-menu .menu-item[data-app="windgame"]`);
     if (el) el.classList.add('active');
     
     // Show windgame app
@@ -347,7 +372,7 @@ if ('serviceWorker' in navigator) {
                 try {
                     const data = ev.data || {};
                     if (data && data.type === 'SW_ACTIVATED') {
-                        if (window.showToast) window.showToast('Ứng dụng đã được cập nhật (cache: ' + (data.cache || '') + ')');
+                        if (typeof showToast === 'function') showToast('Ứng dụng đã được cập nhật (cache: ' + (data.cache || '') + ')');
                     }
                 } catch (e) { /* ignore */ }
             });
@@ -368,4 +393,4 @@ window.addEventListener('beforeinstallprompt', (e) => {
 window.db = db;
 window.auth = auth;
 
-export { db, auth };
+export { db, auth, switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme, goToWindGameTab };

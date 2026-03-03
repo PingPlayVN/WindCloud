@@ -1,7 +1,10 @@
 // js/cloud.js
 
-import { handleImgError, renderSkeleton } from './utils.js';
-import { db } from './core.js';
+import { handleImgError, renderSkeleton, showToast, extractFileId, showActionModal, closeActionModal, confirmDownload } from './utils.js';
+import { db, switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme } from './core.js';
+import { updatePaletteSystem, randomBaseColor, exportPalette, exportPaletteJSON, copyColor } from './palette.js';
+import { cancelTransfer } from './drop.js';
+import { StorageProviders, resolveProvider } from './cloudAdapters.js';
 
 let currentTab = 'video';
 let currentSortMode = 'date_desc';
@@ -70,26 +73,25 @@ function generateItemHTML(data) {
     const isFolder = data.type === 'folder';
     let icon = isFolder ? '📁' : (data.type === 'image' ? '📷' : (data.type === 'doc' ? '📄' : '📦'));
     
-    // Nhận diện Dropbox hoặc file có link trực tiếp
-    const isDirectLink = data.source === 'dropbox' || (data.id && (String(data.id).startsWith('http') || String(data.id).includes('dropbox')));
-    
+    // Resolve provider for this item (adapter pattern)
+    const provider = resolveProvider(data);
+
     let thumbContent = '';
     if (isFolder) {
         thumbContent = `<div class="folder-icon">📁</div>`;
-    } else if (data.type === 'other' || isDirectLink) {
+    } else if (data.type === 'other') {
         thumbContent = `<div style="font-size:40px">📦</div>`; 
     } else {
-        const thumbUrl = `https://drive.google.com/thumbnail?id=${data.id}&sz=w400`;
-        thumbContent = `<img src="${thumbUrl}" loading="lazy" decoding="async" onerror="handleImgError(this)">`;
+        const thumbUrl = provider.getThumb(data.id);
+        if (thumbUrl) {
+            thumbContent = `<img class="thumb-img" src="${thumbUrl}" loading="lazy" decoding="async" data-id="${data.id}">`;
+        } else {
+            thumbContent = `<div style="font-size:40px">📦</div>`; 
+        }
     }
 
-    // Xử lý một biến downloadLink duy nhất
-    let downloadLink = '';
-    if (isDirectLink) {
-        downloadLink = String(data.id).startsWith('http') ? data.id : 'https://' + data.id;
-    } else {
-        downloadLink = `https://drive.google.com/uc?export=download&id=${data.id}`;
-    }
+    // Xử lý một biến downloadLink duy nhất via provider
+    const downloadLink = provider.getDownloadUrl(data.id || '');
 
     const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
     // Use data attributes and delegate click to avoid embedding raw URLs in HTML
@@ -98,10 +100,9 @@ function generateItemHTML(data) {
     const downloadBtn = !isFolder ? `<button type="button" class="btn-download" title="Tải xuống" data-link='${safeLink}' data-title='${safeTitle}'>${downloadIcon}</button>` : '';
     const playOverlay = (!isFolder && data.type === 'video') ? `<div class="play-overlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>` : '';
 
+    // Use data attributes instead of inline handlers; clicks/contextmenu delegated in JS
     return `
-        <div class="card ${isFolder ? 'is-folder' : ''}" 
-             oncontextmenu="showContextMenu(event, '${data.key}', true)"
-             onclick="handleClick('${data.key}', '${data.type}', '${data.id}')">
+        <div class="card ${isFolder ? 'is-folder' : ''}" data-key="${data.key}" data-type="${data.type}" data-id="${data.id}">
             <div class="thumb-box">${thumbContent}${playOverlay}</div>
             <div class="card-footer">
                 <div class="file-info">
@@ -162,7 +163,7 @@ function renderGrid(append = false) {
 }
 
 // --- VIEW & SCROLL ---
-window.initViewMode = function() {
+function initViewMode() {
     const savedMode = localStorage.getItem('viewMode');
     if (savedMode === 'list') {
         currentViewMode = 'list';
@@ -172,9 +173,9 @@ window.initViewMode = function() {
         if(btn) btn.innerText = '▦';
     }
 }
-window.initViewMode();
+initViewMode();
 
-window.toggleViewMode = function() {
+function toggleViewMode() {
     const grid = document.getElementById('grid');
     const btn = document.getElementById('viewBtn');
     if (currentViewMode === 'grid') {
@@ -200,7 +201,7 @@ window.addEventListener('scroll', () => {
 });
 
 // --- NAVIGATION ---
-window.switchTab = function(type) {
+function switchTab(type) {
     if (currentTab === type) return; 
     currentTab = type;
     window.currentFolderId = null; 
@@ -214,7 +215,7 @@ window.switchTab = function(type) {
     updateDataPipeline();
 }
 
-window.handleClick = function(key, type, driveId) {
+function handleClick(key, type, driveId) {
     if (type === 'folder') {
         window.currentFolderId = key;
         currentSearchTerm = '';
@@ -230,13 +231,13 @@ window.handleClick = function(key, type, driveId) {
         // For "other" file type: show confirmation modal before downloading
         const item = dataMap[key];
         if (!item) return;
-        const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
-        const link = isDirectLink ? (String(item.id).startsWith('http') ? item.id : 'https://' + item.id) : `https://drive.google.com/uc?export=download&id=${item.id}`;
+        const provider = resolveProvider(item);
+        const link = provider.getDownloadUrl(item.id || '');
 
-        if (window.confirmDownload) {
-            window.confirmDownload(link, item.title);
-        } else if (window.showActionModal) {
-            window.showActionModal({
+        if (typeof confirmDownload === 'function') {
+            confirmDownload(link, item.title);
+        } else if (typeof showActionModal === 'function') {
+            showActionModal({
                 title: 'Tải xuống tệp',
                 desc: `Bạn có muốn tải xuống "${item.title}" không?`,
                 type: 'confirm',
@@ -251,16 +252,15 @@ window.handleClick = function(key, type, driveId) {
         // For document files: prefer in-app preview for Google Drive IDs, fall back to download for direct links
         const item = dataMap[key];
         if (!item) return;
-        const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
-        const link = isDirectLink ? (String(item.id).startsWith('http') ? item.id : 'https://' + item.id) : `https://drive.google.com/uc?export=download&id=${item.id}`;
+        const provider = resolveProvider(item);
+        const link = provider.getDownloadUrl(item.id || '');
 
-        // If this is a direct link (Dropbox/HTTP), show download confirm; otherwise open preview modal
-        if (isDirectLink) {
-            if (window.confirmDownload) window.confirmDownload(link, item.title);
-            else window.open(link, '_blank');
-        } else {
-            // driveId may be an ID; use openMedia to show preview iframe
+        // If provider is drive then preview docs inline, otherwise show download confirm
+        if (provider === StorageProviders.drive) {
             openMedia(driveId, 'doc', item ? item.title : 'Document');
+        } else {
+            if (typeof confirmDownload === 'function') confirmDownload(link, item.title);
+            else window.open(link, '_blank');
         }
     } else {
         const item = dataMap[key];
@@ -268,7 +268,7 @@ window.handleClick = function(key, type, driveId) {
     }
 }
 
-window.navigateTo = function(targetId) {
+function navigateTo(targetId) {
     window.currentFolderId = (targetId === 'root') ? null : targetId;
     currentSearchTerm = '';
     document.getElementById('searchInput').value = '';
@@ -277,7 +277,14 @@ window.navigateTo = function(targetId) {
 
 function updateBreadcrumb() {
     const bc = document.getElementById('breadcrumb');
-    let html = `<span class="crumb-item" onclick="navigateTo('root')">Trang chủ (${currentTab})</span>`;
+    if (!bc) return;
+    bc.innerHTML = '';
+    const root = document.createElement('span');
+    root.className = 'crumb-item';
+    root.dataset.target = 'root';
+    root.textContent = `Trang chủ (${currentTab})`;
+    bc.appendChild(root);
+
     if (window.currentFolderId) {
         let path = [];
         let curr = dataMap[window.currentFolderId];
@@ -288,9 +295,18 @@ function updateBreadcrumb() {
             curr = dataMap[curr.parentId]; 
             i++;
         }
-        path.forEach(folder => html += ` <span class="crumb-separator">/</span> <span class="crumb-item" onclick="navigateTo('${folder.key}')">${folder.title}</span>`);
+        path.forEach(folder => {
+            const sep = document.createElement('span');
+            sep.className = 'crumb-separator';
+            sep.textContent = ' / ';
+            const el = document.createElement('span');
+            el.className = 'crumb-item';
+            el.dataset.target = folder.key;
+            el.textContent = folder.title;
+            bc.appendChild(sep);
+            bc.appendChild(el);
+        });
     }
-    bc.innerHTML = html;
 }
 
 // --- CONTEXT MENU ---
@@ -308,7 +324,7 @@ document.addEventListener('click', () => {
     if (menu && menu.style.display === 'block') menu.style.display = 'none';
 });
 
-window.showContextMenu = function(e, key, isItem) {
+function showContextMenu(e, key, isItem) {
     e.preventDefault();
     e.stopPropagation();
     contextTargetId = key;
@@ -351,50 +367,50 @@ window.showContextMenu = function(e, key, isItem) {
 
 // --- ADMIN ACTIONS ---
 
-window.editLinkUI = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
+function editLinkUI() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
     const item = dataMap[contextTargetId];
     if (!item) return;
-    if (item.type === 'folder') return window.showToast("Không thể sửa link thư mục!");
+    if (item.type === 'folder') return showToast("Không thể sửa link thư mục!");
 
-    window.showActionModal({
+    showActionModal({
         title: "Sửa Link File",
         desc: "Dán link Google Drive mới vào bên dưới:",
         type: 'prompt',
         initialValue: "", 
         onConfirm: (val) => {
-            const newId = window.extractFileId(val);
+            const newId = extractFileId(val);
             if(newId) {
                 db.ref('videos/' + contextTargetId).update({ id: newId })
-                  .then(() => window.showToast("Đã cập nhật link!"));
+                .then(() => showToast("Đã cập nhật link!"));
             } else {
-                window.showToast("Link không hợp lệ!");
+                showToast("Link không hợp lệ!");
             }
         }
     });
 }
 
-window.setFolderSortUI = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
+function setFolderSortUI() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
     const item = dataMap[contextTargetId];
     if (!item || item.type !== 'folder') return;
 
-    window.showActionModal({
+    showActionModal({
         title: "Cài đặt sắp xếp",
         desc: "Chọn cách sắp xếp mặc định cho thư mục này:",
         type: 'select',
         initialValue: item.defaultSort || 'date_desc',
         onConfirm: (mode) => {
             db.ref('videos/' + contextTargetId).update({ defaultSort: mode })
-              .then(() => window.showToast("Đã lưu cài đặt!"));
+              .then(() => showToast("Đã lưu cài đặt!"));
         }
     });
 }
 
-window.deleteItem = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
+function deleteItem() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
     
-    window.showActionModal({
+    showActionModal({
         title: "Xác nhận xóa?",
         desc: "Hành động này không thể hoàn tác!",
         type: 'confirm',
@@ -403,25 +419,25 @@ window.deleteItem = function() {
             const updates = {};
             allIdsToDelete.forEach(id => updates['videos/' + id] = null);
             db.ref().update(updates).then(() => {
-                window.showToast(`Đã xóa ${allIdsToDelete.length} mục.`);
+                showToast(`Đã xóa ${allIdsToDelete.length} mục.`);
                 if (contextTargetId === window.currentFolderId) navigateTo('root');
             });
         }
     });
 }
 
-window.renameItemUI = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
+function renameItemUI() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
     const item = dataMap[contextTargetId];
     if (!item) return;
     
-    window.showActionModal({
+    showActionModal({
         title: "Đổi tên",
         type: 'prompt',
         initialValue: item.title,
         onConfirm: (newName) => {
             const clean = normalizeName(newName);
-            if (!clean) return window.showToast('Tên không hợp lệ');
+            if (!clean) return showToast('Tên không hợp lệ');
             if (clean === item.title) return;
             // ensure unique among siblings
             const unique = generateUniqueName(clean, item.parentId);
@@ -430,10 +446,10 @@ window.renameItemUI = function() {
     });
 }
 
-window.createFolderUI = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
+function createFolderUI() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
     
-    window.showActionModal({
+    showActionModal({
         title: "Tạo thư mục",
         type: 'prompt',
         initialValue: "Thư mục mới",
@@ -453,18 +469,29 @@ window.createFolderUI = function() {
 
 // Helpers
 function getDescendantIds(targetId) {
-    // Protect against cycles by tracking visited nodes
+    // Build parent -> children map once (O(N)), then traverse (O(N) total)
+    const childrenMap = Object.create(null);
+    for (let i = 0; i < allData.length; i++) {
+        const it = allData[i];
+        const p = it.parentId || null;
+        if (!childrenMap[p]) childrenMap[p] = [];
+        childrenMap[p].push(it);
+    }
+
     const ids = [];
     const visited = new Set();
-    (function recurse(id) {
-        if (!id || visited.has(id)) return;
+    const stack = [targetId];
+    while (stack.length) {
+        const id = stack.pop();
+        if (!id || visited.has(id)) continue;
         visited.add(id);
-        const children = allData.filter(item => item.parentId === id);
-        children.forEach(child => {
+        const children = childrenMap[id] || [];
+        for (let j = 0; j < children.length; j++) {
+            const child = children[j];
             ids.push(child.key);
-            if (child.type === 'folder') recurse(child.key);
-        });
-    })(targetId);
+            if (child.type === 'folder') stack.push(child.key);
+        }
+    }
     return ids;
 }
 
@@ -557,23 +584,23 @@ async function deepCopyFolder(sourceId, targetParentId) {
     return idMap;
 }
 
-window.copyItem = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
+function copyItem() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
     window.appClipboard = { action: 'copy', id: contextTargetId };
-    window.showToast("Đã chép vào bộ nhớ tạm");
+    showToast("Đã chép vào bộ nhớ tạm");
 }
 
-window.cutItem = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
+function cutItem() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
     window.appClipboard = { action: 'cut', id: contextTargetId };
-    window.showToast("Đã chọn để di chuyển");
+    showToast("Đã chọn để di chuyển");
 }
 
-window.pasteItem = function() {
-    if (!window.isAdmin) return window.showToast("Cần quyền Admin!");
-    if (!window.appClipboard.id) return window.showToast("Chưa có gì để dán!");
+function pasteItem() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
+    if (!window.appClipboard.id) return showToast("Chưa có gì để dán!");
     const sourceId = window.appClipboard.id;
-    if (sourceId === window.currentFolderId) return window.showToast("Không thể dán vào chính nó!");
+    if (sourceId === window.currentFolderId) return showToast("Không thể dán vào chính nó!");
 
     const sourceItem = dataMap[sourceId];
     if (!sourceItem) return;
@@ -581,7 +608,7 @@ window.pasteItem = function() {
     // Prevent pasting into a descendant (would create a cycle)
     const descendants = getDescendantIds(sourceId);
     if (window.currentFolderId && (descendants.includes(window.currentFolderId) || window.currentFolderId === sourceId)) {
-        return window.showToast("Không thể dán vào thư mục con của chính nó!");
+        return showToast("Không thể dán vào thư mục con của chính nó!");
     }
 
     const updates = {
@@ -595,7 +622,7 @@ window.pasteItem = function() {
         // Moving: simple update (already exists) but prevent cycles
         db.ref('videos/' + sourceId).update(updates)
             .then(() => {
-                window.showToast("Đã di chuyển");
+                showToast("Đã di chuyển");
                 window.appClipboard = { action: null, id: null };
             });
     } else if (window.appClipboard.action === 'copy') {
@@ -621,38 +648,33 @@ window.pasteItem = function() {
                 });
             }
 
-            cloneNode(sourceId, window.currentFolderId).then(() => window.showToast('Đã dán bản sao'));
+            cloneNode(sourceId, window.currentFolderId).then(() => showToast('Đã dán bản sao'));
         } else {
             const newItem = { ...sourceItem, ...updates, title: (sourceItem.title || '') + " (Copy)" };
             delete newItem.key;
-            db.ref('videos').push(newItem).then(() => window.showToast("Đã dán bản sao"));
+            db.ref('videos').push(newItem).then(() => showToast("Đã dán bản sao"));
         }
     }
 }
 
-window.downloadItem = function() {
+function downloadItem() {
     const item = dataMap[contextTargetId];
     if (item && item.type !== 'folder') {
-        const isDirectLink = item.source === 'dropbox' || (item.id && (String(item.id).startsWith('http') || String(item.id).includes('dropbox')));
-        let link = '';
-        if (isDirectLink) {
-            link = String(item.id).startsWith('http') ? item.id : 'https://' + item.id;
-        } else {
-            link = `https://drive.google.com/uc?export=download&id=${item.id}`;
-        }
-        if (window.confirmDownload) window.confirmDownload(link, item.title);
+        const provider = resolveProvider(item);
+        const link = provider.getDownloadUrl(item.id || '');
+        if (typeof confirmDownload === 'function') confirmDownload(link, item.title);
         else window.open(link, '_blank');
     }
 }
 
-window.openContextItem = function() {
+function openContextItem() {
     const item = dataMap[contextTargetId];
     if (item) handleClick(item.key, item.type, item.id);
 }
 
 // --- MEDIA MODAL ---
 // Properly close media modal
-window.closeMedia = function() {
+function closeMedia() {
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
     if (modal) modal.style.display = 'none';
@@ -662,7 +684,7 @@ window.closeMedia = function() {
 }
 
 // Open media viewer modal for image/video/docs
-window.openMedia = function(id, type, title) {
+function openMedia(id, type, title) {
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
     if (!modal || !content) return;
@@ -680,10 +702,10 @@ window.openMedia = function(id, type, title) {
         const prevItem = processedData[index - 1];
         const nextItem = processedData[index + 1];
         if (prevItem && prevItem.type === 'image') {
-            navBtns += `<button class="nav-btn prev" onclick="event.stopPropagation(); openMedia('${prevItem.id}', 'image', '${prevItem.title.replace(/'/g, "\\'")}')">❮</button>`;
+            navBtns += `<button class="nav-btn prev" data-id="${prevItem.id}" data-type="image">❮</button>`;
         }
         if (nextItem && nextItem.type === 'image') {
-            navBtns += `<button class="nav-btn next" onclick="event.stopPropagation(); openMedia('${nextItem.id}', 'image', '${nextItem.title.replace(/'/g, "\\'")}')">❯</button>`;
+            navBtns += `<button class="nav-btn next" data-id="${nextItem.id}" data-type="image">❯</button>`;
         }
     }
 
@@ -706,7 +728,7 @@ window.openMedia = function(id, type, title) {
         <div class="media-window">
             <div class="media-header">
                 <h3 class="media-title">${(title||'Viewer').replace(/</g,'&lt;')}</h3>
-                <button class="btn-close-media" onclick="closeMedia()">✕</button>
+                <button class="btn-close-media">✕</button>
             </div>
             <div class="media-body">
                 ${navBtns}
@@ -719,25 +741,25 @@ window.openMedia = function(id, type, title) {
 }
 
 // --- ADMIN TOOL INPUT ---
-window.autoFillID = function() {
-    const id = window.extractFileId(document.getElementById('mediaUrl').value);
+function autoFillID() {
+    const id = extractFileId(document.getElementById('mediaUrl').value);
     if (id) document.getElementById('mediaTitle').placeholder = "Nhập tên...";
 }
 
-window.toggleAdminTool = function() {
+function toggleAdminTool() {
     const el = document.getElementById('adminTool');
     el.style.display = (el.style.display === 'block') ? 'none' : 'block';
 }
 
-window.addToCloud = function() {
+function addToCloud() {
     if (!window.isAdmin) return;
     const url = document.getElementById('mediaUrl').value;
-    const extractedIdOrUrl = window.extractFileId(url);
+    const extractedIdOrUrl = extractFileId(url);
     
     // KIỂM TRA NGHIỆP VỤ: Chỉ cho phép Dropbox ở tab "File khác" (other)
     const isDropbox = url.includes('dropbox.com');
     if (isDropbox && currentTab !== 'other') {
-        return window.showToast("❌ Link Dropbox chỉ được hỗ trợ trong mục 'File khác'!");
+        return showToast("❌ Link Dropbox chỉ được hỗ trợ trong mục 'File khác'!");
     }
 
     // Xử lý title mặc định cho Dropbox
@@ -756,19 +778,20 @@ window.addToCloud = function() {
         document.getElementById('mediaUrl').value = '';
         document.getElementById('mediaTitle').value = '';
         toggleAdminTool();
-        window.showToast("✅ Thêm tệp thành công!"); 
+        showToast("✅ Thêm tệp thành công!"); 
     } else {
-        window.showToast("❌ Link không hợp lệ");
+        showToast("❌ Link không hợp lệ");
     }
 }
 
-window.changeSortMode = function(mode) {
+function changeSortMode(mode) {
     currentSortMode = mode;
     const select = document.getElementById('sortSelect');
     if(select) select.value = mode;
     updateDataPipeline();
 }
-window.handleSearch = function(val) {
+
+function handleSearch(val) {
     if (searchTimeout) clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
         currentSearchTerm = val.toLowerCase().trim();
@@ -796,6 +819,113 @@ document.addEventListener('click', function (e) {
     const link = btn.getAttribute('data-link');
     const title = btn.getAttribute('data-title') || '';
     if (!link) return;
-    if (window.confirmDownload) window.confirmDownload(link, title);
+    if (typeof confirmDownload === 'function') confirmDownload(link, title);
     else window.open(link, '_blank');
 }, true);
+
+// --- UI wiring: replace former inline handlers with event listeners & delegation ---
+(function attachUI() {
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const btnMenu = document.getElementById('btnMenu');
+    const btnCloseSidebar = document.getElementById('btnCloseSidebar');
+    [sidebarOverlay, btnMenu, btnCloseSidebar].forEach(el => { if (el) el.addEventListener('click', toggleSidebar); });
+
+    // Sidebar menu click is handled centrally in `core.js` to avoid duplicate handlers
+
+    const loginBtn = document.getElementById('loginBtn'); if (loginBtn) loginBtn.addEventListener('click', showLogin);
+    const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.addEventListener('click', logout);
+    const btnRetry = document.getElementById('btnRetry'); if (btnRetry) btnRetry.addEventListener('click', () => location.reload());
+    const themeCheckbox = document.getElementById('theme-checkbox'); if (themeCheckbox) themeCheckbox.addEventListener('change', toggleTheme);
+
+    document.querySelectorAll('input[name="tabs"][data-tab]').forEach(r => {
+        r.addEventListener('change', () => { if (r.checked) switchTab(r.dataset.tab); });
+    });
+
+    const searchInput = document.getElementById('searchInput'); if (searchInput) searchInput.addEventListener('input', e => handleSearch(e.target.value));
+    const viewBtn = document.getElementById('viewBtn'); if (viewBtn) viewBtn.addEventListener('click', toggleViewMode);
+    const sortSelect = document.getElementById('sortSelect'); if (sortSelect) sortSelect.addEventListener('change', e => changeSortMode(e.target.value));
+    const btnNew = document.getElementById('btnNew'); if (btnNew) btnNew.addEventListener('click', toggleAdminTool);
+
+    document.addEventListener('click', function(e) {
+        const crumb = e.target.closest('.crumb-item');
+        if (crumb && crumb.dataset.target) navigateTo(crumb.dataset.target);
+    });
+
+    const closeAdminTool = document.getElementById('closeAdminTool'); if (closeAdminTool) closeAdminTool.addEventListener('click', toggleAdminTool);
+    const btnSaveCloud = document.getElementById('btnSaveCloud'); if (btnSaveCloud) btnSaveCloud.addEventListener('click', addToCloud);
+    const btnCancelTransfer = document.getElementById('btnCancelTransfer');
+    if (btnCancelTransfer) btnCancelTransfer.addEventListener('click', () => {
+        if (typeof cancelTransfer === 'function') return cancelTransfer();
+        console.warn('cancelTransfer not available yet');
+    });
+    const btnLogin = document.getElementById('btnLogin'); if (btnLogin) btnLogin.addEventListener('click', loginAdmin);
+    const btnCloseLogin = document.getElementById('btnCloseLogin'); if (btnCloseLogin) btnCloseLogin.addEventListener('click', closeLogin);
+    const acModalCancel = document.getElementById('acModalCancel'); if (acModalCancel) acModalCancel.addEventListener('click', closeActionModal);
+
+    // Context menu actions mapping
+    function handleContextAction(action) {
+        switch(action) {
+            case 'open': return openContextItem();
+            case 'download': return downloadItem();
+            case 'rename': return renameItemUI();
+            case 'copy': return copyItem();
+            case 'cut': return cutItem();
+            case 'editlink': return editLinkUI();
+            case 'delete': return deleteItem();
+            case 'createFolder': return createFolderUI();
+            case 'paste': return pasteItem();
+            case 'reload': return location.reload();
+            default: return null;
+        }
+    }
+
+    document.getElementById('ctx-file-actions')?.addEventListener('click', function(e){ const li = e.target.closest('li.item'); if (!li) return; const action = li.dataset.action; if (action) handleContextAction(action); });
+    document.getElementById('ctx-bg-actions')?.addEventListener('click', function(e){ const li = e.target.closest('li.item'); if (!li) return; const action = li.dataset.action; if (action) handleContextAction(action); });
+
+    // Palette action buttons
+    document.querySelectorAll('[data-palette-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const a = btn.dataset.paletteAction;
+            if (a === 'random') randomBaseColor();
+            else if (a === 'copy') exportPalette();
+            else if (a === 'export') exportPaletteJSON();
+        });
+    });
+
+    const baseColorInput = document.getElementById('baseColorInput'); if (baseColorInput) baseColorInput.addEventListener('input', updatePaletteSystem);
+    const harmonyRule = document.getElementById('harmonyRule'); if (harmonyRule) harmonyRule.addEventListener('change', updatePaletteSystem);
+
+    // Card click/contextmenu delegation inside app-cloud
+    const appCloud = document.getElementById('app-cloud');
+    if (appCloud) {
+        appCloud.addEventListener('click', function(e) {
+            const card = e.target.closest('.card');
+            if (!card) return;
+            const key = card.dataset.key;
+            const type = card.dataset.type;
+            const id = card.dataset.id;
+            handleClick(key, type, id);
+        });
+
+        appCloud.addEventListener('contextmenu', function(e) {
+            const card = e.target.closest('.card');
+            if (card) { e.preventDefault(); showContextMenu(e, card.dataset.key, true); }
+        });
+    }
+
+    // Media modal: nav buttons, play buttons and close
+    document.addEventListener('click', function(e) {
+        const playBtn = e.target.closest('.btn-play');
+        if (playBtn) { e.stopPropagation(); const url = playBtn.dataset.url || playBtn.getAttribute('data-url'); if (url && typeof window.launchGame === 'function') return launchGame(url); }
+        const nav = e.target.closest('.nav-btn');
+        if (nav) { e.stopPropagation(); const id = nav.dataset.id; const t = nav.dataset.type || 'image'; if (id) openMedia(id, t, ''); }
+        const close = e.target.closest('.btn-close-media');
+        if (close) closeMedia();
+    });
+
+    // Image error handling (delegated capture)
+    document.addEventListener('error', function(e) {
+        const img = e.target;
+        if (img && img.classList && img.classList.contains('thumb-img')) handleImgError(img);
+    }, true);
+})();

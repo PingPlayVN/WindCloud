@@ -1,7 +1,8 @@
 // js/drop.js - IMPROVED VERSION v2.1 (Mobile Optimized)
 // Features: E2E Encryption, Checksum Verification, Timeout Detection, Memory Leak Prevention, iOS Support
 
-// drop.js uses global showToast from utils (attached to window); no import needed
+// drop.js now imports utilities from utils.js instead of relying on globals
+import { showToast, showActionModal, confirmDownload } from './utils.js';
 
 const isMyDeviceMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 const isMyDeviceIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -44,6 +45,7 @@ let connectionUpdateInterval = null;  // ✅ Update connection UI timer
 let transferQueue = [];
 let isProcessingQueue = false;
 let wakeLockSentinel = null; // ✅ Keep device awake
+let dropHeartbeatInterval = null;
 
 const TRANSFER_CONFIG = {
     TIMEOUT_MS: 30000,                                              // 30s timeout
@@ -131,8 +133,9 @@ async function encryptChunk(data, key, iv) {
         );
         return encrypted;
     } catch (e) {
-        console.warn("Encryption error:", e);
-        return data; // Fallback: gửi không mã hóa
+        console.error("Encryption error:", e);
+        // QUĂNG LỖI - TUYỆT ĐỐI KHÔNG RETURN DATA GỐC
+        throw new Error("Lỗi mã hóa E2E. Đã hủy truyền tệp để đảm bảo an toàn.");
     }
 }
 
@@ -146,8 +149,8 @@ async function decryptChunk(encryptedData, key, iv) {
         );
         return decrypted;
     } catch (e) {
-        console.warn("Decryption error:", e);
-        return encryptedData; // Fallback
+        console.error("Decryption error:", e);
+        throw new Error("Lỗi giải mã E2E. File có thể đã bị can thiệp.");
     }
 }
 
@@ -170,7 +173,7 @@ window.addEventListener('beforeunload', (e) => {
 window.addEventListener('pagehide', cleanupConnections);
 document.addEventListener('visibilitychange', () => {
     if (document.hidden && isTransferring) {
-        window.cancelTransfer();
+        cancelTransfer();
     }
 });
 
@@ -192,9 +195,9 @@ function cleanupConnections() {
 
     // Clear presence heartbeat if any
     try {
-        if (window.dropHeartbeatInterval) {
-            clearInterval(window.dropHeartbeatInterval);
-            window.dropHeartbeatInterval = null;
+        if (dropHeartbeatInterval) {
+            clearInterval(dropHeartbeatInterval);
+            dropHeartbeatInterval = null;
         }
     } catch (e) {}
     // Clear transfer watchdog if running
@@ -241,7 +244,7 @@ async function checkBatteryLevel() {
         try {
             const battery = await navigator.getBattery();
             if (battery.level < TRANSFER_CONFIG.BATTERY_WARNING_LEVEL) {
-                window.showToast(`⚠️ Điện thoại yếu (${Math.floor(battery.level * 100)}%) - transfer có thể bị gián đoạn`);
+                showToast(`⚠️ Điện thoại yếu (${Math.floor(battery.level * 100)}%) - transfer có thể bị gián đoạn`);
             }
         } catch (e) {
             // Battery API not available
@@ -249,7 +252,7 @@ async function checkBatteryLevel() {
     }
 }
 
-window.initWindDrop = function() {
+function initWindDrop() {
     if (myPeer && !myPeer.destroyed) {
         console.log("Wind Drop đã sẵn sàng.");
         return; 
@@ -329,11 +332,11 @@ function announcePresence() {
 
     // Heartbeat: cập nhật lastSeen định kỳ để người khác không thấy thiết bị cũ
     try {
-        if (window.dropHeartbeatInterval) clearInterval(window.dropHeartbeatInterval);
+        if (dropHeartbeatInterval) clearInterval(dropHeartbeatInterval);
     } catch (e) {}
     // ✅ Faster heartbeat on mobile for quicker peer discovery (8s on mobile, 12s on desktop)
     const heartbeatInterval = isMyDeviceMobile ? 8000 : 12000;
-    window.dropHeartbeatInterval = setInterval(() => {
+    dropHeartbeatInterval = setInterval(() => {
         try {
             userRef.update({ lastSeen: firebase.database.ServerValue.TIMESTAMP });
         } catch (e) {
@@ -445,7 +448,7 @@ async function processTransferQueue() {
     isProcessingQueue = true;
     const { file, targetPeerId } = transferQueue.shift();
     
-    window.showToast(`📤 Xếp hàng: ${transferQueue.length} file`);
+    showToast(`📤 Xếp hàng: ${transferQueue.length} file`);
     await uploadFileP2P(file, targetPeerId);
     
     // Xử lý file tiếp theo
@@ -459,12 +462,12 @@ async function processTransferQueue() {
 // --- LOGIC GỬI FILE VỚI CHECKSUM & ENCRYPTION ---
 async function uploadFileP2P(file, targetPeerId) {
     if (!myPeer) {
-        window.showToast("❌ Peer chưa sẵn sàng!");
+        showToast("❌ Peer chưa sẵn sàng!");
         return;
     }
     
     console.log('📤 [Sender] Starting upload to', targetPeerId, 'file:', file.name, file.size);
-    window.showToast(`🔗 Đang kết nối tới ${targetPeerId}...`);
+    showToast(`🔗 Đang kết nối tới ${targetPeerId}...`);
     
     // ✅ Show connection status bar
     const connStatusEl = document.getElementById('connectionStatus');
@@ -512,7 +515,7 @@ async function uploadFileP2P(file, targetPeerId) {
 
     conn.on('error', (err) => {
         console.error('❌ [Sender] Connection error:', err);
-        window.showToast("❌ Lỗi kết nối: " + err.message);
+        showToast("❌ Lỗi kết nối: " + err.message);
         hideConnectionStatus();
         resetTransferState();
     });
@@ -529,7 +532,7 @@ async function uploadFileP2P(file, targetPeerId) {
                 open: conn.open,
                 dataChannel: conn.dataChannel ? conn.dataChannel.readyState : 'none'
             });
-            window.showToast('⏳ Kết nối chậm, đang thử lại...');
+            showToast('⏳ Kết nối chậm, đang thử lại...');
             conn.close();
             hideConnectionStatus();
             // Retry connection after brief delay
@@ -594,7 +597,7 @@ async function uploadFileP2P(file, targetPeerId) {
     conn.on('data', (response) => {
         console.log('📥 [Sender] Received response:', response?.type);
         if (response.type === 'ack' && response.status === 'ok') {
-            window.showToast(`📤 Gửi: ${file.name}`);
+            showToast(`📤 Gửi: ${file.name}`);
             isTransferring = true;
             document.getElementById('transfer-panel').style.display = 'block';
             document.getElementById('tf-filename').innerText = file.name;
@@ -607,11 +610,11 @@ async function uploadFileP2P(file, targetPeerId) {
             sendFileInChunks(file, conn, receiverType, encKey, new Uint8Array(iv), () => lastAckReceived);
         } 
         else if (response.type === 'busy') {
-            window.showToast("⏳ Người nhận đang bận, thử lại sau...");
+            showToast("⏳ Người nhận đang bận, thử lại sau...");
             conn.close();
         }
         else if (response.type === 'cancel') {
-            window.showToast("⛔ Người nhận đã từ chối!");
+            showToast("⛔ Người nhận đã từ chối!");
             isTransferring = false;
             releaseWakeLock(); // ✅ Release wake lock
             resetTransferState();
@@ -625,7 +628,7 @@ async function uploadFileP2P(file, targetPeerId) {
             // reserved for future use
         }
         else if (response.type === 'verify-mismatch') {
-            window.showToast("❌ Verify failed: File bị corrupted!");
+            showToast("❌ Verify failed: File bị corrupted!");
             isTransferring = false;
             releaseWakeLock(); // ✅ Release wake lock
             resetTransferState();
@@ -634,7 +637,7 @@ async function uploadFileP2P(file, targetPeerId) {
 
     conn.on('close', () => {
         if (isTransferring) {
-            window.showToast("❌ Mất kết nối với người nhận!");
+            showToast("❌ Mất kết nối với người nhận!");
             resetTransferState();
         }
     });
@@ -678,7 +681,7 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck
     transferWatchdogInterval = setInterval(() => {
         if (isTransferring && Date.now() - lastChunkTime > TRANSFER_CONFIG.TIMEOUT_MS) {
             console.warn('Transfer watchdog timeout');
-            window.showToast('❌ Transfer timeout - hủy');
+            showToast('❌ Transfer timeout - hủy');
             isTransferring = false;
             try { conn.send({ type: 'cancel' }); } catch (e) {}
             resetTransferState();
@@ -696,7 +699,7 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck
             transferTimeoutId = setTimeout(() => {
                 if (isTransferring && Date.now() - lastChunkTime > TRANSFER_CONFIG.TIMEOUT_MS) {
                     console.warn("Transfer timeout!");
-                    window.showToast("❌ Transfer timeout - mất kết nối");
+                    showToast("❌ Transfer timeout - mất kết nối");
                     isTransferring = false;
                     resetTransferState();
                 }
@@ -744,7 +747,7 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck
             if (!sent) {
                 console.error('Không gửi được chunk sau nhiều lần thử', sendErr);
                 // attempt to abort gracefully
-                window.showToast('❌ Lỗi gửi - hủy chuyển');
+                showToast('❌ Lỗi gửi - hủy chuyển');
                 isTransferring = false;
                 resetTransferState();
                 break;
@@ -775,13 +778,13 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck
         }
 
         if (isTransferring) {
-            window.showToast("✅ Đã gửi xong, chờ verify...");
+            showToast("✅ Đã gửi xong, chờ verify...");
             releaseWakeLock(); // ✅ Release wake lock
             resetTransferState();
         }
     } catch (e) {
         console.error("Transfer Critical Error:", e);
-        window.showToast("❌ Lỗi truyền: " + e.message);
+        showToast("❌ Lỗi truyền: " + e.message);
         releaseWakeLock(); // ✅ Release wake lock
         resetTransferState();
     } finally {
@@ -817,7 +820,7 @@ function setupIncomingConnection(conn) {
         // Quick handler for ping (find device)
             if (data && data.type === 'ping') {
             console.log('🔔 [Receiver] Ping received');
-            window.showToast('🔔 Đã nhận yêu cầu tìm thiết bị');
+            showToast('🔔 Đã nhận yêu cầu tìm thiết bị');
             try { if (navigator.vibrate) navigator.vibrate([200,100,200]); } catch(e) {}
             return;
         }
@@ -845,7 +848,7 @@ function setupIncomingConnection(conn) {
             chunkHashes = [];
             lastProgressSent = 0;
             
-            window.showActionModal({
+            showActionModal({
                 title: "📥 Nhận file?",
                 desc: `"${data.fileName}" (${formatSize(data.fileSize)})\n\nChecksum: ${data.checksum ? '✅ Verified' : '⚠️ Unverified'}`,
                 type: 'confirm',
@@ -874,7 +877,7 @@ function setupIncomingConnection(conn) {
                     transferWatchdogInterval = setInterval(() => {
                         if (isTransferring && Date.now() - lastChunkTime > TRANSFER_CONFIG.TIMEOUT_MS) {
                             console.warn('Receiver watchdog timeout');
-                            window.showToast('❌ Timeout - người gửi không phản hồi');
+                            showToast('❌ Timeout - người gửi không phản hồi');
                             try { conn.send({ type: 'cancel' }); } catch (e) {}
                             isTransferring = false;
                             resetTransferState();
@@ -942,10 +945,10 @@ function setupIncomingConnection(conn) {
                 
                 if (receivedSize === window.incomingMeta.fileSize) {
                     conn.send({ type: 'verify-ok' });
-                    window.showToast('✅ File đã lưu thành công!');
+                    showToast('✅ File đã lưu thành công!');
                 } else {
                     conn.send({ type: 'verify-mismatch' });
-                    window.showToast('⚠️ Cảnh báo: size không match, file có thể bị lỗi');
+                    showToast('⚠️ Cảnh báo: size không match, file có thể bị lỗi');
                 }
                 
                 releaseWakeLock(); // ✅ Release wake lock
@@ -953,7 +956,7 @@ function setupIncomingConnection(conn) {
                 fileChunks = [];
             }
         } else if (data.type === 'cancel') {
-            window.showToast("⛔ Người gửi đã hủy.");
+            showToast("⛔ Người gửi đã hủy.");
             if (window.currentWriter) {
                 window.currentWriter.abort("Người gửi đã hủy");
                 window.currentWriter = null;
@@ -965,14 +968,14 @@ function setupIncomingConnection(conn) {
 
     conn.on('error', (err) => {
         console.error("Connection error:", err);
-        window.showToast("❌ Lỗi kết nối: " + err.message);
+        showToast("❌ Lỗi kết nối: " + err.message);
         releaseWakeLock(); // ✅ Release wake lock
         resetTransferState();
     });
 
     conn.on('close', () => {
         if (isTransferring) {
-            window.showToast("❌ Mất kết nối!");
+            showToast("❌ Mất kết nối!");
             releaseWakeLock(); // ✅ Release wake lock
             resetTransferState();
         }
@@ -994,7 +997,7 @@ function downloadBlobFile(chunks, fileName) {
         console.log('✅ iOS: File downloaded via blob');
     } catch (err) {
         console.error('Blob download failed:', err);
-        window.showToast('❌ Không thể tải file - thử lại');
+        showToast('❌ Không thể tải file - thử lại');
     }
 }
 
@@ -1117,7 +1120,7 @@ function formatSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-window.cancelTransfer = function() {
+function cancelTransfer() {
     if (!isTransferring && !activeConnection) {
         resetTransferState();
         return;
@@ -1142,7 +1145,7 @@ window.cancelTransfer = function() {
         }
     }
     
-    window.showToast("⛔ Đã hủy chuyển tệp.");
+    showToast("⛔ Đã hủy chuyển tệp.");
     releaseWakeLock(); // ✅ Release wake lock
     resetTransferState();
 
@@ -1160,7 +1163,7 @@ window.cancelTransfer = function() {
 
 // Send a short-lived ping connection to help locate device physically
 function sendPing(targetId) {
-    if (!myPeer) return window.showToast('Peer chưa sẵn sàng');
+    if (!myPeer) return showToast('Peer chưa sẵn sàng');
     try {
         const conn = myPeer.connect(targetId, { reliable: true });
         conn.on('open', () => {
@@ -1169,10 +1172,12 @@ function sendPing(targetId) {
         });
         conn.on('error', (err) => {
             console.warn('Ping error', err);
-            window.showToast('Không thể gửi ping');
+            showToast('Không thể gửi ping');
         });
     } catch (e) {
         console.warn('sendPing failed', e);
-        window.showToast('Lỗi gửi ping');
+        showToast('Lỗi gửi ping');
     }
 }
+
+export { initWindDrop, cancelTransfer };
