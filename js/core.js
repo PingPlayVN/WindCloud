@@ -389,8 +389,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 // --- EXPORTS & GLOBAL ATTACHMENTS ---
-// make firebase handles accessible to other modules that rely on globals
-window.db = db;
-window.auth = auth;
 
 export { db, auth, switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme, goToWindGameTab };
+
