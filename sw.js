@@ -1,6 +1,6 @@
 // sw.js - Service Worker
 
-const CACHE_NAME = 'wind-share-v11.7'; // Đổi tên này nếu bạn update code để ép trình duyệt tải lại
+const CACHE_NAME = 'wind-share-v11.8'; // Đổi tên này nếu bạn update code để ép trình duyệt tải lại
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -13,6 +13,14 @@ const ASSETS_TO_CACHE = [
     './js/drop.js',
     './js/palette.js',
     './manifest.json',
+    './games/tankbattle/index.html',
+    './games/tankbattle/css/style.css',
+    './games/tankbattle/js/classes.js',
+    './games/tankbattle/js/constants.js',
+    './games/tankbattle/js/game.js',
+    './games/tankbattle/js/interface.js',
+    './games/tankbattle/js/network.js',
+    './games/tankbattle/thumnail.png',
     // Cache luôn các thư viện ngoài để chạy nhanh hơn
     'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js',
     'https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js',
@@ -75,5 +83,6 @@ self.addEventListener('message', (event) => {
         self.skipWaiting();
     }
 });
+
 
 
