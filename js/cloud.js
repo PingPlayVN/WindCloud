@@ -871,6 +871,7 @@ document.addEventListener('click', function (e) {
             case 'copy': return copyItem();
             case 'cut': return cutItem();
             case 'editlink': return editLinkUI();
+            case 'setSort': return setFolderSortUI();
             case 'delete': return deleteItem();
             case 'createFolder': return createFolderUI();
             case 'paste': return pasteItem();
