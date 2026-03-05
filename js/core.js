@@ -22,6 +22,10 @@ if (!firebase.apps.length) {
 const db = firebase.database();
 const auth = firebase.auth();
 
+// Expose to window for legacy modules that expect a global `db`/`auth`
+window.db = db;
+window.auth = auth;
+
 // --- 2. GLOBAL STATE ---
 window.isAdmin = false;
 window.appClipboard = { action: null, id: null };
