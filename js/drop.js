@@ -2,7 +2,9 @@
 // Features: E2E Encryption, Checksum Verification, Timeout Detection, Memory Leak Prevention, iOS Support
 
 // drop.js now imports utilities from utils.js instead of relying on globals
-import { showToast, showActionModal, confirmDownload } from './utils.js';
+import { confirmDownload } from './utils.js';
+import { showToast, showActionModal } from './ui.js';
+import { db } from './firebase.js';
 
 const isMyDeviceMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 const isMyDeviceIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);

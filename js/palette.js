@@ -1,6 +1,6 @@
 // js/palette.js
 
-import { showToast } from './utils.js';
+import { showToast } from './ui.js';
 
 // palette.js uses `showToast` from utils
 

@@ -1,7 +1,9 @@
 // js/cloud.js
 
-import { handleImgError, renderSkeleton, showToast, extractFileId, showActionModal, closeActionModal, confirmDownload } from './utils.js';
-import { db, switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme } from './core.js';
+import { handleImgError, renderSkeleton, extractFileId, confirmDownload } from './utils.js';
+import { showToast, showActionModal, closeActionModal } from './ui.js';
+import { switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme } from './core.js';
+import { db } from './firebase.js';
 import { updatePaletteSystem, randomBaseColor, exportPalette, exportPaletteJSON, copyColor } from './palette.js';
 import { cancelTransfer } from './drop.js';
 import { StorageProviders, resolveProvider } from './cloudAdapters.js';
