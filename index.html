@@ -14,7 +14,13 @@
     <link rel="apple-touch-icon" href="./icon.png">
     
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="./icon.png"> </head>
+    <link rel="icon" href="./icon.png">
+    <script type="module">
+        import { showInstallPrompt } from './js/installPrompt.js';
+        window.addEventListener('DOMContentLoaded', showInstallPrompt);
+    </script>
+    <script type="module" src="./js/router.js"></script>
+</head>
 <body>
 
 <div id="sidebar-overlay"></div>
@@ -90,6 +96,7 @@
                     </div>
                 </div>
             </label>
+            <button id="installBtn" style="display:none" class="btn-header icon-btn" title="Cài đặt ứng dụng">⬇️ Cài đặt</button>
         </div>
     </header>
 
