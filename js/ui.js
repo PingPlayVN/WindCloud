@@ -20,27 +20,60 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
     const acCancelBtn = document.querySelector('.btn-modal-cancel');
 
     if (!acModal) return;
-    acModal.style.display = 'block';
+    
+    // 1. Hiển thị modal (sử dụng flex để căn giữa như đã fix trước đó)
+    acModal.style.display = 'flex';
     if (acTitle) acTitle.innerText = title || '';
     if (acDesc) acDesc.innerText = desc || '';
-    if (acInput) acInput.value = initialValue;
-    if (acSelect) acSelect.value = initialValue;
 
+    // 2. Logic xử lý hiển thị động dựa trên biến 'type'
+    if (type === 'select') {
+        if (acInput) acInput.style.display = 'none';
+        if (acSelect) {
+            acSelect.style.display = 'block';
+            acSelect.value = initialValue;
+        }
+    } else if (type === 'prompt') {
+        if (acSelect) acSelect.style.display = 'none';
+        if (acInput) {
+            acInput.style.display = 'block';
+            acInput.value = initialValue;
+            // Best Practice UX: Tự động focus vào ô input khi mở popup
+            setTimeout(() => acInput.focus(), 50); 
+        }
+    } else {
+        // Chế độ 'confirm' (Chỉ có text xác nhận, ẩn cả input và select)
+        if (acInput) acInput.style.display = 'none';
+        if (acSelect) acSelect.style.display = 'none';
+    }
+
+    // 3. Quản lý Event Listeners
     function cleanup() {
         removeManagedEventListener(acBtn, 'click', confirmHandler);
         removeManagedEventListener(acCancelBtn, 'click', cancelHandler);
-        removeManagedEventListener(acInput, 'keydown', inputHandler);
+        if (acInput) removeManagedEventListener(acInput, 'keydown', inputHandler);
     }
 
     function confirmHandler() {
         cleanup();
-        if (onConfirm) onConfirm(acInput ? acInput.value : null);
+        if (onConfirm) {
+            // Logic trả về đúng dữ liệu theo từng type
+            let returnValue = null;
+            if (type === 'select' && acSelect) {
+                returnValue = acSelect.value;
+            } else if (type === 'prompt' && acInput) {
+                returnValue = acInput.value;
+            }
+            onConfirm(returnValue);
+        }
         closeActionModal();
     }
+
     function cancelHandler() {
         cleanup();
         closeActionModal();
     }
+
     function inputHandler(e) {
         if (e.key === 'Enter') {
             confirmHandler();
@@ -49,7 +82,7 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
 
     addManagedEventListener(acBtn, 'click', confirmHandler);
     addManagedEventListener(acCancelBtn, 'click', cancelHandler);
-    addManagedEventListener(acInput, 'keydown', inputHandler);
+    if (acInput) addManagedEventListener(acInput, 'keydown', inputHandler);
 }
 
 export function closeActionModal() {
