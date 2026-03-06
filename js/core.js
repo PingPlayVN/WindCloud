@@ -5,6 +5,7 @@ import { showActionModal, closeActionModal, showToast } from './ui.js';
 import { updatePaletteSystem } from './palette.js';
 import { initWindDrop } from './drop.js';
 import { db, auth } from './firebase.js';
+import { initWindGame } from './windgame.js';
 
 // --- 2. GLOBAL STATE ---
 window.isAdmin = false;
@@ -152,7 +153,7 @@ function switchApp(appName) {
         if (el) el.classList.add('active');
         document.getElementById('app-windgame').style.display = 'block';
         document.title = "Wind Cloud - Wind Game";
-        if (typeof initWindGame === 'function') initWindGame();
+        initWindGame();
     }
 }
 
@@ -255,9 +256,7 @@ function goToWindGameTab() {
     document.title = "Wind Cloud - Wind Game";
     
     // Initialize windgame
-    if (typeof initWindGame === 'function') {
-        initWindGame();
-    }
+    initWindGame();
     
     console.log('Wind Game tab is now active');
 }

@@ -39,12 +39,20 @@ function renderGameCards() {
             <div class="game-actions">
                 <button class="btn-play" data-url="${g.url}">Chơi Ngay</button>
             </div>`;
-        // open on card click as well
-        card.onclick = (ev) => {
-            // avoid triggering when clicking a button inside
-            if (ev.target.tagName.toLowerCase() === 'button') return;
+        // 1. Gán sự kiện cho toàn bộ thẻ game (Card)
+        card.onclick = () => {
             launchGame(g.url);
         };
+
+        // 2. Gán sự kiện riêng cho nút "Chơi Ngay" để chặn bong bóng sự kiện (Event Bubbling)
+        const btnPlay = card.querySelector('.btn-play');
+        if (btnPlay) {
+            btnPlay.onclick = (ev) => {
+                ev.stopPropagation(); // Ngăn chặn sự kiện click lan truyền ngược lên thẻ card
+                launchGame(g.url);
+            };
+        }
+
         grid.appendChild(card);
     });
 }
