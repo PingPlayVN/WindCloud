@@ -1,3 +1,109 @@
+@media (max-width: 600px), (max-height: 400px) {
+    .header-actions-mobile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin-right: 0;
+        margin-left: auto;
+        width: 100%;
+        max-width: 180px;
+    }
+    #installBtn {
+        font-size: 0.8em;
+        padding: 5px 10px;
+        border-radius: 10px;
+        min-width: 60px;
+        margin: 0;
+        position: static;
+        z-index: 2;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 180px;
+    }
+    .theme-switch {
+        transform: scale(0.7);
+        margin: 0;
+    }
+}
+
+@media (min-width: 601px) {
+    .header-actions-mobile {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        margin-right: 0;
+        margin-left: auto;
+        width: auto;
+        max-width: none;
+    }
+    #installBtn {
+        font-size: 1.1em;
+        padding: 12px 28px;
+        border-radius: 24px;
+        min-width: 120px;
+        margin-left: 12px;
+        width: auto;
+        max-width: none;
+    }
+    .theme-switch {
+        transform: scale(1);
+        margin-right: 4px;
+    }
+}
+/* Cải thiện UI nút cài đặt ứng dụng */
+#installBtn {
+    display: none;
+    background: linear-gradient(90deg, #1a73e8 60%, #00ac47 100%);
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    font-size: 1.1em;
+    font-weight: 600;
+    padding: 12px 28px;
+    margin-left: 12px;
+    box-shadow: 0 2px 8px rgba(26,115,232,0.12);
+    transition: background 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    outline: none;
+}
+#installBtn:hover, #installBtn:active {
+    background: linear-gradient(90deg, #2684fc 60%, #00ac47 100%);
+    box-shadow: 0 4px 16px rgba(26,115,232,0.18);
+}
+@media (max-width: 600px) {
+    .header-actions-mobile {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        margin-right: 4px;
+    }
+    #installBtn {
+        font-size: 0.8em;
+        padding: 5px 10px;
+        border-radius: 10px;
+        min-width: 60px;
+        margin: 0;
+        position: static;
+        z-index: 2;
+        box-sizing: border-box;
+    }
+    .theme-switch {
+        transform: scale(0.7);
+        margin: 0;
+    }
+    .logo-area {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    header > div[style*="display:flex"] {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
 /* --- VARIABLES --- */
 :root {
     /* Light Mode (Mặc định) */
