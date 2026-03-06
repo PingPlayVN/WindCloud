@@ -2,7 +2,7 @@
 // When a game calls `exitToWindGame()` this will navigate back to the main
 // index and trigger the Wind Game tab restore (via core.js auto-restore).
 
-export function exitToWindGame() {
+window.exitToWindGame = function() {
     try {
         // navigate to root index with #windgame hash so core.js can restore the tab
         window.location.href = '../../index.html#windgame';
@@ -16,6 +16,6 @@ export function exitToWindGame() {
         // final fallback
         window.location.href = '/index.html#windgame';
     }
-}
+};
 
 // debug log removed for production
