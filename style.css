@@ -251,7 +251,7 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 }
 .media-grid.list-view .file-info { margin-right: auto; }
 .media-grid.list-view .file-name { 
-    font-size: 14px; white-space: nowrap; -webkit-line-clamp: 1; 
+    font-size: 14px; white-space: nowrap; -webkit-line-clamp: 1; line-clamp: 2;
 }
 
 /* CARD DEFAULT STYLE */
@@ -321,7 +321,7 @@ h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 .file-name { 
     font-size: 14px; font-weight: 500; color: var(--text-main); 
     white-space: normal; 
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
     overflow: hidden; word-break: break-word; line-height: 1.4;
 }
 
@@ -543,7 +543,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     .file-info span:first-child { margin-top: 2px; font-size: 14px; }
     .file-name { 
         font-size: 12px; line-height: 1.3; white-space: normal; 
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
         overflow: hidden; word-break: break-word; 
     }
     
@@ -1309,7 +1309,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 input[type="color"] {
-    -webkit-appearance: none; border: none; width: 32px; height: 32px; cursor: pointer; padding: 0; background: none;
+    -webkit-appearance: none; appearance: none; border: none; width: 32px; height: 32px; cursor: pointer; padding: 0; background: none;
 }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; border: 2px solid rgba(0,0,0,0.1); }
