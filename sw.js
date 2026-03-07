@@ -2,7 +2,7 @@
 
 
 const CacheManager = (() => {
-    const CACHE_NAME = 'wind-share-v11.21';
+    const CACHE_NAME = 'wind-share-v11.22';
     const ASSETS_TO_CACHE = [
         './',
         './index.html',
