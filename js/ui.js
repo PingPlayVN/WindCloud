@@ -1,4 +1,4 @@
-// ui.js - UI utilities module
+// js/ui.js - Cập nhật kiến trúc Event Management
 
 export function showToast(msg) {
     const toast = document.getElementById('toast');
@@ -8,6 +8,7 @@ export function showToast(msg) {
     setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
 }
 
+// Giữ lại import để không phá vỡ dependency của các file khác nếu có
 import { addManagedEventListener, removeManagedEventListener } from './eventManager.js';
 
 export function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
@@ -21,7 +22,7 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
 
     if (!acModal) return;
     
-    // 1. Hiển thị modal (sử dụng flex để căn giữa như đã fix trước đó)
+    // 1. Hiển thị modal
     acModal.style.display = 'flex';
     if (acTitle) acTitle.innerText = title || '';
     if (acDesc) acDesc.innerText = desc || '';
@@ -38,51 +39,48 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
         if (acInput) {
             acInput.style.display = 'block';
             acInput.value = initialValue;
-            // Best Practice UX: Tự động focus vào ô input khi mở popup
+            // Best Practice UX: Tự động focus
             setTimeout(() => acInput.focus(), 50); 
         }
     } else {
-        // Chế độ 'confirm' (Chỉ có text xác nhận, ẩn cả input và select)
+        // Chế độ 'confirm'
         if (acInput) acInput.style.display = 'none';
         if (acSelect) acSelect.style.display = 'none';
     }
 
-    // 3. Quản lý Event Listeners
-    function cleanup() {
-        removeManagedEventListener(acBtn, 'click', confirmHandler);
-        removeManagedEventListener(acCancelBtn, 'click', cancelHandler);
-        if (acInput) removeManagedEventListener(acInput, 'keydown', inputHandler);
-    }
-
-    function confirmHandler() {
-        cleanup();
-        if (onConfirm) {
-            // Logic trả về đúng dữ liệu theo từng type
-            let returnValue = null;
-            if (type === 'select' && acSelect) {
-                returnValue = acSelect.value;
-            } else if (type === 'prompt' && acInput) {
-                returnValue = acInput.value;
+    // 3. Quản lý Event Listeners (Kiến trúc O(1) Memory Management)
+    // Gán đè (overwrite) DOM properties thay vì addEventListener
+    // Đảm bảo tại mọi thời điểm chỉ có 1 callback duy nhất tồn tại trên nút bấm
+    
+    if (acBtn) {
+        acBtn.onclick = function() {
+            if (onConfirm) {
+                let returnValue = null;
+                if (type === 'select' && acSelect) {
+                    returnValue = acSelect.value;
+                } else if (type === 'prompt' && acInput) {
+                    returnValue = acInput.value;
+                }
+                onConfirm(returnValue);
             }
-            onConfirm(returnValue);
-        }
-        closeActionModal();
+            closeActionModal();
+        };
     }
 
-    function cancelHandler() {
-        cleanup();
-        closeActionModal();
+    if (acCancelBtn) {
+        acCancelBtn.onclick = function() {
+            closeActionModal();
+        };
     }
 
-    function inputHandler(e) {
-        if (e.key === 'Enter') {
-            confirmHandler();
-        }
+    if (acInput) {
+        acInput.onkeydown = function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Ngăn chặn trigger submit ngoài ý muốn
+                if (acBtn) acBtn.click(); // Ủy quyền (delegate) về logic của nút xác nhận
+            }
+        };
     }
-
-    addManagedEventListener(acBtn, 'click', confirmHandler);
-    addManagedEventListener(acCancelBtn, 'click', cancelHandler);
-    if (acInput) addManagedEventListener(acInput, 'keydown', inputHandler);
 }
 
 export function closeActionModal() {
