@@ -152,8 +152,8 @@ export function initMobileContextMenu() {
     function initializeListeners() {
         document.addEventListener('touchstart', handleTouchStart, { passive: true });
         document.addEventListener('touchmove', handleTouchMove, { passive: true });
-        document.addEventListener('touchend', handleTouchEnd, { passive: true });
-        document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+        document.addEventListener('touchend', handleTouchEnd, { passive: false });
+        document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
     }
 
     // Initialize on load

@@ -19,37 +19,73 @@ let processedData = [];
 let renderLimit = 24;   
 let searchTimeout = null; 
 let contextTargetId = null;
+let currentPathRef = null;
+let currentFolderPath = ''; // Path to current folder in nested structure (empty = root)
+// e.g., '' for cloud/videos root
+// e.g., 'folder1' for cloud/videos/folder1
+// e.g., 'folder1/subfolder' for cloud/videos/folder1/subfolder
+
+// Helper: Get Cloud Storage Path
+function getCloudPath() {
+    const tabMap = {
+        'video': 'cloud/videos',
+        'image': 'cloud/images',
+        'doc': 'cloud/docs',
+        'other': 'cloud/others'
+    };
+    return tabMap[currentTab] || 'cloud/videos';
+}
+
+// Helper: Get full path to current folder
+function getFullCurrentPath() {
+    const basePath = getCloudPath();
+    if (currentFolderPath) {
+        return basePath + '/' + currentFolderPath;
+    }
+    return basePath;
+}
+
+// Attach listener with proper cleanup
+function attachDataListener() {
+    if (currentPathRef) {
+        currentPathRef.off('value');
+    }
+    const fullPath = getFullCurrentPath();
+    currentPathRef = db.ref(fullPath);
+    currentPathRef.on('value', (snapshot) => {
+        allData = [];
+        dataMap = {}; 
+        snapshot.forEach(child => {
+            const val = child.val();
+            if (val && typeof val === 'object') {
+                const item = { key: child.key, ...val };
+                allData.push(item);
+                dataMap[child.key] = item; 
+            }
+        });
+        updateDataPipeline();
+    }, (error) => {
+        showToast("❌ Lỗi tải dữ liệu: " + error.message);
+    });
+}
 
 // [FIX] Gọi Skeleton NGAY LẬP TỨC khi file JS chạy (để lấp đầy màn hình lúc chờ mạng)
 renderSkeleton();
 
 // --- DATA FETCHING ---
-db.ref('videos').on('value', (snapshot) => {
-    // Không gọi renderSkeleton() ở đây nữa vì lúc này đã có dữ liệu rồi
-    allData = [];
-    dataMap = {}; 
-    snapshot.forEach(child => {
-        const val = child.val();
-        if (val.parentId === undefined) val.parentId = null;
-        const item = { key: child.key, ...val };
-        allData.push(item);
-        dataMap[child.key] = item; 
-    });
-    updateDataPipeline();
-});
+attachDataListener();
 
 // --- CORE PIPELINE ---
 function updateDataPipeline() {
     updateBreadcrumb();
     let filtered = allData.filter(item => {
-        if (item.parentId !== window.currentFolderId) return false;
-        let tabMatch = (item.type === 'folder') ? (item.tabCategory === currentTab) : (item.type === currentTab);
-        if (!tabMatch) return false;
+        // In nested structure, we only show items that are at current level
+        // Folders and files are distinguished by type only
         if (currentSearchTerm && !item.title.toLowerCase().includes(currentSearchTerm)) return false;
         return true;
     });
 
-    // Sắp xếp
+    // Sort
     filtered.sort((a, b) => {
         if (a.type === 'folder' && b.type !== 'folder') return -1;
         if (a.type !== 'folder' && b.type === 'folder') return 1;
@@ -68,7 +104,7 @@ function updateDataPipeline() {
 
     processedData = filtered;
     renderLimit = 24; 
-    renderGrid(false); // false = Reset (vẽ lại từ đầu)
+    renderGrid(false);
 }
 
 // Hàm sinh HTML cho từng item (Tách ra để tái sử dụng)
@@ -207,7 +243,7 @@ window.addEventListener('scroll', () => {
 function switchTab(type) {
     if (currentTab === type) return; 
     currentTab = type;
-    window.currentFolderId = null; 
+    currentFolderPath = ''; // Reset to root of new tab
     currentSearchTerm = ''; 
     document.getElementById('searchInput').value = '';
     changeSortMode('date_desc'); 
@@ -215,16 +251,19 @@ function switchTab(type) {
     const radio = document.getElementById(`tab-${type}-radio`);
     if(radio) radio.checked = true;
 
+    attachDataListener();
     updateDataPipeline();
 }
 
 function handleClick(key, type, driveId) {
     if (type === 'folder') {
-        window.currentFolderId = key;
+        // Navigate into folder
+        currentFolderPath = currentFolderPath ? currentFolderPath + '/' + key : key;
         currentSearchTerm = '';
         document.getElementById('searchInput').value = '';
         
         const folder = dataMap[key];
+        attachDataListener(); // Always attach listener for new path
         if (folder && folder.defaultSort) {
             changeSortMode(folder.defaultSort);
         } else {
@@ -271,10 +310,12 @@ function handleClick(key, type, driveId) {
     }
 }
 
-function navigateTo(targetId) {
-    window.currentFolderId = (targetId === 'root') ? null : targetId;
+function navigateTo(pathStr) {
+    // pathStr is like 'folder1' or 'folder1/subfolder' or empty for root
+    currentFolderPath = pathStr === 'root' ? '' : pathStr;
     currentSearchTerm = '';
     document.getElementById('searchInput').value = '';
+    attachDataListener();
     updateDataPipeline();
 }
 
@@ -288,24 +329,22 @@ function updateBreadcrumb() {
     root.textContent = `Trang chủ (${currentTab})`;
     bc.appendChild(root);
 
-    if (window.currentFolderId) {
-        let path = [];
-        let curr = dataMap[window.currentFolderId];
-        let i = 0;
-        while(curr && i < 50) {
-            path.unshift(curr);
-            if (!curr.parentId) break;
-            curr = dataMap[curr.parentId]; 
-            i++;
-        }
-        path.forEach(folder => {
+    // Build breadcrumb from current path
+    if (currentFolderPath) {
+        const pathParts = currentFolderPath.split('/');
+        let accumulatedPath = '';
+        
+        pathParts.forEach((folderName, index) => {
+            accumulatedPath = accumulatedPath ? accumulatedPath + '/' + folderName : folderName;
+            
             const sep = document.createElement('span');
             sep.className = 'crumb-separator';
             sep.textContent = ' / ';
             const el = document.createElement('span');
             el.className = 'crumb-item';
-            el.dataset.target = folder.key;
-            el.textContent = folder.title;
+            el.dataset.target = accumulatedPath;
+            el.textContent = folderName; // Folder name is the path part itself
+            
             bc.appendChild(sep);
             bc.appendChild(el);
         });
@@ -384,8 +423,19 @@ function editLinkUI() {
         onConfirm: (val) => {
             const newId = extractFileId(val);
             if(newId) {
-                db.ref('videos/' + contextTargetId).update({ id: newId })
-                .then(() => showToast("Đã cập nhật link!"));
+                const updatePath = getFullCurrentPath() + '/' + contextTargetId;
+                // Update by reading, modifying, and rewriting
+                db.ref(updatePath).once('value').then(snapshot => {
+                    const data = snapshot.val();
+                    if (data) {
+                        data.id = newId;
+                        db.ref(updatePath).set(data).then(() => {
+                            showToast("✅ Đã cập nhật link!");
+                        }).catch(err => {
+                            showToast("❌ Lỗi: " + err.message);
+                        });
+                    }
+                });
             } else {
                 showToast("Link không hợp lệ!");
             }
@@ -404,8 +454,18 @@ function setFolderSortUI() {
         type: 'select',
         initialValue: item.defaultSort || 'date_desc',
         onConfirm: (mode) => {
-            db.ref('videos/' + contextTargetId).update({ defaultSort: mode })
-              .then(() => showToast("Đã lưu cài đặt!"));
+            const updatePath = getFullCurrentPath() + '/' + contextTargetId;
+            db.ref(updatePath).once('value').then(snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    data.defaultSort = mode;
+                    db.ref(updatePath).set(data).then(() => {
+                        showToast("✅ Đã lưu cài đặt!");
+                    }).catch(err => {
+                        showToast("❌ Lỗi: " + err.message);
+                    });
+                }
+            });
         }
     });
 }
@@ -418,12 +478,19 @@ function deleteItem() {
         desc: "Hành động này không thể hoàn tác!",
         type: 'confirm',
         onConfirm: () => {
-            const allIdsToDelete = [contextTargetId, ...getDescendantIds(contextTargetId)];
-            const updates = {};
-            allIdsToDelete.forEach(id => updates['videos/' + id] = null);
-            db.ref().update(updates).then(() => {
-                showToast(`Đã xóa ${allIdsToDelete.length} mục.`);
-                if (contextTargetId === window.currentFolderId) navigateTo('root');
+            const item = dataMap[contextTargetId];
+            const deletePath = getFullCurrentPath() + '/' + contextTargetId;
+            
+            db.ref(deletePath).remove().then(() => {
+                showToast("✅ Đã xóa mục.");
+                // If deleted item was a folder we were browsing, go back
+                if (item && item.type === 'folder') {
+                    // Don't navigate back unless we're inside the deleted folder
+                    // (which shouldn't happen since we can't delete current folder)
+                }
+                updateDataPipeline();
+            }).catch(err => {
+                showToast("❌ Lỗi: " + err.message);
             });
         }
     });
@@ -437,14 +504,41 @@ function renameItemUI() {
     showActionModal({
         title: "Đổi tên",
         type: 'prompt',
-        initialValue: item.title,
+        initialValue: item.title || contextTargetId,
         onConfirm: (newName) => {
             const clean = normalizeName(newName);
             if (!clean) return showToast('Tên không hợp lệ');
             if (clean === item.title) return;
-            // ensure unique among siblings
-            const unique = generateUniqueName(clean, item.parentId);
-            db.ref('videos/' + contextTargetId).update({ title: unique });
+            
+            // Check if new name already exists (exclude current item)
+            const usedNames = allData.filter(it => it.key !== contextTargetId).map(it => it.title || it.key);
+            if (usedNames.includes(clean)) {
+                return showToast('Tên này đã tồn tại!');
+            }
+            
+            const currentPath = getFullCurrentPath();
+            const oldPath = currentPath + '/' + contextTargetId;
+            const newPath = currentPath + '/' + clean;
+            
+            // Read data from old path
+            db.ref(oldPath).once('value').then(snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    data.title = clean; // Update title field
+                    // Write to new path
+                    db.ref(newPath).set(data).then(() => {
+                        // Delete old path
+                        db.ref(oldPath).remove().then(() => {
+                            showToast("✅ Đã đổi tên");
+                            // Force refresh listener
+                            setTimeout(() => {
+                                attachDataListener();
+                                updateDataPipeline();
+                            }, 200);
+                        }).catch(err => showToast("❌ Lỗi xóa: " + err.message));
+                    }).catch(err => showToast("❌ Lỗi viết: " + err.message));
+                }
+            }).catch(err => showToast("❌ Lỗi đọc: " + err.message));
         }
     });
 }
@@ -458,13 +552,24 @@ function createFolderUI() {
         initialValue: "Thư mục mới",
         onConfirm: (name) => {
             const clean = normalizeName(name) || 'Thư mục mới';
-            const unique = generateUniqueName(clean, window.currentFolderId);
-            db.ref('videos').push({
+            // Generate unique folder name within current level only
+            const usedNames = allData.map(item => item.title);
+            let unique = clean;
+            let counter = 1;
+            while (usedNames.includes(unique)) {
+                unique = `${clean} (${counter++})`;
+            }
+            
+            // Create new folder node inside current path with title field
+            const folderPath = getFullCurrentPath() + '/' + unique;
+            db.ref(folderPath).set({
                 title: unique,
                 type: 'folder',
-                tabCategory: currentTab,
-                parentId: window.currentFolderId,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                showToast("✅ Đã tạo thư mục");
+            }).catch(err => {
+                showToast("❌ Lỗi tạo thư mục: " + err.message);
             });
         }
     });
@@ -523,139 +628,158 @@ function generateUniqueName(baseName, parentId) {
     return baseName + ` ${Date.now()}`;
 }
 
-async function deepCopyFolder(sourceId, targetParentId) {
-    // Build a quick lookup of nodes by id
-    const mapById = {};
-    allData.forEach(item => { mapById[item.key] = item; });
-
-    // Collect all descendant ids (including source)
-    const nodesToCopy = [];
-    const q = [sourceId];
-    const seen = new Set();
-    while (q.length) {
-        const id = q.shift();
-        if (!id || seen.has(id)) continue;
-        seen.add(id);
-        const node = mapById[id];
-        if (!node) continue;
-        nodesToCopy.push(node);
-        allData.filter(i => i.parentId === id).forEach(child => q.push(child.key));
+async function deepCopyFolder(sourceKeyName, targetPath) {
+    // In nested structure, copy entire subtree from source to target  
+    const sourcePath = getFullCurrentPath() + '/' + sourceKeyName;
+    
+    // Get entire folder subtree
+    const snapshot = await db.ref(sourcePath).once('value');
+    const folderData = snapshot.val();
+    
+    if (!folderData) {
+        throw new Error('Folder not found');
     }
-
-    // Process nodes only when their new parent exists -> ensure parent created before children
-    const idMap = {};
-    const remaining = nodesToCopy.slice();
-    const topSource = mapById[sourceId];
-    const newTopName = generateUniqueName(topSource.title || 'Folder', targetParentId);
-
-    let iterations = 0;
-    while (remaining.length) {
-        iterations++;
-        if (iterations > 5000) throw new Error('deepCopyFolder: too many iterations');
-        let progress = false;
-        for (let i = 0; i < remaining.length; ) {
-            const node = remaining[i];
-            const isTop = node.key === sourceId;
-            const parentId = node.parentId;
-            const parentResolved = isTop || (parentId && idMap[parentId]);
-            if (!parentResolved && !isTop) { i++; continue; }
-
-            // Prepare new object
-            const newObj = Object.assign({}, node);
-            delete newObj.key;
-            const newParentId = isTop ? (targetParentId || null) : (idMap[parentId] || parentId || null);
-            newObj.parentId = newParentId;
-            const desiredTitle = isTop ? newTopName : (newObj.title || 'Untitled');
-            newObj.title = generateUniqueName(normalizeName(desiredTitle), newParentId);
-            newObj.timestamp = firebase.database.ServerValue.TIMESTAMP;
-
-            // Push and map
-            // eslint-disable-next-line no-await-in-loop
-            const ref = await db.ref('videos').push(newObj);
-            idMap[node.key] = ref.key;
-
-            // remove processed
-            remaining.splice(i, 1);
-            progress = true;
-        }
-        if (!progress) {
-            // Shouldn't happen; break to avoid infinite loop
-            break;
-        }
+    
+    // Generate unique name for copy
+    const usedNames = new Set(allData.map(item => item.title || item.key));
+    const sourceItem = dataMap[sourceKeyName];
+    const baseName = sourceItem?.title || sourceKeyName;
+    let copiedName = `${baseName} (bản sao)`;
+    let counter = 1;
+    while (usedNames.has(copiedName)) {
+        copiedName = `${baseName} (bản sao ${counter++})`;
     }
-
-    return idMap;
+    
+    // Ensure copied folder has title field
+    if (!folderData.title) {
+        folderData.title = copiedName;
+    }
+    
+    // Write to new location
+    const newPath = targetPath + '/' + copiedName;
+    await db.ref(newPath).set(folderData);
+    
+    return copiedName;
 }
+
 
 function copyItem() {
     if (!window.isAdmin) return showToast("Cần quyền Admin!");
-    window.appClipboard = { action: 'copy', id: contextTargetId };
-    showToast("Đã chép vào bộ nhớ tạm");
+    const sourceItem = dataMap[contextTargetId];
+    if (!sourceItem) return showToast("Item không tìm thấy!");
+    const sourcePath = getFullCurrentPath() + '/' + contextTargetId;
+    window.appClipboard = { 
+        action: 'copy', 
+        id: contextTargetId, 
+        path: sourcePath,
+        item: sourceItem  // Save full item data
+    };
+    showToast("✅ Đã chép vào bộ nhớ tạm");
 }
 
 function cutItem() {
     if (!window.isAdmin) return showToast("Cần quyền Admin!");
-    window.appClipboard = { action: 'cut', id: contextTargetId };
-    showToast("Đã chọn để di chuyển");
+    const sourceItem = dataMap[contextTargetId];
+    if (!sourceItem) return showToast("Item không tìm thấy!");
+    const sourcePath = getFullCurrentPath() + '/' + contextTargetId;
+    window.appClipboard = { 
+        action: 'cut', 
+        id: contextTargetId, 
+        path: sourcePath,
+        item: sourceItem  // Save full item data
+    };
+    showToast("✅ Đã chọn để di chuyển");
 }
 
 function pasteItem() {
     if (!window.isAdmin) return showToast("Cần quyền Admin!");
-    if (!window.appClipboard.id) return showToast("Chưa có gì để dán!");
-    const sourceId = window.appClipboard.id;
-    if (sourceId === window.currentFolderId) return showToast("Không thể dán vào chính nó!");
-
-    const sourceItem = dataMap[sourceId];
-    if (!sourceItem) return;
-
-    // Prevent pasting into a descendant (would create a cycle)
-    const descendants = getDescendantIds(sourceId);
-    if (window.currentFolderId && (descendants.includes(window.currentFolderId) || window.currentFolderId === sourceId)) {
-        return showToast("Không thể dán vào thư mục con của chính nó!");
+    if (!window.appClipboard.id || !window.appClipboard.path) return showToast("Chưa có gì để dán!");
+    
+    const sourceKey = window.appClipboard.id;
+    const sourcePath = window.appClipboard.path;
+    const sourceItem = window.appClipboard.item;  // Get from clipboard, not from dataMap
+    
+    if (!sourceItem) {
+        return showToast("Thông tin item đã mất. Hãy cắt/chép lại.");
     }
 
-    const updates = {
-        parentId: window.currentFolderId,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    };
-    if (sourceItem.type === 'folder') updates.tabCategory = currentTab;
-    else updates.type = currentTab;
-
+    const targetPath = getFullCurrentPath();
+    
     if (window.appClipboard.action === 'cut') {
-        // Moving: simple update (already exists) but prevent cycles
-        db.ref('videos/' + sourceId).update(updates)
-            .then(() => {
-                showToast("Đã di chuyển");
-                window.appClipboard = { action: null, id: null };
-            });
-    } else if (window.appClipboard.action === 'copy') {
-        // Deep-copy if folder, else simple copy
-        if (sourceItem.type === 'folder') {
-            // Recursively clone folder and children
-            function cloneNode(oldId, newParentId) {
-                const node = dataMap[oldId];
-                if (!node) return Promise.resolve();
-                const newNode = { ...node };
-                delete newNode.key;
-                newNode.parentId = newParentId;
-                newNode.timestamp = firebase.database.ServerValue.TIMESTAMP;
-                // Ensure correct tab/type for new parent
-                if (node.type === 'folder') newNode.tabCategory = currentTab;
-                else newNode.type = currentTab;
-
-                return db.ref('videos').push(newNode).then(ref => {
-                    const newId = ref.key;
-                    // Find children and clone them
-                    const children = allData.filter(item => item.parentId === oldId);
-                    return Promise.all(children.map(child => cloneNode(child.key, newId)));
+        // Move: read from source, write to target, delete source
+        db.ref(sourcePath).once('value').then(snapshot => {
+            const data = snapshot.val();
+            if (data) {
+                // Generate unique name at target
+                const usedNames = new Set(allData.map(it => it.title || it.key));
+                const baseName = sourceItem.title || sourceKey;
+                let newName = baseName;
+                let counter = 1;
+                while (usedNames.has(newName)) {
+                    newName = `${baseName} (${counter++})`;
+                }
+                
+                const newPath = targetPath + '/' + newName;
+                db.ref(newPath).set(data).then(() => {
+                    db.ref(sourcePath).remove().then(() => {
+                        showToast("✅ Đã di chuyển");
+                        window.appClipboard = { action: null, id: null, path: null, item: null };
+                        // Refresh data
+                        setTimeout(() => {
+                            attachDataListener();
+                            updateDataPipeline();
+                        }, 200);
+                    }).catch(err => {
+                        showToast("❌ Lỗi xóa: " + err.message);
+                    });
+                }).catch(err => {
+                    showToast("❌ Lỗi viết: " + err.message);
                 });
+            } else {
+                showToast("❌ Lỗi: Không tìm thấy file gốc");
             }
-
-            cloneNode(sourceId, window.currentFolderId).then(() => showToast('Đã dán bản sao'));
+        }).catch(err => {
+            showToast("❌ Lỗi đọc: " + err.message);
+        });
+    } else if (window.appClipboard.action === 'copy') {
+        if (sourceItem.type === 'folder') {
+            // Copy folder with all contents
+            deepCopyFolder(sourceKey, targetPath).then(() => {
+                showToast("✅ Đã dán bản sao thư mục");
+                window.appClipboard = { action: null, id: null, path: null, item: null };
+                // Refresh data
+                setTimeout(() => {
+                    attachDataListener();
+                    updateDataPipeline();
+                }, 200);
+            }).catch(err => {
+                showToast("❌ Lỗi: " + err.message);
+            });
         } else {
-            const newItem = { ...sourceItem, ...updates, title: (sourceItem.title || '') + " (Copy)" };
+            // Copy file
+            const usedNames = new Set(allData.map(item => item.title || item.key));
+            let copiedName = `${sourceItem.title || sourceKey} (Copy)`;
+            let counter = 1;
+            while (usedNames.has(copiedName)) {
+                copiedName = `${sourceItem.title} (Copy ${counter++})`;
+            }
+            
+            const newItem = { ...sourceItem };
             delete newItem.key;
-            db.ref('videos').push(newItem).then(() => showToast("Đã dán bản sao"));
+            newItem.title = copiedName;
+            newItem.timestamp = firebase.database.ServerValue.TIMESTAMP;
+            
+            db.ref(targetPath + '/' + copiedName).set(newItem).then(() => {
+                showToast("✅ Đã dán bản sao tệp");
+                window.appClipboard = { action: null, id: null, path: null, item: null };
+                // Refresh data
+                setTimeout(() => {
+                    attachDataListener();
+                    updateDataPipeline();
+                }, 200);
+            }).catch(err => {
+                showToast("❌ Lỗi: " + err.message);
+            });
         }
     }
 }
@@ -769,19 +893,31 @@ function addToCloud() {
     const title = document.getElementById('mediaTitle').value || ("File " + (isDropbox ? "Dropbox" : extractedIdOrUrl?.substring(0,5)));
     
     if (extractedIdOrUrl) {
-        db.ref('videos').push({
+        // Generate unique name within current level (check both title and key)
+        const usedNames = new Set(allData.map(item => item.title || item.key));
+        let uniqueName = title;
+        let counter = 1;
+        while (usedNames.has(uniqueName)) {
+            const nameWithoutExt = title.substring(0, title.lastIndexOf('.')) || title;
+            const ext = title.substring(title.lastIndexOf('.')) || '';
+            uniqueName = `${nameWithoutExt} (${counter++})${ext}`;
+        }
+        
+        const filePath = getFullCurrentPath() + '/' + uniqueName;
+        db.ref(filePath).set({
             id: extractedIdOrUrl, 
-            title: title, 
-            type: currentTab, 
-            parentId: window.currentFolderId, 
+            title: uniqueName, 
+            type: currentTab,
             timestamp: firebase.database.ServerValue.TIMESTAMP,
-            // Thêm trường 'source' để quy hoạch kiến trúc (sẵn sàng mở rộng cho OneDrive/S3 sau này)
             source: isDropbox ? 'dropbox' : 'drive' 
+        }).then(() => {
+            document.getElementById('mediaUrl').value = '';
+            document.getElementById('mediaTitle').value = '';
+            toggleAdminTool();
+            showToast("✅ Thêm tệp thành công!"); 
+        }).catch(err => {
+            showToast("❌ Lỗi: " + err.message);
         });
-        document.getElementById('mediaUrl').value = '';
-        document.getElementById('mediaTitle').value = '';
-        toggleAdminTool();
-        showToast("✅ Thêm tệp thành công!"); 
     } else {
         showToast("❌ Link không hợp lệ");
     }
@@ -859,7 +995,6 @@ document.addEventListener('click', function (e) {
     const btnCancelTransfer = document.getElementById('btnCancelTransfer');
     if (btnCancelTransfer) btnCancelTransfer.addEventListener('click', () => {
         if (typeof cancelTransfer === 'function') return cancelTransfer();
-        console.warn('cancelTransfer not available yet');
     });
     const btnLogin = document.getElementById('btnLogin'); if (btnLogin) btnLogin.addEventListener('click', loginAdmin);
     const btnCloseLogin = document.getElementById('btnCloseLogin'); if (btnCloseLogin) btnCloseLogin.addEventListener('click', closeLogin);
