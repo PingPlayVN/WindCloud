@@ -7,6 +7,7 @@ import { db } from './firebase.js';
 import { updatePaletteSystem, randomBaseColor, exportPalette, exportPaletteJSON, copyColor } from './palette.js';
 import { cancelTransfer } from './drop.js';
 import { StorageProviders, resolveProvider } from './cloudAdapters.js';
+import { initMobileContextMenu, enableMobileContextMenuDismissal } from './mobileContextMenu.js';
 
 let currentTab = 'video';
 let currentSortMode = 'date_desc';
@@ -932,3 +933,7 @@ document.addEventListener('click', function (e) {
         if (img && img.classList && img.classList.contains('thumb-img')) handleImgError(img);
     }, true);
 })();
+
+// --- MOBILE CONTEXT MENU INITIALIZATION ---
+initMobileContextMenu();
+enableMobileContextMenuDismissal();
