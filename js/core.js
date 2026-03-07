@@ -371,6 +371,31 @@ window.addEventListener('beforeinstallprompt', (e) => {
     console.log("App sẵn sàng để cài đặt!");
 });
 
+// --- LOAD OWNER NAME FROM FIREBASE ---
+function loadOwnerName() {
+    const ownerElement = document.getElementById('ownerName');
+    if (!ownerElement) return;
+
+    // Fetch owner name from Firebase config
+    db.ref('config/ownerName').once('value').then((snapshot) => {
+        const ownerName = snapshot.val();
+        if (ownerName) {
+            ownerElement.textContent = ownerName;
+        }
+    }).catch(() => {
+        // Silently fail, keep default value
+    });
+}
+
+// Call after a short delay to ensure Firebase is initialized
+setTimeout(() => {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadOwnerName);
+    } else {
+        loadOwnerName();
+    }
+}, 500);
+
 // --- EXPORTS & GLOBAL ATTACHMENTS ---
 
 export { db, auth, switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme, goToWindGameTab };
