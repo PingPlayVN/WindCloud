@@ -21,6 +21,7 @@ let searchTimeout = null;
 let contextTargetId = null;
 let currentPathRef = null;
 let currentFolderPath = ''; // Path to current folder in nested structure (empty = root)
+let folderStack = [];
 // e.g., '' for cloud/videos root
 // e.g., 'folder1' for cloud/videos/folder1
 // e.g., 'folder1/subfolder' for cloud/videos/folder1/subfolder
@@ -244,6 +245,7 @@ function switchTab(type) {
     if (currentTab === type) return; 
     currentTab = type;
     currentFolderPath = ''; // Reset to root of new tab
+    folderStack = [];
     currentSearchTerm = ''; 
     document.getElementById('searchInput').value = '';
     changeSortMode('date_desc'); 
@@ -257,12 +259,15 @@ function switchTab(type) {
 
 function handleClick(key, type, driveId) {
     if (type === 'folder') {
+        const folder = dataMap[key];
+        const folderTitle = folder ? (folder.title || key) : key; 
+        folderStack.push({ id: key, title: folderTitle });
         // Navigate into folder
         currentFolderPath = currentFolderPath ? currentFolderPath + '/' + key : key;
         currentSearchTerm = '';
         document.getElementById('searchInput').value = '';
         
-        const folder = dataMap[key];
+        
         attachDataListener(); // Always attach listener for new path
         if (folder && folder.defaultSort) {
             changeSortMode(folder.defaultSort);
@@ -310,9 +315,17 @@ function handleClick(key, type, driveId) {
     }
 }
 
-function navigateTo(pathStr) {
-    // pathStr is like 'folder1' or 'folder1/subfolder' or empty for root
-    currentFolderPath = pathStr === 'root' ? '' : pathStr;
+function navigateTo(pathStr, index) { // 🔥 Thêm tham số index
+    if (pathStr === 'root') {
+        currentFolderPath = '';
+        folderStack = [];
+    } else {
+        currentFolderPath = pathStr;
+        // 🔥 Cắt bỏ các thư mục con trong stack nếu người dùng lùi lại
+        if (index !== undefined) {
+            folderStack = folderStack.slice(0, parseInt(index) + 1);
+        }
+    }
     currentSearchTerm = '';
     document.getElementById('searchInput').value = '';
     attachDataListener();
@@ -329,26 +342,25 @@ function updateBreadcrumb() {
     root.textContent = `Trang chủ (${currentTab})`;
     bc.appendChild(root);
 
-    // Build breadcrumb from current path
-    if (currentFolderPath) {
-        const pathParts = currentFolderPath.split('/');
-        let accumulatedPath = '';
+    // 🔥 Xây dựng đường dẫn dựa trên mảng folderStack thay vì chuỗi currentFolderPath
+    let accumulatedPath = '';
+    
+    folderStack.forEach((folder, index) => {
+        accumulatedPath = accumulatedPath ? accumulatedPath + '/' + folder.id : folder.id;
         
-        pathParts.forEach((folderName, index) => {
-            accumulatedPath = accumulatedPath ? accumulatedPath + '/' + folderName : folderName;
-            
-            const sep = document.createElement('span');
-            sep.className = 'crumb-separator';
-            sep.textContent = ' / ';
-            const el = document.createElement('span');
-            el.className = 'crumb-item';
-            el.dataset.target = accumulatedPath;
-            el.textContent = folderName; // Folder name is the path part itself
-            
-            bc.appendChild(sep);
-            bc.appendChild(el);
-        });
-    }
+        const sep = document.createElement('span');
+        sep.className = 'crumb-separator';
+        sep.textContent = ' / ';
+        
+        const el = document.createElement('span');
+        el.className = 'crumb-item';
+        el.dataset.target = accumulatedPath;
+        el.dataset.index = index; // Lưu vị trí index để điều hướng ngược
+        el.textContent = folder.title; // 🔥 HIỂN THỊ TÊN THẬT THAY VÌ UID
+        
+        bc.appendChild(sep);
+        bc.appendChild(el);
+    });
 }
 
 // --- CONTEXT MENU ---
@@ -516,29 +528,13 @@ function renameItemUI() {
                 return showToast('Tên này đã tồn tại!');
             }
             
-            const currentPath = getFullCurrentPath();
-            const oldPath = currentPath + '/' + contextTargetId;
-            const newPath = currentPath + '/' + clean;
+            // 🔥 Cấu trúc UID giúp đổi tên chỉ bằng 1 thao tác update duy nhất!
+            const itemPath = getFullCurrentPath() + '/' + contextTargetId;
             
-            // Read data from old path
-            db.ref(oldPath).once('value').then(snapshot => {
-                const data = snapshot.val();
-                if (data) {
-                    data.title = clean; // Update title field
-                    // Write to new path
-                    db.ref(newPath).set(data).then(() => {
-                        // Delete old path
-                        db.ref(oldPath).remove().then(() => {
-                            showToast("✅ Đã đổi tên");
-                            // Force refresh listener
-                            setTimeout(() => {
-                                attachDataListener();
-                                updateDataPipeline();
-                            }, 200);
-                        }).catch(err => showToast("❌ Lỗi xóa: " + err.message));
-                    }).catch(err => showToast("❌ Lỗi viết: " + err.message));
-                }
-            }).catch(err => showToast("❌ Lỗi đọc: " + err.message));
+            db.ref(itemPath).update({ title: clean }).then(() => {
+                showToast("✅ Đã đổi tên");
+                // Không cần gọi attachDataListener lại vì Firebase on('value') sẽ tự động catch event update này!
+            }).catch(err => showToast("❌ Lỗi đổi tên: " + err.message));
         }
     });
 }
@@ -560,9 +556,11 @@ function createFolderUI() {
                 unique = `${clean} (${counter++})`;
             }
             
-            // Create new folder node inside current path with title field
-            const folderPath = getFullCurrentPath() + '/' + unique;
-            db.ref(folderPath).set({
+            // Create new folder node with push() UID
+            const parentRef = db.ref(getFullCurrentPath());
+            const newFolderRef = parentRef.push(); // 🔥 Tạo UID an toàn
+            
+            newFolderRef.set({
                 title: unique,
                 type: 'folder',
                 timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -655,9 +653,10 @@ async function deepCopyFolder(sourceKeyName, targetPath) {
         folderData.title = copiedName;
     }
     
-    // Write to new location
-    const newPath = targetPath + '/' + copiedName;
-    await db.ref(newPath).set(folderData);
+    // Write to new location using UID
+    const newRef = db.ref(targetPath).push();
+    folderData.title = copiedName;
+    await newRef.set(folderData);
     
     return copiedName;
 }
@@ -719,8 +718,9 @@ function pasteItem() {
                     newName = `${baseName} (${counter++})`;
                 }
                 
-                const newPath = targetPath + '/' + newName;
-                db.ref(newPath).set(data).then(() => {
+                const newRef = db.ref(targetPath).push();
+                data.title = newName; // Cập nhật lại tên nếu bị trùng
+                newRef.set(data).then(() => {
                     db.ref(sourcePath).remove().then(() => {
                         showToast("✅ Đã di chuyển");
                         window.appClipboard = { action: null, id: null, path: null, item: null };
@@ -769,7 +769,9 @@ function pasteItem() {
             newItem.title = copiedName;
             newItem.timestamp = firebase.database.ServerValue.TIMESTAMP;
             
-            db.ref(targetPath + '/' + copiedName).set(newItem).then(() => {
+            const newRef = db.ref(targetPath).push();
+            newItem.title = copiedName;
+            newRef.set(newItem).then(() => {
                 showToast("✅ Đã dán bản sao tệp");
                 window.appClipboard = { action: null, id: null, path: null, item: null };
                 // Refresh data
@@ -903,10 +905,12 @@ function addToCloud() {
             uniqueName = `${nameWithoutExt} (${counter++})${ext}`;
         }
         
-        const filePath = getFullCurrentPath() + '/' + uniqueName;
-        db.ref(filePath).set({
+        const parentRef = db.ref(getFullCurrentPath());
+        const newItemRef = parentRef.push(); // 🔥 Firebase tự sinh UID chuẩn
+        
+        newItemRef.set({
             id: extractedIdOrUrl, 
-            title: uniqueName, 
+            title: uniqueName,  // Lưu tên có thể chứa ký tự đặc biệt ở đây
             type: currentTab,
             timestamp: firebase.database.ServerValue.TIMESTAMP,
             source: isDropbox ? 'dropbox' : 'drive' 
@@ -987,7 +991,10 @@ document.addEventListener('click', function (e) {
 
     document.addEventListener('click', function(e) {
         const crumb = e.target.closest('.crumb-item');
-        if (crumb && crumb.dataset.target) navigateTo(crumb.dataset.target);
+        if (crumb && crumb.dataset.target) {
+            // 🔥 Truyền thêm index vào
+            navigateTo(crumb.dataset.target, crumb.dataset.index); 
+        }
     });
 
     const closeAdminTool = document.getElementById('closeAdminTool'); if (closeAdminTool) closeAdminTool.addEventListener('click', toggleAdminTool);
