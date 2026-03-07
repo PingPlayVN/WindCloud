@@ -2017,3 +2017,103 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; bo
         max-height: 80vh;
     }
 }
+
+/* --- MOBILE CONTEXT MENU STYLES --- */
+
+/* Long-press active state for cards and items */
+.long-press-active {
+    background: rgba(26, 115, 232, 0.1) !important;
+    border-color: #1a73e8 !important;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2) !important;
+}
+
+[data-theme="dark"] .long-press-active {
+    background: rgba(26, 115, 232, 0.15) !important;
+    border-color: #64b5f6 !important;
+    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.1) !important;
+}
+
+/* Ripple effect for long-press feedback */
+.ripple-effect {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(26, 115, 232, 0.6) 0%, rgba(26, 115, 232, 0) 70%);
+    opacity: 0;
+    width: 40px;
+    height: 40px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Ripple animation */
+@keyframes ripple-expand {
+    0% {
+        width: 40px;
+        height: 40px;
+        opacity: 0.8;
+    }
+    100% {
+        width: 300px;
+        height: 300px;
+        opacity: 0;
+    }
+}
+
+.ripple-animate {
+    animation: ripple-expand 0.6s ease-out forwards;
+}
+
+/* Mobile context menu positioning adjustments */
+@media (max-width: 768px) {
+    .context-card {
+        /* Ensure menu fits on mobile screens */
+        width: calc(100% - 20px);
+        max-width: 280px;
+    }
+    
+    /* Long-press tooltip on mobile */
+    .context-menu-hint {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        z-index: 9998;
+        pointer-events: none;
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    /* Show hint during first long-press on touch devices */
+    .show-hint .context-menu-hint {
+        display: block;
+    }
+}
+
+/* Touch feedback - prevent gray overlay on iOS */
+@media (hover: none) and (pointer: coarse) {
+    .card {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .card:active {
+        background: rgba(26, 115, 232, 0.05);
+    }
+    
+    [data-theme="dark"] .card:active {
+        background: rgba(26, 115, 232, 0.1);
+    }
+}
+
+/* Ensure context menu stays above all other elements on mobile */
+@media (max-width: 768px) {
+    #contextMenu {
+        z-index: 99999 !important;
+    }
+}
