@@ -195,3 +195,77 @@
     box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
     animation: slideUpFade 0.4s ease-out;
 }
+
+/* ✅ Fix: Transfer panel text overflow for long filenames */
+.transfer-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.tf-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.tf-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0; /* ✅ Critical: Allow flex child to shrink below content size */
+}
+
+#tf-filename {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-main);
+    /* ✅ Fix text overflow for long filenames (especially URL-encoded ones) */
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.4;
+}
+
+#tf-status {
+    font-size: 13px;
+    color: var(--text-sub);
+}
+
+.progress-track {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 12px 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #34a853);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 3px;
+}
+
+.btn-cancel-transfer {
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--bg-body);
+    color: var(--text-sub);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel-transfer:hover {
+    background: var(--border);
+    color: var(--text-main);
+}
