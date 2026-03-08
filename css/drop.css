@@ -1,0 +1,197 @@
+/* ========================================= */
+/* --- APP: WIND DROP (MODERN UI 2.0) --- */
+/* ========================================= */
+
+.drop-container {
+    width: 100%; max-width: 900px; 
+    margin: 0 auto; padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+    animation: fadeIn 0.5s;
+    min-height: 70vh; justify-content: center; /* Căn giữa dọc màn hình */
+}
+
+.drop-header { text-align: center; margin-bottom: 40px; position: relative; z-index: 2; }
+.drop-header h1 { 
+    margin-bottom: 8px; color: var(--primary); 
+    font-size: 2.5rem; letter-spacing: -1px;
+    text-shadow: 0 4px 20px rgba(26, 115, 232, 0.3);
+}
+.drop-header p { font-size: 16px; opacity: 0.8; }
+
+/* --- RADAR ZONE (RESPONSIVE) --- */
+.radar-zone {
+    /* Kích thước linh hoạt theo màn hình */
+    width: 400px; height: 400px;
+    position: relative;
+    margin: 0 auto 40px auto;
+    border-radius: 50%;
+    /* Hiệu ứng nền tỏa sáng nhẹ */
+    background: radial-gradient(circle, rgba(26, 115, 232, 0.05) 0%, rgba(0,0,0,0) 70%);
+}
+
+/* Nút trung tâm "Bạn" */
+.my-device-center {
+    width: 90px; height: 90px; 
+    background: var(--primary);
+    border-radius: 50%; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 16px;
+    box-shadow: 0 0 0 8px rgba(26, 115, 232, 0.2), 0 0 30px rgba(26, 115, 232, 0.4);
+    
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.my-device-center:hover { transform: translate(-50%, -50%) scale(1.1); cursor: default; }
+
+/* Các vòng sóng radar */
+.radar-circle {
+    position: absolute; border-radius: 50%;
+    border: 2px solid var(--primary);
+    opacity: 0;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation: radarWave 4s infinite linear;
+    pointer-events: none;
+}
+.c1 { animation-delay: 0s; }
+.c2 { animation-delay: 1.3s; }
+.c3 { animation-delay: 2.6s; }
+
+@keyframes radarWave {
+    0% { width: 90px; height: 90px; opacity: 0.6; border-width: 3px; }
+    100% { width: 100%; height: 100%; opacity: 0; border-width: 0px; }
+}
+
+/* --- NGƯỜI DÙNG KHÁC (PEERS) --- */
+#user-orbit-zone {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 20; pointer-events: none;
+}
+
+.peer-user {
+    position: absolute; 
+    width: 80px; height: auto;
+    border-radius: 12px; 
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 25; pointer-events: auto;
+    
+    /* Căn giữa tâm của element vào điểm tọa độ */
+    transform: translate(-50%, -50%); 
+}
+
+.peer-icon { 
+    width: 56px; height: 56px;
+    font-size: 26px; margin-bottom: 8px; 
+    background: var(--bg-surface);
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: 0.3s;
+}
+
+/* Tên người dùng kiểu "Tag" */
+.peer-user span {
+    font-size: 12px; color: var(--text-main); font-weight: 600;
+    background: var(--bg-surface);
+    padding: 4px 10px; border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    white-space: nowrap; max-width: 100px; 
+    overflow: hidden; text-overflow: ellipsis;
+    border: 1px solid var(--border);
+}
+
+/* Hover Effect */
+.peer-user:hover { z-index: 30; }
+.peer-user:hover .peer-icon {
+    border-color: var(--primary); 
+    background: var(--primary); color: white;
+    transform: scale(1.15) rotate(5deg);
+    box-shadow: 0 8px 20px rgba(26, 115, 232, 0.4);
+}
+.peer-user:hover span {
+    color: var(--primary); border-color: var(--primary);
+}
+
+.peer-user.drag-over .peer-icon {
+    background: #00ac47; border-color: #00ac47; color: white;
+    transform: scale(1.3);
+}
+
+/* --- TRẠNG THÁI & PANEL --- */
+.drop-status {
+    font-family: 'Courier New', monospace; 
+    color: var(--text-sub); font-size: 14px;
+    background: var(--bg-surface); padding: 10px 24px;
+    border-radius: 30px; border: 1px solid var(--border);
+    text-align: center; box-shadow: var(--shadow-sm);
+    display: inline-block;
+}
+
+/* ✅ Connection Status Bar */
+.connection-status {
+    width: 100%; max-width: 300px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    margin-top: 16px;
+    box-shadow: var(--shadow-md);
+    animation: slideUpFade 0.3s ease-out;
+}
+
+.connection-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-sub);
+    margin-bottom: 10px;
+}
+
+.connection-info #connStatusText {
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.connection-info #connTime {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.connection-progress {
+    width: 100%;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.connection-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #34a853);
+    width: 0%;
+    transition: width 0.2s ease-out;
+    animation: connPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes connPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Transfer Panel (Giữ nguyên logic cũ, chỉ chỉnh lại cho đẹp) */
+#transfer-panel {
+    width: 100%; max-width: 420px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px;
+    margin-top: 30px;
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
+    animation: slideUpFade 0.4s ease-out;
+}

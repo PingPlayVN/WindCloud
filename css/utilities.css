@@ -1,0 +1,44 @@
+/* Scrollbar đẹp hơn */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+    background: #c1c1c1; 
+    border-radius: 4px; 
+}
+::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #555; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #777; }
+
+.nav-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(0,0,0,0.5); color: white; border: none;
+    width: 40px; height: 40px; border-radius: 50%;
+    cursor: pointer; z-index: 20; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.2s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.2); }
+.nav-btn.prev { left: 10px; }
+.nav-btn.next { right: 10px; }
+
+/* Animation utilities */
+@keyframes fadeIn { 
+    from { opacity: 0; transform: scale(0.95); } 
+    to { opacity: 1; transform: scale(1); } 
+}
+
+@keyframes popIn { 
+    from { opacity: 0; transform: scale(0.8); } 
+    to { opacity: 1; transform: scale(1); } 
+}
+
+@keyframes slideUpFade { 
+    from { bottom: 10px; opacity: 0; } 
+    to { bottom: 30px; opacity: 1; } 
+}
+
+@keyframes fadeOut { 
+    from { bottom: 30px; opacity: 1; } 
+    to { bottom: 10px; opacity: 0; } 
+}
