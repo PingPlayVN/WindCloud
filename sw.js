@@ -2,7 +2,7 @@
 // Version 2.1 - Updated with modular CSS & JS
 
 const CacheManager = (() => {
-    const CACHE_VERSION = '2.1.1';
+    const CACHE_VERSION = '2.1.2';
     const CACHE_NAME = `wind-share-v${CACHE_VERSION}`;
     
     const ASSETS_TO_CACHE = [
@@ -230,6 +230,7 @@ self.addEventListener('message', ServiceWorkerController.messageHandler);
 // });
 
 console.log(`[Service Worker] Registered - Cache: ${CacheManager.getCacheName()}`);
+
 
 
 
