@@ -1,0 +1,175 @@
+/* --- ADMIN TOOL & INPUTS --- */
+.input-section {
+    display: none; background: var(--bg-surface); padding: 24px;
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-md); margin-bottom: 30px;
+    border: 1px solid var(--border);
+}
+
+.input-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px;}
+
+input[type="text"], input[type="password"] { 
+    flex: 1; padding: 12px 16px; width: 100%;
+    border: 2px solid transparent; background: var(--bg-body); color: var(--text-main);
+    border-radius: 8px; outline: none; transition: 0.2s;
+    font-size: 14px;
+}
+input[type="text"]:focus, input[type="password"]:focus { 
+    background: var(--bg-surface); border-color: var(--primary); box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.1); 
+}
+
+.btn-submit { 
+    background: var(--primary); color: white; border: none; 
+    padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;
+    transition: 0.2s;
+}
+.btn-submit:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3); }
+
+/* --- LOADER & TOAST --- */
+.loader {
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%; width: 48px; height: 48px;
+    animation: spin 0.8s linear infinite;
+    position: absolute; z-index: 5001;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+#toast { 
+    visibility: hidden; min-width: 200px; background-color: #323232; color: #fff; 
+    text-align: center; border-radius: 8px; padding: 14px 20px; 
+    position: fixed; z-index: 2000; left: 50%; transform: translateX(-50%); bottom: 30px; 
+    font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+#toast.show { visibility: visible; animation: slideUpFade 0.4s, fadeOut 0.4s 2.6s; }
+@keyframes slideUpFade { from {bottom: 10px; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+@keyframes fadeOut { from {bottom: 30px; opacity: 1;} to {bottom: 10px; opacity: 0;} }
+
+/* --- LIMIT OVERLAY (Màn hình chặn quá 20 người) --- */
+#limit-overlay {
+    display: none; /* Mặc định ẩn */
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 9999; /* Cao nhất */
+    justify-content: center; align-items: center;
+    flex-direction: column; text-align: center;
+}
+[data-theme="dark"] #limit-overlay { background: rgba(18, 18, 18, 0.95); }
+
+.limit-box {
+    padding: 30px; background: var(--bg-surface); border-radius: 16px;
+    box-shadow: var(--shadow-lg); border: 2px solid var(--danger);
+    max-width: 400px; width: 90%;
+}
+.limit-box h2 { color: var(--danger); margin-bottom: 10px; }
+.limit-box p { color: var(--text-main); margin-bottom: 15px; }
+
+/* --- CLEAN ADMIN LOGIN CSS --- */
+
+#login-panel {
+    display: none; /* Mặc định ẩn, JS sẽ đổi thành flex */
+    position: fixed;
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
+    z-index: 20001;
+    
+    /* Cấu hình Flexbox để căn giữa nội dung bên trong */
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    
+    pointer-events: none; /* Cho phép click xuyên qua vùng trống */
+}
+
+/* Thẻ chứa form */
+.admin-card {
+    pointer-events: auto; /* Cho phép thao tác trong khung này */
+    width: 320px;
+    padding: 30px;
+    background: #f0f0f0; 
+    border-radius: 10px;
+    border: 3px solid #323232; 
+    box-shadow: 8px 8px 0 #323232; 
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    /* Hiệu ứng hiện ra từ giữa */
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+.admin-card .title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 900;
+    text-align: center;
+    color: #323232;
+    text-transform: uppercase;
+}
+
+.admin-input {
+    width: 100%;
+    height: 45px;
+    border-radius: 5px;
+    border: 2px solid #323232;
+    background-color: #fff;
+    box-shadow: 4px 4px #323232;
+    font-size: 15px;
+    font-weight: 600;
+    color: #323232;
+    padding: 5px 15px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.admin-input:focus {
+    border-color: #2d8cf0;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px #323232;
+}
+
+.admin-btn {
+    margin-top: 10px;
+    width: 100%;
+    height: 45px;
+    border-radius: 5px;
+    border: 2px solid #323232;
+    background-color: #323232; 
+    color: #fff; 
+    box-shadow: 4px 4px rgba(0,0,0,0.2);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.admin-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px #323232;
+}
+
+.btn-close-login {
+    background: transparent;
+    border: none;
+    color: #666;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 13px;
+    align-self: center;
+    margin-top: 10px;
+}
+.btn-close-login:hover { color: #d93025; }
+
+#overlay {
+    position: fixed; 
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* Màu đen mờ che Sidebar */
+    backdrop-filter: blur(3px);     /* Làm mờ hậu cảnh */
+    z-index: 20000;                 /* QUAN TRỌNG: Cao hơn Sidebar */
+    display: none;                  /* Mặc định ẩn */
+}
