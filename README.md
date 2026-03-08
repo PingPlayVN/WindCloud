@@ -1,8 +1,12 @@
-# 🌬️ Wind Cloud - Multi-Purpose Web App Suite
+# 🌬️ Wind Cloud
 
-**Wind Cloud** là một ứng dụng web đa chức năng hiện đại, được thiết kế để cung cấp trải nghiệm người dùng mượt mà và trực quan. Nó kết hợp nhiều công cụ hữu ích trong một platform duy nhất.
+> **Một suite ứng dụng web đa chức năng cho chia sẻ file, quản lý màu sắc, và giải trí**
 
-## 🎯 Các Tính Năng Chính
+Wind Cloud là nền tảng web hiện đại kết hợp các công cụ đa dụng: lưu trữ đám mây, studio thiết kế màu sắc, chia sẻ file P2P tức thì, và các trò chơi trực tuyến - tất cả trong một ứng dụng duy nhất.
+
+---
+
+## ✨ Tính Năng Chính
 
 ### 1. ☁️ **Cloud Storage**
 - Quản lý và lưu trữ video, hình ảnh, tài liệu, và các loại file khác
@@ -111,22 +115,67 @@
 ## 📁 Cấu Trúc Dự Án
 
 ```
-test/
-├── index.html              # Trang chính chứa tất cả tab
-├── style.css              # Stylesheet toàn cục
-├── manifest.json          # PWA manifest
-├── sw.js                  # Service Worker
-├── js/
-│   ├── core.js           # Logic chia sẻ chung
-│   ├── cloud.js          # Cloud Storage logic
-│   ├── palette.js        # Color Studio logic
-│   ├── drop.js           # Wind Drop logic
-│   └── windgame.js       # Wind Game logic
-├── images/               # Thư mục ảnh & thumbnails
-│   └── tankbattle.png    # Thumbnail Tank Battle game
-├── icon.png              # App icon
-└── README.md             # Tài liệu này
+WindCloud-main/
+├── index.html                    # Trang chính
+├── style.css                     # [Deprecated] Stylesheet cũ (sử dụng css/ thay thế)
+├── manifest.json                 # PWA manifest
+├── package.json                  # Thông tin dự án
+├── sw.js                         # Service Worker
+│
+├── 📂 css/                       # ✨ CSS modules (organized & modular)
+│   ├── variables.css             # CSS variables, themes, colors
+│   ├── base.css                  # Base styles, body, container
+│   ├── header.css                # Header, toolbar, navigation
+│   ├── media-grid.css            # Cards, grid layout, media
+│   ├── modal.css                 # Modals, dialogs, previews
+│   ├── context-menu.css          # Context menus
+│   ├── admin.css                 # Admin panel, login
+│   ├── sidebar.css               # Sidebar navigation
+│   ├── theme-switch.css          # Theme switcher component
+│   ├── palette.css               # Color Studio UI
+│   ├── drop.css                  # Wind Drop app styles
+│   ├── windgame.css              # Wind Game styles
+│   ├── mobile.css                # Mobile responsive styles
+│   └── utilities.css             # Animations, utilities
+│
+├── 📂 js/                        # JavaScript modules
+│   ├── core.js                   # Shared utilities
+│   ├── router.js                 # App routing & navigation
+│   ├── ui.js                     # UI components
+│   ├── cloud.js                  # Cloud Storage logic
+│   ├── cloudAdapters.js          # Cloud adapters (Google Drive, etc)
+│   ├── palette.js                # Color Studio logic
+│   ├── drop.js                   # Wind Drop logic
+│   ├── windgame.js               # Wind Game logic
+│   ├── eventManager.js           # Event handling
+│   ├── firebase.js               # Firebase integration
+│   ├── network.js                # Network utilities
+│   ├── game-exit.js              # Game exit handlers
+│   ├── installPrompt.js          # PWA installation prompt
+│   ├── mobileContextMenu.js      # Mobile context menu
+│   └── utils.js                  # Utility functions
+│
+├── 📂 games/                     # Integrated games
+│   └── tankbattle/               # Tank Battle game
+│       ├── index.html
+│       ├── 📂 css/
+│       │   └── style.css
+│       └── 📂 js/
+│           ├── classes.js
+│           ├── constants.js
+│           ├── game.js
+│           ├── interface.js
+│           └── network.js
+│
+├── icon.png                      # App icon (512x512)
+├── README.md                     # Tài liệu này
+└── CHANGELOG.md                  # (Optional) Lịch sử thay đổi
 ```
+
+**🎯 Cách tổ chức:**
+- **CSS modules** được tách nhỏ theo chức năng để dễ bảo trì
+- **JS modules** theo tính năng của từng ứng dụng
+- **Games** được isolate trong thư mục riêng
 
 ---
 
@@ -210,45 +259,216 @@ Nhấn vào "Admin Access" để đăng nhập với tư cách quản trị viê
 
 ---
 
-## 📝 Ghi Chú Phát Triển
+## 📝 Hướng Dẫn Phát Triển
 
-### Local Development
+### ⚙️ Setup Cục Bộ
+
+Không cần npm hoặc build tools - Wind Cloud là vanilla JavaScript PWA:
+
 ```bash
-# Không cần npm install - ứng dụng sử dụng CDN
-# Chỉ cần mở index.html trong trình duyệt
+# Option 1: Mở trực tiếp
 open index.html
 
-# Hoặc dùng HTTP server
+# Option 2: Dùng HTTP Server (khuyến nghị)
+cd WindCloud-main
 python -m http.server 8000
-# Sau đó mở: http://localhost:8000
+# Truy cập: http://localhost:8000
 ```
 
-### Browser Requirements
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-- Mobile browsers hỗ trợ ES6+
+### 🏗️ Cấu Trúc CSS Modular
+
+Wind Cloud sử dụng kiến trúc CSS modular để dễ bảo trì:
+
+| File CSS | Mục Đích |
+|----------|----------|
+| `variables.css` | CSS variables, color schemes, themes |
+| `base.css` | Base styles, layout, typography |
+| `header.css` | Header, navigation, toolbar |
+| `media-grid.css` | Card layouts, grid system |
+| `modal.css` | Modal dialogs, previews |
+| `context-menu.css` | Right-click context menus |
+| `admin.css` | Admin panel, login forms |
+| `sidebar.css` | Sidebar navigation |
+| `theme-switch.css` | Theme toggle component |
+| `palette.css` | Color Studio UI |
+| `drop.css` | Wind Drop radar interface |
+| `windgame.css` | Game frames & cards |
+| `mobile.css` | Responsive breakpoints |
+| `utilities.css` | Animations, helpers |
+
+**Import order in index.html: Luôn tuân thủ thứ tự để tránh CSS conflicts!**
+
+### 🎯 Thêm Tính Năng Mới
+
+1. **Tạo module JS mới** trong `js/` folder
+2. **Tạo CSS mới** trong `css/` folder nếu cần
+3. **Import CSS** vào `index.html` theo thứ tự logic
+4. **Import JS** vào `router.js` hoặc `index.html`
+5. **Test** trên desktop + mobile
+
+### 🧪 Testing
+
+```bash
+# Desktop Browser Console (F12)
+- Kiểm tra Network tab cho failed resources
+- Kiểm tra Console tab cho JS errors
+- Kiểm tra Application tab cho ServiceWorker
+
+# Mobile Testing
+# Chrome DevTools → Toggle device toolbar (Ctrl+Shift+M)
+# Test responsive design trên các breakpoints:
+# - 375px (iPhone SE)
+# - 768px (Tablet)
+# - 1024px+ (Desktop)
+```
+
+### 🔧 Firebase Configuration
+
+Cần update Firebase config trong `js/firebase.js`:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "your-project.firebaseapp.com",
+  databaseURL: "https://your-project.firebaseio.com",
+  projectId: "your-project",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef123456"
+};
+```
+
+### ☑️ Pre-Deployment Checklist
+
+- [ ] Test trên Chrome, Firefox, Safari
+- [ ] Test responsive (375px, 768px, 1024px, 1440px)
+- [ ] Kiểm tra PWA installation
+- [ ] Test ServiceWorker (offline mode)
+- [ ] Minify CSS & JS (nếu deploy)
+- [ ] Optimize images
+- [ ] Kiểm tra lighthouse scores
+
+---
+
+## 📦 Dependencies
+
+Wind Cloud sử dụng **CDN resources** (no node_modules):
+
+```html
+<!-- Frameworks -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<!-- Firebase SDK (tự tải từ cdn.jsdelivr.net) -->
+<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js"></script>
+
+<!-- Utilities -->
+<script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js"></script>
+```
+
+---
+
+## 🌐 Browser Support
+
+| Browser | Min Version | Status |
+|---------|-----------|--------|
+| Chrome | 90+ | ✅ Full support |
+| Firefox | 88+ | ✅ Full support |
+| Safari | 14+ | ✅ Full support |
+| Edge | 90+ | ✅ Full support |
+| Mobile Chrome | Latest | ✅ Full support |
+| Mobile Safari | 14+ | ✅ Full support |
+
+---
+
+## 🎨 Color Scheme
+
+Wind Cloud sử dụng CSS variables cho theme support:
+
+```css
+/* Light Mode (Default) */
+--primary: #1a73e8
+--bg-body: #f0f2f5
+--bg-surface: #ffffff
+--text-main: #1f1f1f
+--text-sub: #5f6368
+
+/* Dark Mode */
+--primary: #8ab4f8
+--bg-body: #121212
+--bg-surface: #1e1e1e
+--text-main: #e8eaed
+--text-sub: #9aa0a6
+```
+
+Tất cả components tự động support cả 2 themes!
+
+---
+
+## 🚀 Performance Tips
+
+1. **CSS Modules**: Mỗi module chỉ load styles cần thiết
+2. **Lazy Loading**: Games load on-demand
+3. **Service Worker**: Offline caching
+4. **Code Splitting**: JS modules separate by feature
+5. **Image Optimization**: SVG icons, WebP images
+
+---
+
+## 🐛 Troubleshooting
+
+### Problem: "Cannot read property 'database' of undefined"
+**Solution:** Kiểm tra Firebase config trong `js/firebase.js`
+
+### Problem: Wind Drop không phát hiện peers
+**Solution:** Kiểm tra STUN/TURN servers trong PeerJS config
+
+### Problem: "User gesture required" khi install PWA
+**Solution:** Click vào install button từ user interaction
+
+### Problem: CSS không apply
+**Solution:** 
+1. Clear cache (Ctrl+Shift+Delete)
+2. Hard refresh (Ctrl+Shift+R)
+3. Kiểm tra CSS import order trong index.html
 
 ---
 
 ## 📄 License
 
-Trang web thuộc sở hữu của **Trịnh Gia Phong** © 2026
+© 2026 **Trịnh Gia Phong**. All rights reserved.
 
 ---
 
-## 📞 Liên Hệ & Hỗ Trợ
+## 📞 Support & Feedback
 
-Nếu bạn gặp vấn đề hoặc có câu hỏi, vui lòng:
-1. Kiểm tra console (F12) để xem thông báo lỗi
-2. Thử refresh trang (Ctrl+F5 để clear cache)
-3. Kiểm tra kết nối internet
-
----
-
-**Phiên bản hiện tại:** 2.1  
-**Cập nhập lần cuối:** Tháng 2 năm 2026
+Gặp vấn đề? Hãy:
+1. **Console Check**: Mở DevTools (F12) xem errors
+2. **Cache Clear**: Hard refresh (Ctrl+Shift+R)
+3. **Network**: Kiểm tra connection
+4. **Report Issue**: Describe steps to reproduce + screenshot
 
 ---
 
-🎉 Cảm ơn bạn đã sử dụng **Wind Cloud**! Muốn góp ý hoặc báo lỗi? Hãy liên hệ!
+## 🎯 Roadmap v3.0
+
+**Planned Features:**
+- 🎮 Thêm 5+ games (Flappy Bird, 2048, Snake, Tetris, Phỏng đoán số)
+- 🎵 Audio visualizer & music rhythm game
+- 📹 WebRTC video chat integration
+- 🖼️ Advanced image editor (filters, effects)
+- 🌍 Multi-language support (i18n)
+- 🎨 Custom theme creator
+- 💾 Cloud sync for game saves
+- 📊 Analytics dashboard
+- 🤝 Collaborative features
+- 🔒 Enhanced security & encryption
+
+---
+
+**Version:** 2.1.0  
+**Last Updated:** March 2026  
+**Status:** 🟢 Active & Maintained
+
+⭐ **Star this repo nếu bạn thích dự án này!**
