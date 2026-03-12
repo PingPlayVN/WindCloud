@@ -472,3 +472,6 @@ Gặp vấn đề? Hãy:
 **Status:** 🟢 Active & Maintained
 
 ⭐ **Star this repo nếu bạn thích dự án này!**
+git add .
+git commit -m "Ghi chú ngắn gọn về những gì bạn vừa sửa"
+git push

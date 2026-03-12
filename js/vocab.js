@@ -230,7 +230,7 @@ class VocabQuiz {
                 
                 // Render lại nhưng chỉ phần rows
                 const setCard = target.closest('.vocab-set-card');
-                const rowsContainer = setCard.querySelector('.vocab-row').parentElement;
+                const rowsContainer = setCard.querySelector('.vocab-row')?.parentElement;
                 
                 // Animate adding new row
                 this.renderSets();
