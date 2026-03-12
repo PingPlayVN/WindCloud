@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss: ws:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wind Share Cloud</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#1a73e8">
+    <!-- mobile web app tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="./icon.png">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="./css/variables.css">
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/header.css">
+    <link rel="stylesheet" href="./css/media-grid.css">
+    <link rel="stylesheet" href="./css/modal.css">
+    <link rel="stylesheet" href="./css/context-menu.css">
+    <link rel="stylesheet" href="./css/admin.css">
+    <link rel="stylesheet" href="./css/sidebar.css">
+    <link rel="stylesheet" href="./css/theme-switch.css">
+    <link rel="stylesheet" href="./css/palette.css">
+    <link rel="stylesheet" href="./css/drop.css">
+    <link rel="stylesheet" href="./css/windgame.css">
+    <link rel="stylesheet" href="./css/mobile.css">
+    <link rel="stylesheet" href="./css/utilities.css">
+    <link rel="stylesheet" href="./css/vocab.css">
+    
+    <!-- GSAP Library for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <link rel="icon" href="./icon.png">
+    <script type="module">
+        import { showInstallPrompt } from './js/installPrompt.js';
+        window.addEventListener('DOMContentLoaded', showInstallPrompt);
+    </script>
+    <script type="module" src="./js/router.js"></script>
+</head>
+<body>
+
+<div id="sidebar-overlay"></div>
+<nav id="main-sidebar">
+    <div class="sidebar-header">
+        <h3>Wind Apps</h3>
+        <button class="btn-close-sidebar" id="btnCloseSidebar">✕</button>
+    </div>
+    <ul class="sidebar-menu">
+        <li class="menu-item active" data-app="cloud">
+            <span class="icon">☁️</span> Cloud Storage
+        </li>
+        <li class="menu-item" data-app="palette">
+            <span class="icon">🎨</span> Color Studio
+        </li>
+        <li class="menu-item" data-app="drop">
+            <span class="icon">📡</span> Wind Drop
+        </li>
+        <li class="menu-item" data-app="windgame" id="menu-windgame">
+            <span class="icon">🕹️</span> Wind Game
+        </li>
+        <li class="menu-item" data-app="vocab" id="menu-vocab">
+            <span class="icon">📚</span> Vocab Checker
+        </li>
+        <div style="height:1px; background:var(--border); margin:10px 15px;"></div>
+
+        <li class="menu-item" id="loginBtn">
+            <span class="icon">🔐</span> Admin Access
+        </li>
+        
+        <li class="menu-item" id="logoutBtn" style="display:none; color: var(--danger);">
+            <span class="icon">🚪</span> Đăng xuất
+        </li>
+    </ul>
+    <div class="sidebar-footer">
+        Phiên bản 2.1
+    </div>
+</nav>
+
+<div id="limit-overlay">
+    <div class="limit-box">
+        <h2>⚠️ Server Quá Tải</h2>
+        <p>Hệ thống đang giới hạn tối đa <strong>20 người</strong> truy cập cùng lúc để đảm bảo tốc độ.</p>
+        <p>Vui lòng quay lại sau ít phút!</p>
+        <button id="btnRetry" class="btn-submit">Thử lại ngay</button>
+    </div>
+</div>
+
+<div class="container" id="mainContainer">
+    <header>
+        <div class="logo-area">
+            <button class="btn-menu" id="btnMenu">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+
+            <svg class="logo-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="proCloudCore" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#1d4ed8"/>
+        </linearGradient>
+        
+        <linearGradient id="proWindSweep" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#10b981"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
+        </linearGradient>
+        
+        <filter id="proSoftShadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#1d4ed8" flood-opacity="0.35"/>
+        </filter>
+    </defs>
+
+    <path d="M72,40 c0,-11.5 -9.5,-21 -21,-21 c-9,0 -16.8,5.8 -19.6,14.2 c-1.6,-0.5 -3.4,-0.8 -5.2,-0.8 c-9.6,0 -17.5,7.9 -17.5,17.5 c0,9.6 7.9,17.5 17.5,17.5 h45 c9.6,0 17.5,-7.9 17.5,-17.5 c0,-9.2 -7.1,-16.8 -16.2,-17.4 z" 
+          fill="url(#proCloudCore)" 
+          filter="url(#proSoftShadow)"/>
+    
+    <path d="M10,56 C 35,56 42,32 62,32 C 78,32 84,46 95,42" 
+          fill="none" 
+          stroke="url(#proWindSweep)" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+          
+    <path d="M22,70 C 45,70 52,48 72,48 C 86,48 90,62 105,58" 
+          fill="none" 
+          stroke="url(#proWindSweep)" 
+          stroke-width="3.5" 
+          stroke-linecap="round" 
+          opacity="0.8"/>
+</svg>
+            <h2>Wind Cloud</h2>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div class="header-actions-mobile">
+                <label class="theme-switch">
+                    <input type="checkbox" class="theme-switch__checkbox" id="theme-checkbox">
+                    <div class="theme-switch__container">
+                        <div class="theme-switch__clouds"></div>
+                        <div class="theme-switch__stars-container">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 55" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688ZM31 23.3545C32.1114 23.2995 33.0551 22.8503 33.8313 22.0069C34.6075 21.1635 34.9956 20.1642 34.9956 19C34.9956 20.1642 35.3837 21.1635 36.1599 22.0069C36.9361 22.8503 37.8798 23.2903 39 23.3545C38.2679 23.3911 37.5976 23.602 36.9802 24.0053C36.3716 24.3995 35.8864 24.9312 35.5248 25.5913C35.172 26.2513 34.9956 26.9572 34.9956 27.7273C34.9956 26.563 34.6075 25.5546 33.8313 24.7112C33.0551 23.8587 32.1114 23.4095 31 23.3545ZM0 36.3545C1.11136 36.2995 2.05513 35.8503 2.83131 35.0069C3.6075 34.1635 3.99559 33.1642 3.99559 32C3.99559 33.1642 4.38368 34.1635 5.15987 35.0069C5.93605 35.8503 6.87982 36.2903 8 36.3545C7.26792 36.3911 6.59757 36.602 5.98015 37.0053C5.37155 37.3995 4.88644 37.9312 4.52481 38.5913C4.172 39.2513 3.99559 39.9572 3.99559 40.7273C3.99559 39.563 3.6075 38.5546 2.83131 37.7112C2.05513 36.8587 1.11136 36.4095 0 36.3545ZM56.8313 24.0069C56.0551 24.8503 55.1114 25.2995 54 25.3545C55.1114 25.4095 56.0551 25.8587 56.8313 26.7112C57.6075 27.5546 57.9956 28.563 57.9956 29.7273C57.9956 28.9572 58.172 28.2513 58.5248 27.5913C58.8864 26.9312 59.3716 26.3995 59.9802 26.0053C60.5976 25.602 61.2679 25.3911 62 25.3545C60.8798 25.2903 59.9361 24.8503 59.1599 24.0069C58.3837 23.1635 57.9956 22.1642 57.9956 21C57.9956 22.1642 57.6075 23.1635 56.8313 24.0069ZM81 25.3545C82.1114 25.2995 83.0551 24.8503 83.8313 24.0069C84.6075 23.1635 84.9956 22.1642 84.9956 21C84.9956 22.1642 85.3837 23.1635 86.1599 24.0069C86.9361 24.8503 87.8798 25.2903 89 25.3545C88.2679 25.3911 87.5976 25.602 86.9802 26.0053C86.3716 26.3995 85.8864 26.9312 85.5248 27.5913C85.172 28.2513 84.9956 28.9572 84.9956 29.7273C84.9956 28.563 84.6075 27.5546 83.8313 26.7112C83.0551 25.8587 82.1114 25.4095 81 25.3545ZM136 36.3545C137.111 36.2995 138.055 35.8503 138.831 35.0069C139.607 34.1635 139.996 33.1642 139.996 32C139.996 33.1642 140.384 34.1635 141.16 35.0069C141.936 35.8503 142.88 36.2903 144 36.3545C143.268 36.3911 142.598 36.602 141.98 37.0053C141.372 37.3995 140.886 37.9312 140.525 38.5913C140.172 39.2513 139.996 39.9572 139.996 40.7273C139.996 39.563 139.607 38.5546 138.831 37.7112C138.055 36.8587 137.111 36.4095 136 36.3545ZM101.831 49.0069C101.055 49.8503 100.111 50.2995 99 50.3545C100.111 50.4095 101.055 50.8587 101.831 51.7112C102.607 52.5546 102.996 53.563 102.996 54.7273C102.996 53.9572 103.172 53.2513 103.525 52.5913C103.886 51.9312 104.372 51.3995 104.98 51.0053C105.598 50.602 106.268 50.3911 107 50.3545C105.88 50.2903 104.936 49.8503 104.16 49.0069C103.384 48.1635 102.996 47.1642 102.996 46C102.996 47.1642 102.607 48.1635 101.831 49.0069Z" fill="currentColor"></path></svg>
+                        </div>
+                        <div class="theme-switch__circle-container">
+                            <div class="theme-switch__sun-moon-container">
+                                <div class="theme-switch__moon">
+                                    <div class="theme-switch__spot"></div>
+                                    <div class="theme-switch__spot"></div>
+                                    <div class="theme-switch__spot"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+                <button id="installBtn" style="display:none" class="btn-header icon-btn" title="Cài đặt ứng dụng">Cài đặt</button>
+            </div>
+        </div>
+    </header>
+
+    <div id="app-cloud">
+        <div class="toolbar">
+            <div class="tabs-wrapper">
+                <input type="radio" id="tab-video-radio" name="tabs" class="tab-rd-1" checked data-tab="video">
+                <label for="tab-video-radio" class="tab-label" style="--index: 0"><span>Video</span></label>
+
+                <input type="radio" id="tab-image-radio" name="tabs" class="tab-rd-2" data-tab="image">
+                <label for="tab-image-radio" class="tab-label" style="--index: 1"><span>Hình ảnh</span></label>
+
+                <input type="radio" id="tab-doc-radio" name="tabs" class="tab-rd-3" data-tab="doc">
+                <label for="tab-doc-radio" class="tab-label" style="--index: 2"><span>Tài liệu</span></label>
+
+                <input type="radio" id="tab-other-radio" name="tabs" class="tab-rd-4" data-tab="other">
+                <label for="tab-other-radio" class="tab-label" style="--index: 3"><span>File khác</span></label>
+
+                <div class="tab-bar-deco"></div>
+                <div class="tab-slider"></div>
+            </div>
+
+            <div class="tools-right" style="display:flex; gap:10px; align-items:center;">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm...">
+                </div>
+                <button class="btn-header icon-btn" id="viewBtn" title="Đổi giao diện">⊞</button>
+                <select id="sortSelect" class="sort-select">
+                    <option value="date_desc">📅 Mới nhất</option>
+                    <option value="date_asc">📅 Cũ nhất</option>
+                    <option value="name_asc">🔤 Tên (A-Z)</option>
+                    <option value="name_desc">🔤 Tên (Z-A)</option>
+                </select>
+                <button id="btnNew" class="btn-header" style="display:none; background: var(--primary); color: white; border:none; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">+ Thêm</button>
+            </div>
+        </div>
+
+        <div class="breadcrumb" id="breadcrumb">
+            <span class="crumb-item" data-target="root">Trang chủ</span>
+        </div>
+
+        <div class="input-section" id="adminTool">
+            <div class="input-header" style="display:flex; justify-content:space-between; margin-bottom: 10px;">
+                <h4>Upload Tệp</h4>
+                <span style="cursor:pointer; font-size: 20px; color: #5f6368;" id="closeAdminTool">✕</span>
+            </div>
+            <div class="input-row">
+                <input type="text" id="mediaUrl" placeholder="Dán Link Google Drive vào đây...">
+                <input type="text" id="mediaTitle" placeholder="Tên hiển thị (Tùy chọn)...">
+                <button class="btn-submit" id="btnSaveCloud">Lưu Tệp</button>
+            </div>
+        </div>
+
+        <div class="media-grid" id="grid"></div>
+    </div>
+
+    <div id="app-palette" style="display: none;">
+    <div class="palette-container">
+        <div class="palette-header">
+            <h1>🎨 Color Studio Pro</h1>
+            <p>Chọn màu chủ đạo và quy tắc phối để tạo bảng màu chuyên nghiệp.</p>
+        </div>
+
+        <div class="color-controls">
+            <div class="control-group">
+                <label>Màu chủ đạo</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="baseColorInput" value="#1a73e8">
+                    <span id="baseColorHex">#1A73E8</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Quy tắc phối màu</label>
+                <select id="harmonyRule" class="harmony-select">
+                    <option value="analogous">Tương đồng (Analogous)</option>
+                    <option value="monochromatic">Đơn sắc (Monochromatic)</option>
+                    <option value="complementary">Bổ túc (Complementary)</option>
+                    <option value="split-complementary">Bổ túc kề (Split)</option>
+                    <option value="triadic">Bộ ba (Triadic)</option>
+                    <option value="tetradic">Bộ bốn (Tetradic)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="palette-grid pro-mode" id="paletteGrid">
+            </div>
+        
+        <div class="palette-actions-bottom">
+            <button class="btn-action" data-palette-action="random">🎲 Random Màu Gốc</button>
+            <button class="btn-action primary" data-palette-action="copy">📋 Copy Cả Bảng</button>
+            <button class="btn-action" data-palette-action="export">⬇️ Xuất .json</button>
+        </div>
+    </div>
+</div>
+
+    <!-- === Wind Game In-App Tab === -->
+    <div id="app-windgame" style="display: none;">
+        <div class="windgame-container">
+            <div class="windgame-header">
+                <h1>🎮 Wind Game</h1>
+                <p>Chọn game từ danh sách dưới đây để chơi. Nhấn "Chơi Ngay" để vào game hoặc "Tab Mới" để chơi trong tab riêng.</p>
+                <div style="margin-top:10px; display:flex; gap:8px;">
+                    <button class="btn-action" data-app="cloud">Quay lại</button>
+                </div>
+            </div>
+
+            <!-- Game cards grid (rendered by js/windgame.js) -->
+            <div class="game-grid" id="windgame-grid">
+                <!-- cards will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="app-drop" style="display: none;">
+    <div class="drop-container">
+        <div class="drop-header">
+            <h1>📡 Wind Drop</h1>
+            <p>Chia sẻ tệp tức thì với người đang Online. Kéo & Thả để gửi.</p>
+        </div>
+
+        <div class="radar-zone">
+            <div class="radar-circle c1"></div>
+            <div class="radar-circle c2"></div>
+            <div class="radar-circle c3"></div>
+            <div class="my-device-center">
+                <span>Bạn</span>
+            </div>
+            
+            <div id="user-orbit-zone"></div>
+        </div>
+
+        <div class="drop-status" id="dropStatus">
+            Đang quét tìm thiết bị quanh đây...
+        </div>
+        
+        <!-- ✅ Connection Status Bar -->
+        <div id="connectionStatus" style="display: none;" class="connection-status">
+            <div class="connection-info">
+                <span id="connStatusText">🔗 Đang kết nối...</span>
+                <span id="connTime">0s</span>
+            </div>
+            <div class="connection-progress">
+                <div class="connection-fill" id="connBar"></div>
+            </div>
+        </div>
+        
+        <div id="transfer-panel" style="display: none;">
+            <div class="transfer-info">
+                <div class="tf-icon">📂</div>
+                <div class="tf-details">
+                    <span id="tf-filename">Video_4K.mp4</span>
+                    <span id="tf-status">Đang gửi... (45%)</span>
+                </div>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="tf-progress"></div>
+            </div>
+            <button class="btn-cancel-transfer" id="btnCancelTransfer">Hủy bỏ</button>
+        </div>
+    </div>
+</div>
+
+    <div id="app-vocab" style="display: none;">
+        <div class="vocab-container">
+            <div class="vocab-header">
+                <h1>🧠 Ôn Tập Từ Vựng</h1>
+                <p>Nhập danh sách từ vựng theo định dạng <strong>Tiếng Anh và Tiếng Việt</strong> vào ô tương ứng để kiểm tra.</p>
+            </div>
+
+            <div id="vocabSetupPanel" class="vocab-panel">
+                <div id="vocabSetsContainer">
+                    </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="btnAddSet" class="btn-action" style="flex: 1;">➕ Tạo bảng mới</button>
+                    <button id="btnStartQuiz" class="btn-submit" style="flex: 2;">Ôn tập các bảng đã chọn</button>
+                </div>
+            </div>
+
+            <div id="vocabQuizPanel" class="vocab-panel" style="display: none;">
+                <div class="quiz-status">
+                    <span id="quizProgress">Câu: 1/5</span>
+                    <span id="quizScore">Điểm: 0</span>
+                </div>
+                
+                <div class="quiz-card">
+                    <h2 id="questionText" class="vocab-word-title" style="justify-content: center; font-size: 2.5rem; color: var(--primary);">Từ Vựng</h2>
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">Nhập nghĩa Tiếng Anh của từ trên:</p>
+                    
+                    <div id="quizInputSection" style="display: flex; gap: 10px;">
+                        <input type="text" id="answerInput" class="admin-input" style="flex: 1; text-align: center; font-size: 1.2rem;" placeholder="Nhập từ tiếng Anh..." autocomplete="off">
+                        <button id="btnSubmitAnswer" class="btn-submit">Kiểm tra</button>
+                    </div>
+                    
+                    <div id="quizFeedback" style="text-align: center; margin-top: 20px; font-weight: bold; font-size: 1.1rem; min-height: 25px;"></div>
+                </div>
+                
+                <button id="btnResetQuiz" class="btn-action" style="width: 100%; margin-top: 15px;">🔄 Quay lại & Nhập từ mới</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        Trang web thuộc sở hữu của <span id="ownerName">Trịnh Gia Phong</span>
+    </footer>
+</div>
+
+<div id="contextMenu">
+    <div class="context-card">
+        <div id="ctx-file-actions" style="display:none;">
+            <ul class="list">
+                <li class="item" data-action="open">
+                    <span class="label">Mở / Xem</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </li>
+                
+                <li class="item" data-action="download">
+                    <span class="label">Tải xuống</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </li>
+
+                <li class="item" data-action="rename">
+                    <span class="label">Đổi tên</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </li>
+
+                <li class="item" id="menuToggleLock" data-action="toggleLock" style="display:none">
+                    <span class="label">Khóa file</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </li>
+                
+                <li class="item" id="menuSetSort" data-action="setSort" style="display:none">
+                    <span class="label">Cài đặt sắp xếp</span>
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </li>
+            </ul>
+
+            <div class="separator"></div>
+
+            <ul class="list">
+                 <li class="item" data-action="copy">
+                    <span class="label">Sao chép (Copy)</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                </li>
+                 <li class="item" data-action="cut">
+                    <span class="label">Di chuyển (Cut)</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+                    </svg>
+                </li>
+                 <li class="item" data-action="editlink">
+                    <span class="label">Sửa Link gốc</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                </li>
+            </ul>
+
+            <div class="separator"></div>
+
+            <ul class="list">
+                <li class="item delete" data-action="delete">
+                    <span class="label">Xóa vĩnh viễn</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </li>
+            </ul>
+        </div>
+
+        <div id="ctx-bg-actions" style="display:none;">
+            <ul class="list">
+                <li class="item" data-action="createFolder">
+                    <span class="label">Tạo thư mục mới</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    </svg>
+                </li>
+                <li class="item" data-action="paste">
+                    <span class="label">Dán (Paste)</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </li>
+                <li class="item" data-action="reload">
+                    <span class="label">Làm mới trang</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+<div id="mediaModal" class="modal">
+    <div class="modal-content" id="modalContent"></div>
+</div>
+
+<div id="overlay"></div>
+<div id="login-panel" style="display: none;">
+    <div class="admin-card">
+        <div class="title">Admin Login</div>
+        <form class="admin-form" onsubmit="event.preventDefault()">
+            <input class="admin-input" id="adminEmail" name="email" placeholder="Email" type="email" autocomplete="off">
+            <input class="admin-input" id="adminPass" name="password" placeholder="Password" type="password" autocomplete="off">
+            
+                <button class="admin-btn" id="btnLogin" type="button">Truy cập!</button>
+            
+            <p id="loginError" style="color:red; font-size:13px; display:none; margin:0; text-align:center"></p>
+        </form>
+        
+        <button id="btnCloseLogin" class="btn-close-login">Đóng cửa sổ</button>
+    </div>
+</div>
+
+<div id="toast">Đã sao chép vào bộ nhớ tạm</div>
+
+<div id="actionModal" class="custom-modal-overlay">
+    <div class="custom-modal-box">
+        <h3 id="acModalTitle">Tiêu đề</h3>
+        <p id="acModalDesc">Nội dung thông báo</p>
+        
+        <input type="text" id="acModalInput" placeholder="Nhập nội dung..." autocomplete="off">
+        
+        <select id="acModalSelect" class="sort-select" style="display:none; width:100%">
+            <option value="date_desc">📅 Mới nhất</option>
+            <option value="date_asc">📅 Cũ nhất</option>
+            <option value="name_asc">🔤 Tên (A-Z)</option>
+            <option value="name_desc">🔤 Tên (Z-A)</option>
+        </select>
+        
+        <div class="modal-btn-group">
+            <button class="btn-modal-cancel" id="acModalCancel">Hủy</button>
+            <button class="btn-modal-confirm" id="acModalBtn">Đồng ý</button>
+        </div>
+    </div>
+</div>
+
+<div id="vocabConfirmModal" class="vocab-modal-overlay" style="display: none;">
+    <div class="vocab-modal-box">
+        <div class="vocab-modal-icon warning">⚠️</div>
+        <h3>Xóa bảng từ vựng?</h3>
+        <p>Bạn có chắc chắn muốn xóa bảng <strong id="vocabDeleteName" style="color: var(--danger, #dc3545);"></strong>?</p>
+        <div class="vocab-modal-actions">
+            <button id="btnCancelVocabDelete" class="btn-vocab-cancel">Hủy</button>
+            <button id="btnConfirmVocabDelete" class="btn-vocab-danger">Xóa luôn</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js"></script>
+<script type="module" src="js/core.js"></script>
+
+<script type="module" src="js/windgame.js"></script>
+
+<script type="module" src="js/cloud.js"></script>
+
+<script type="module" src="js/palette.js"></script>
+
+<script type="module" src="js/drop.js"></script>
+
+<script type="module" src="js/vocab.js"></script>
+
+</body>
+</html>

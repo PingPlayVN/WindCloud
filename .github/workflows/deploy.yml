@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+# Kích hoạt tự động khi push vào nhánh main, hoặc có thể bấm chạy thủ công (workflow_dispatch)
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Cấp quyền cho GitHub Action để được phép upload lên GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Đảm bảo chỉ có 1 tiến trình deploy chạy tại 1 thời điểm
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # Cài đặt thư viện để có thể chạy workbox
+      - name: Install dependencies
+        run: npm ci
+
+      # Cập nhật lại file sw.js (Service Worker) để cập nhật Cache cho người dùng
+      - name: Build Service Worker
+        run: npm run build-sw
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      # Đóng gói toàn bộ thư mục hiện tại để chuẩn bị deploy
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' 
+
+      # Đẩy mã nguồn lên GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

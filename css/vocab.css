@@ -1,0 +1,781 @@
+/* css/vocab.css - Enhanced with GSAP animations */
+.vocab-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.vocab-header { 
+    text-align: center; 
+    margin-bottom: 20px; 
+}
+.vocab-header h1 { 
+    font-size: 2rem; 
+    color: var(--text); 
+    margin-bottom: 10px; 
+}
+.vocab-header p { 
+    color: var(--text-muted, gray); 
+    line-height: 1.5; 
+}
+
+/* Các khối Panel */
+.vocab-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+/* Enhanced Textarea nhập liệu */
+.vocab-textarea {
+    width: 100%;
+    height: 180px;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text);
+    font-size: 1rem;
+    resize: vertical;
+    line-height: 1.6;
+    font-family: monospace;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.vocab-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1), 0 2px 8px rgba(26, 115, 232, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Thống kê Quiz */
+.quiz-status {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-weight: bold;
+    color: var(--text);
+    font-size: 1.1rem;
+}
+
+/* Thẻ câu hỏi */
+.quiz-card {
+    padding: 20px;
+    background: var(--bg-surface);
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+}
+
+.vocab-word-title { 
+    margin: 0 0 10px 0; 
+    display: flex; 
+}
+
+/* Màu sắc Feedback */
+.feedback-correct { 
+    color: #10b981; 
+    font-weight: 600;
+    animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.feedback-wrong { 
+    color: #ef4444; 
+    font-weight: 600;
+    animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ===== ENHANCED UI CHO BẢNG TỪ VỰNG ĐỘNG ===== */
+.vocab-set-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vocab-set-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    border-color: var(--primary);
+}
+
+.vocab-set-header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.05), rgba(16, 185, 129, 0.05));
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+/* ===== TITLE SECTION ===== */
+.vocab-title-section {
+    display: flex;
+    width: 100%;
+    order: -1;
+}
+
+.vocab-title-section .vocab-set-title {
+    width: 100%;
+    margin: 0;
+}
+
+/* ===== CONTROLS SECTION ===== */
+.vocab-controls-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+/* Desktop layout - same as mobile */
+@media (min-width: 768px) {
+    /* Keep same layout as mobile - title on top, buttons below */
+}
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+    .vocab-set-header {
+        padding: 12px;
+    }
+    
+    .vocab-title-section {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .vocab-title-section .vocab-set-title {
+        font-size: 1rem;
+        padding: 8px 10px;
+    }
+    
+    .vocab-controls-section {
+        gap: 8px;
+    }
+    
+    .btn-toggle-set {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    
+    .arrow-icon {
+        width: 16px;
+        height: 14px;
+    }
+    
+    .btn-import-set {
+        height: 36px;
+        padding: 0 10px !important;
+        font-size: 0.8rem;
+    }
+    
+    .checkbox-container {
+        display: flex;
+        align-items: center;
+    }
+    
+    .cbx {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .checkmark {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .bin-button {
+        width: 36px;
+        height: 36px;
+    }
+}
+
+/* ===== TỐI ƯU NÚT THU GỌN/MỞ RỘNG (COLLAPSE) ===== */
+.btn-toggle-set {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    
+    /* Giao diện mặc định: Nền sáng, viền và icon màu Primary */
+    background: var(--bg-surface, #ffffff);
+    color: var(--primary, #1a73e8) !important;
+    border: 2px solid rgba(26, 115, 232, 0.2);
+    border-radius: 50%; /* Bo tròn hoàn toàn tạo cảm giác hiện đại, gọn gàng */
+    
+    cursor: pointer;
+    padding: 0 !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin-right: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    flex-shrink: 0;
+}
+
+/* Hiệu ứng khi lướt chuột qua (Hover) */
+.btn-toggle-set:hover {
+    background: var(--primary, #1a73e8); /* Đổi màu nền sang xanh */
+    color: white !important;             /* Đổi màu icon sang trắng */
+    border-color: var(--primary, #1a73e8);
+    transform: translateY(-2px);         /* Nảy nhẹ lên trên */
+    box-shadow: 0 6px 14px rgba(26, 115, 232, 0.25);
+}
+
+/* Hiệu ứng khi nhấn (Active) */
+.btn-toggle-set:active {
+    transform: scale(0.92);              /* Lún xuống nhẹ nhàng */
+    box-shadow: 0 2px 4px rgba(26, 115, 232, 0.15);
+}
+
+/* Icon mũi tên - Chuyển sang dùng viền (border) để tạo hình Chevron sắc nét */
+.arrow-icon {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    
+    /* Tạo hình mũi tên chỉ sang phải (trạng thái thu gọn = 0deg) */
+    border-right: 2.5px solid currentColor;
+    border-top: 2.5px solid currentColor;
+    transform: translateX(-2px) rotate(45deg);
+    
+    /* Bo góc nhẹ ở phần nhọn của mũi tên cho mềm mại */
+    border-radius: 1.5px; 
+    transition: inherit;
+}
+
+/* ===== ENHANCED IMPORT BUTTON ===== */
+.btn-import-set {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 40px;
+    padding: 0 14px !important;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+    border: 2px solid rgba(59, 130, 246, 0.4);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    color: #3b82f6 !important;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.btn-import-set::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-import-set:hover {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(59, 130, 246, 0.15));
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.25);
+}
+
+.btn-import-set:hover::before {
+    left: 100%;
+}
+
+.btn-import-set:active {
+    transform: translateY(-1px) scale(0.96);
+}
+
+/* ===== CUSTOM CHECKBOX FROM UIVERSE.IO ===== */
+.cbx {
+    position: relative;
+    top: 1px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #c8ccd4;
+    border-radius: 3px;
+    transition: background 0.1s ease;
+    cursor: pointer;
+    display: block;
+}
+
+.cbx:after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 10px;
+    width: 7px;
+    height: 14px;
+    opacity: 0;
+    transform: rotate(45deg) scale(0);
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transition: all 0.3s ease;
+    transition-delay: 0.15s;
+}
+
+#vocab-active-0:checked ~ .cbx,
+#vocab-active-1:checked ~ .cbx,
+#vocab-active-2:checked ~ .cbx,
+#vocab-active-3:checked ~ .cbx,
+#vocab-active-4:checked ~ .cbx,
+#vocab-active-5:checked ~ .cbx,
+#vocab-active-6:checked ~ .cbx,
+#vocab-active-7:checked ~ .cbx,
+#vocab-active-8:checked ~ .cbx,
+#vocab-active-9:checked ~ .cbx,
+.vocab-set-checkbox:checked ~ .cbx {
+    border-color: transparent;
+    background: #6871f1;
+    animation: jelly 0.6s ease;
+}
+
+.vocab-set-checkbox:checked ~ .cbx:after {
+    opacity: 1;
+    transform: rotate(45deg) scale(1);
+}
+
+.cntr {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.hidden-xs-up {
+    display: none!important;
+}
+
+@keyframes jelly {
+    from {
+        transform: scale(1, 1);
+    }
+    30% {
+        transform: scale(1.25, 0.75);
+    }
+    40% {
+        transform: scale(0.75, 1.25);
+    }
+    50% {
+        transform: scale(1.15, 0.85);
+    }
+    65% {
+        transform: scale(0.95, 1.05);
+    }
+    75% {
+        transform: scale(1.05, 0.95);
+    }
+    to {
+        transform: scale(1, 1);
+    }
+}
+
+/* ===== TITLE INPUT ===== */
+.vocab-set-title {
+    flex: 1;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid rgba(26, 115, 232, 0.3);
+    padding: 10px 12px;
+    padding-bottom: 8px;
+    border-radius: 4px 4px 6px 6px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: text;
+    font-family: 'Segoe UI', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.3px;
+    text-transform: capitalize;
+}
+
+.vocab-set-title:hover {
+    border-bottom-color: rgba(26, 115, 232, 0.5);
+    background: rgba(26, 115, 232, 0.04);
+}
+
+.vocab-set-title:focus {
+    outline: none;
+    border-bottom-color: var(--primary);
+    background: rgba(26, 115, 232, 0.08);
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.15);
+    transform: translateY(-2px);
+    padding-bottom: 7px;
+    border-bottom-width: 4px;
+}
+
+/* ===== ENHANCED DELETE BUTTON (BIN BUTTON) ===== */
+.btn-delete-set {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-delete-set:active {
+    transform: scale(0.92);
+}
+
+/* Body wrapper untuk collapse animasi */
+.vocab-set-body {
+    padding: 15px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 5000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.vocab-set-body[data-collapsed="true"] {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 15px;
+}
+
+/* ===== IMPORT AREA ENHANCEMENT ===== */
+.import-area {
+    border: 2px dashed var(--primary) !important;
+    border-radius: 8px !important;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.05), rgba(59, 130, 246, 0.05)) !important;
+    padding: 15px !important;
+    margin-bottom: 15px !important;
+    transition: all 0.3s ease;
+}
+
+.import-area:hover {
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.08), rgba(59, 130, 246, 0.08)) !important;
+    border-color: var(--primary) !important;
+}
+
+.import-textarea {
+    border: 2px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    background: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+    font-family: 'Segoe UI', 'Helvetica Neue', 'Arial', sans-serif !important;
+    font-size: 0.95rem !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    resize: vertical !important;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    white-space: pre !important;
+    overflow-x: auto !important;
+    word-wrap: normal !important;
+}
+
+.import-textarea:focus {
+    outline: none !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1), inset 0 1px 3px rgba(0,0,0,0.05) !important;
+}
+
+/* ===== ENHANCED INPUT FIELDS ===== */
+.vocab-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: flex-end;
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.vocab-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.vocab-row:hover {
+    background: rgba(26, 115, 232, 0.02);
+    padding: 10px;
+    margin-left: -10px;
+    margin-right: -10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-radius: 6px;
+}
+
+.vocab-row input {
+    flex: 1;
+    min-width: 130px;
+    padding: 12px 14px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.vocab-row input:hover {
+    border-color: rgba(26, 115, 232, 0.4);
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.08);
+}
+
+.vocab-row input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--bg-surface);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1), 0 2px 8px rgba(26, 115, 232, 0.12);
+    transform: translateY(-2px);
+}
+
+.input-en {
+    border-left: 4px solid #3b82f6;
+}
+
+.input-vi {
+    border-left: 4px solid #10b981;
+}
+
+/* ===== ENHANCED DELETE ROW BUTTON ===== */
+.btn-delete-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    background: transparent;
+    border: none;
+    color: #ef4444 !important;
+    font-size: 1.3rem;
+    cursor: pointer;
+    border-radius: 6px;
+    opacity: 0.6;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.btn-delete-row:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.15);
+    transform: scale(1.1) rotateZ(10deg);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+.btn-delete-row:active {
+    transform: scale(0.9);
+}
+
+/* ===== ENHANCED ADD ROW BUTTON ===== */
+.btn-add-row {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.08), rgba(59, 130, 246, 0.08));
+    color: var(--primary);
+    border: 2px dashed var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 1rem;
+    margin-top: 10px;
+}
+
+.btn-add-row:hover {
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.12), rgba(59, 130, 246, 0.12));
+    border-style: solid;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);
+}
+
+.btn-add-row:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+/* Animation for fadeIn */
+@keyframes fadeIn {
+    from { 
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== PROFESSIONAL DELETE BUTTON (BIN BUTTON) ===== */
+.bin-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: #ff5f5f;
+    cursor: pointer;
+    border: 2px solid #ffc9c9;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.bin-button:hover {
+    background-color: #ff0000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 95, 95, 0.4);
+}
+
+.bin-button:hover .bin-top {
+    transform: rotate(45deg);
+}
+
+.bin-button:active {
+    transform: scale(0.92);
+}
+
+.bin-top,
+.bin-bottom {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bin-bottom {
+    width: 12px;
+    height: auto;
+}
+
+.bin-top {
+    width: 14px;
+    height: auto;
+    transform-origin: right;
+    margin-bottom: 2px;
+}
+
+/* =========================================
+   UI POPUP XÁC NHẬN XÓA VOCAB
+========================================= */
+.vocab-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px); /* Hiệu ứng làm mờ nền hiện đại */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.vocab-modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.vocab-modal-box {
+    background: var(--bg-surface);
+    width: 90%;
+    max-width: 380px;
+    border-radius: var(--radius-lg, 16px);
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    /* Hiệu ứng nảy (bounce) khi popup xuất hiện */
+    transform: translateY(30px) scale(0.9);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.vocab-modal-overlay.show .vocab-modal-box {
+    transform: translateY(0) scale(1);
+}
+
+.vocab-modal-icon.warning {
+    font-size: 46px;
+    margin-bottom: 15px;
+    animation: shakeWarning 0.5s ease-in-out;
+}
+
+@keyframes shakeWarning {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-15deg); }
+    75% { transform: rotate(15deg); }
+}
+
+.vocab-modal-box h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-main);
+    font-size: 1.4rem;
+}
+
+.vocab-modal-box p {
+    color: var(--text-sub);
+    margin: 0 0 24px 0;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.vocab-modal-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-vocab-cancel {
+    flex: 1;
+    padding: 12px 0;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-main);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-vocab-cancel:hover {
+    background: var(--hover-bg);
+}
+
+.btn-vocab-danger {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    background: var(--danger, #dc3545);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.btn-vocab-danger:hover {
+    background: #c82333;
+}
+
+.btn-vocab-danger:active {
+    transform: scale(0.95);
+}

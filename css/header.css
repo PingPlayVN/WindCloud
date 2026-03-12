@@ -1,0 +1,202 @@
+/* --- HEADER --- */
+header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 24px; background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm); 
+    margin-bottom: 24px;
+    transition: box-shadow 0.3s ease, background 0.3s;
+}
+header:hover { box-shadow: var(--shadow-md); }
+
+/* --- KHOẢNG CÁCH VÀ BỐ CỤC LOGO --- */
+.logo-area { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+    cursor: pointer; /* Thêm hình bàn tay khi trỏ chuột vào */
+}
+
+/* --- NÚT MENU (DẤU 3 GẠCH) --- */
+.btn-menu {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+.btn-menu:hover {
+    background: var(--hover-bg);
+    border-radius: 6px;
+}
+
+/* --- HIỆU ỨNG CHO BIỂU TƯỢNG (LOGO ICON) --- */
+.logo-icon { 
+    width: 36px; 
+    height: 36px; 
+    /* Thêm transition để hiệu ứng diễn ra mượt mà */
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), filter 0.3s ease;
+}
+
+/* Khi di chuột vào khu vực logo, biểu tượng sẽ xoay nhẹ và phóng to */
+.logo-area:hover .logo-icon {
+    transform: scale(1.15) rotate(10deg);
+    filter: drop-shadow(0 4px 6px rgba(26, 115, 232, 0.4)); /* Thêm bóng mờ màu xanh */
+}
+
+/* --- GIỮ NGUYÊN PHẦN CHỮ THEO YÊU CẦU --- */
+h2 { 
+    margin: 0; 
+    font-size: 21px; 
+    font-weight: 700; /* In đậm chữ để tạo sự chắc chắn */
+    letter-spacing: -0.8px; /* Ép khoảng cách chữ lại gần nhau giúp logo trông hiện đại hơn */
+    color: var(--text-main); 
+}
+
+.btn-header {
+    background: transparent; border: 1px solid var(--border);
+    padding: 8px 18px; border-radius: 20px; cursor: pointer;
+    font-weight: 500; font-size: 14px; color: var(--text-main);
+    transition: all 0.2s ease;
+}
+.btn-header:hover { background-color: var(--hover-bg); border-color: transparent; }
+.btn-header.icon-btn { padding: 8px 12px; font-size: 18px; border-color: transparent; }
+
+/* --- TOOLBAR & BREADCRUMB --- */
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+
+/* SEARCH BOX */
+.search-box input {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--bg-surface); color: var(--text-main);
+    outline: none; font-size: 14px; width: 200px; transition: 0.2s;
+}
+.search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2); }
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text-sub);
+    padding: 10px 0 20px 0; width: 100%;
+}
+.crumb-item { 
+    cursor: pointer; padding: 6px 12px; border-radius: 8px; 
+    transition: background 0.2s; font-weight: 500;
+}
+.crumb-item:hover { background: var(--hover-bg); color: var(--text-main); }
+.crumb-separator { color: var(--text-sub); opacity: 0.5; font-size: 12px; }
+
+/* --- INSTALL BUTTON --- */
+#installBtn {
+    display: none;
+    background: linear-gradient(90deg, #1a73e8 60%, #00ac47 100%);
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    font-size: 1.1em;
+    font-weight: 600;
+    padding: 12px 28px;
+    margin-left: 12px;
+    box-shadow: 0 2px 8px rgba(26,115,232,0.12);
+    transition: background 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    outline: none;
+}
+#installBtn:hover, #installBtn:active {
+    background: linear-gradient(90deg, #2684fc 60%, #00ac47 100%);
+    box-shadow: 0 4px 16px rgba(26,115,232,0.18);
+}
+
+.header-actions-mobile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 0;
+    margin-left: auto;
+}
+
+/* --- SLIDING TABS CSS --- */
+
+/* Xóa style cũ của .tabs nếu còn sót */
+.tabs { display: none !important; } 
+
+.tabs-wrapper {
+  --tab-width: 90px; /* Chiều rộng mỗi tab */
+  --tab-height: 40px;
+  --tab-radius: 20px;
+  --tab-gap: 4px;
+  
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: var(--bg-surface); /* Nền ăn theo theme */
+  border-radius: var(--tab-radius);
+  padding: 4px;
+  box-shadow: inset 0 0 0 1px var(--border); /* Viền nhẹ */
+  isolation: isolate; /* Tạo context mới cho z-index */
+}
+
+/* Ẩn input radio */
+.tabs-wrapper input[type="radio"] {
+  position: absolute; width: 0; height: 0; opacity: 0;
+}
+
+/* Style cho Label (Nút bấm) */
+.tab-label {
+  width: var(--tab-width);
+  height: var(--tab-height);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2; /* Nổi lên trên thanh trượt */
+  color: var(--text-sub);
+  font-weight: 500; font-size: 14px;
+  transition: color 0.3s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Khi được chọn, đổi màu chữ */
+.tabs-wrapper input:checked + label {
+  color: var(--primary); 
+  font-weight: 600;
+}
+/* Dark mode: Màu chữ khi chọn sẽ sáng lên */
+[data-theme="dark"] .tabs-wrapper input:checked + label {
+    color: #fff;
+}
+
+/* Thanh trượt (Slider) chạy qua lại */
+.tab-slider {
+  position: absolute;
+  top: 4px; left: 4px; /* Căn theo padding của wrapper */
+  width: var(--tab-width);
+  height: var(--tab-height);
+  border-radius: calc(var(--tab-radius) - 4px);
+  background: var(--hover-bg); /* Màu nền của tab đang chọn */
+  z-index: 1;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+/* Dark mode: Slider màu đậm hơn chút */
+[data-theme="dark"] .tab-slider {
+    background: #3c4043;
+}
+
+/* Thanh trang trí nhỏ (Bar) ở trên/dưới - Tùy chọn, tôi làm mờ đi cho hiện đại */
+.tab-bar-deco {
+  position: absolute;
+  height: 100%; width: var(--tab-width);
+  top: 0; left: 4px;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* --- LOGIC DI CHUYỂN SLIDER (4 TABS) --- */
+.tab-rd-1:checked ~ .tab-slider, .tab-rd-1:checked ~ .tab-bar-deco { transform: translateX(0%); }
+.tab-rd-2:checked ~ .tab-slider, .tab-rd-2:checked ~ .tab-bar-deco { transform: translateX(100%); }
+.tab-rd-3:checked ~ .tab-slider, .tab-rd-3:checked ~ .tab-bar-deco { transform: translateX(200%); }
+.tab-rd-4:checked ~ .tab-slider, .tab-rd-4:checked ~ .tab-bar-deco { transform: translateX(300%); }

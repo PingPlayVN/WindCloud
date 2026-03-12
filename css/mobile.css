@@ -1,0 +1,337 @@
+/* --- MOBILE OPTIMIZATION --- */
+@media (max-width: 768px) {
+    .container { padding: 10px; min-height: calc(100vh - 40px); }
+    
+    .toolbar { gap: 10px; flex-direction: column; align-items: stretch; }
+    .tabs { width: 100%; justify-content: space-between; } 
+    .tab-btn { flex: 1; text-align: center; padding: 6px 10px; font-size: 13px; }
+    
+    .tools-right { justify-content: space-between; width: 100%; gap: 8px; flex-wrap: wrap;}
+    /* Search box mobile */
+    .search-box { width: 100%; order: -1; }
+    .search-box input { width: 100%; }
+    
+    .sort-select { flex: 1; }
+    #btnNew { padding: 8px 16px; white-space: nowrap; }
+
+    .media-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    /* Mobile List View */
+    .media-grid.list-view { gap: 8px; }
+    .media-grid.list-view .card { height: 50px; }
+    
+    .card { border-radius: 8px; }
+    .thumb-box { height: 90px; } 
+    .card.is-folder .thumb-box { height: 70px; } 
+    .card.is-folder .folder-icon { font-size: 36px; } 
+    
+    .card-footer { padding: 8px; min-height: auto; align-items: flex-start; }
+    .file-info { align-items: flex-start; margin-right: 4px; }
+    .file-info span:first-child { margin-top: 2px; font-size: 14px; }
+    .file-name { 
+        font-size: 12px; line-height: 1.3; white-space: normal; 
+        display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+        overflow: hidden; word-break: break-word; 
+    }
+    
+    .btn-download { width: 30px; height: 30px; }
+    .btn-download svg { width: 16px; height: 16px; }
+    
+    .breadcrumb { white-space: nowrap; overflow-x: auto; padding-bottom: 5px; font-size: 13px; }
+
+    /* --- FIX UI POPUP MOBILE --- */
+    
+    #login-panel .admin-card {
+        width: 90%;
+        max-width: 320px; 
+    }
+
+    /* --- MỚI: TĂNG CHIỀU CAO CHO TÀI LIỆU --- */
+    .modal-content.view-doc {
+        height: 90vh; /* Tăng chiều cao lên 90% màn hình */
+        max-height: 90vh;
+    }
+    .modal-content.view-doc iframe {
+        aspect-ratio: auto; /* Bỏ tỉ lệ 16/9 */
+        height: 100%; /* Full chiều cao */
+    }
+    
+    .custom-modal-box { width: 90%; padding: 20px; }
+
+    /* --- MOBILE RESPONSIVE MODAL --- */
+    .modal { padding: 0; background: black; } /* Mobile full màn đen */
+    
+    .media-window {
+        border-radius: 0;
+        height: 100%; 
+        border: none;
+        justify-content: center; /* Căn giữa dọc */
+    }
+
+    .media-header {
+        position: absolute; top: 0; left: 0; width: 100%; z-index: 10;
+        background: rgba(0,0,0,0.6); backdrop-filter: none;
+        border-bottom: none;
+    }
+    
+    .media-body {
+        width: 100%;
+        /* Mobile video giữ nguyên tỷ lệ 16/9 */
+    }
+    
+    /* Với tài liệu trên mobile */
+    .modal-content.view-doc .media-window {
+        justify-content: flex-start; /* Docs thì bắt đầu từ trên */
+        padding-top: 50px; /* Chừa chỗ cho header */
+    }
+
+    /* --- MOBILE RESPONSIVE COLOR PALETTE --- */
+    .palette-grid { gap: 10px; padding: 0 10px; }
+    .color-card { width: 45%; height: 140px; }
+
+    /* --- MOBILE RESPONSIVE COLOR STUDIO PRO --- */
+    .palette-grid.pro-mode { flex-direction: column; height: 500px; }
+    .strip-info { opacity: 1; background: transparent; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
+    /* --- MOBILE DRAG & DROP --- */
+    .drop-header h1 { font-size: 1.8rem; }
+    .drop-header p { font-size: 14px; padding: 0 20px; }
+    
+    /* Thu nhỏ radar để vừa màn hình điện thoại */
+    .radar-zone { width: 300px; height: 300px; margin-bottom: 20px; }
+    
+    /* Thu nhỏ nút trung tâm */
+    .my-device-center { width: 70px; height: 70px; font-size: 14px; }
+    
+    /* Điều chỉnh animation sóng */
+    @keyframes radarWave {
+        0% { width: 70px; height: 70px; opacity: 0.6; border-width: 3px; }
+        100% { width: 100%; height: 100%; opacity: 0; border-width: 0px; }
+    }
+
+    .peer-user { width: 70px; }
+    .peer-icon { width: 48px; height: 48px; font-size: 20px; }
+    .peer-user span { font-size: 11px; padding: 3px 8px; }
+    
+    /* Đẩy Panel lên cao chút */
+    #transfer-panel { 
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        width: 90%; z-index: 100; margin: 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+    
+    /* ✅ NEW: Better mobile transfer panel */
+    .transfer-info {
+        padding: 12px;
+        flex: 1;
+    }
+    
+    .tf-icon { font-size: 28px; }
+    
+    .progress-track { height: 4px; }
+    
+    .btn-cancel-transfer { 
+        padding: 8px 16px;
+        font-size: 13px;
+        border-radius: 16px;
+    }
+
+    /* --- MOBILE WIND GAME --- */
+    .windgame-frame-area iframe { height: calc(100vh - 220px); }
+
+    /* --- MOBILE CONTEXT MENU --- */
+    .context-card {
+        /* Ensure menu fits on mobile screens */
+        width: calc(100% - 20px);
+        max-width: 280px;
+    }
+    
+    /* Long-press tooltip on mobile */
+    .context-menu-hint {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        z-index: 9998;
+        pointer-events: none;
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    /* Show hint during first long-press on touch devices */
+    .show-hint .context-menu-hint {
+        display: block;
+    }
+
+    /* --- MOBILE TABS --- */
+    .tabs-wrapper { --tab-width: 75px; --tab-height: 35px; }
+    .tab-label { font-size: 12px; }
+
+    /* --- MOBILE IMAGE VIEWING --- */
+    .modal-content.view-image .media-window {
+        width: 100%;
+        max-height: 100vh;
+    }
+    .modal-content.view-image .media-content {
+        max-height: 80vh;
+    }
+    /* 1. Ép Container chiếm 100% bề ngang, bỏ hoàn toàn lề */
+    .vocab-container {
+        padding: 0 !important; 
+        max-width: 100% !important;
+        width: 100%;
+    }
+
+    /* 2. Ép Panel sát mép màn hình, bỏ viền trái/phải và giảm bo góc */
+    .vocab-panel {
+        padding: 12px 8px !important; /* Lề trong siêu mỏng (8px) */
+        border-radius: 0 !important; /* Bỏ bo góc để tạo cảm giác tràn viền */
+        border-left: none;
+        border-right: none;
+        box-shadow: none; /* Bỏ shadow để giao diện phẳng và nhẹ hơn */
+    }
+
+    .vocab-set-card {
+        padding: 10px 8px !important;
+    }
+
+    /* 3. Tối ưu lại ô Input để chừa chỗ cho text */
+    .vocab-row {
+        gap: 4px !important; /* Ép các cột sát vào nhau hơn */
+    }
+    
+    .vocab-row input {
+        padding: 8px 6px !important;
+        font-size: 14px; /* Giảm nhẹ font size để hiển thị được nhiều chữ hơn trên 1 dòng */
+    }
+
+    /* --- SỬA LỖI NÚT X BỊ RỚT DÒNG --- */
+    /* --- KHẮC PHỤC LỖI NÚT X BỊ TRÀN BẢNG (OVERFLOW FIX) --- */
+    /* --- KHẮC PHỤC TRÀN BẢNG BẰNG CSS GRID (GIẢI PHÁP TỐI ƯU NHẤT) --- */
+    .vocab-row {
+        display: grid !important;
+        /* Kỹ thuật chia cột: 2 ô input bằng nhau (1fr), nút X chốt cứng 28px */
+        grid-template-columns: 1fr 1fr 28px !important; 
+        gap: 4px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin-right: 0 !important;
+        align-items: center; /* Căn giữa theo chiều dọc */
+    }
+
+    .vocab-row input {
+        width: 100% !important; /* Ép input nằm gọn 100% trong ô grid được cấp */
+        min-width: 0 !important; /* Vô hiệu hóa tính năng tự phình to của input */
+        padding: 8px 6px !important;
+        box-sizing: border-box !important;
+        margin: 0 !important; /* Xóa mọi margin thừa */
+    }
+
+    .btn-icon {
+        width: 28px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}
+
+/* ✅ NEW: Ultra-small screens (iPhone 12 mini, small Android) */
+@media (max-width: 375px) {
+    .drop-header h1 { font-size: 1.5rem; }
+    .drop-header p { font-size: 12px; }
+    
+    .radar-zone { width: 250px; height: 250px; }
+    .my-device-center { width: 60px; height: 60px; font-size: 12px; }
+    
+    .peer-user { width: 60px; }
+    .peer-icon { width: 42px; height: 42px; font-size: 18px; }
+    .peer-user span { font-size: 9px; padding: 2px 4px; max-width: 60px; }
+    
+    #transfer-panel { width: 95%; bottom: 10px; }
+}
+
+/* Giới hạn độ dài tên trên mobile để không bị tràn */
+@media (max-width: 600px) {
+    .peer-user span {
+        max-width: 70px; /* Giới hạn chiều rộng tên */
+        font-size: 10px; /* Chữ nhỏ lại chút */
+        padding: 2px 6px;
+    }
+    
+    /* Đẩy tên nằm sát lên icon hơn */
+    .peer-icon { margin-bottom: 4px; }
+
+    .header-actions-mobile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin-right: 0;
+        margin-left: auto;
+        width: 100%;
+        max-width: 180px;
+    }
+    #installBtn {
+        font-size: 0.8em;
+        padding: 5px 10px;
+        border-radius: 10px;
+        min-width: 60px;
+        margin: 0;
+        position: static;
+        z-index: 2;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 180px;
+    }
+    .theme-switch {
+        transform: scale(0.7);
+        margin: 0;
+    }
+}
+
+@media (min-width: 601px) {
+    .header-actions-mobile {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        margin-right: 0;
+        margin-left: auto;
+        width: auto;
+        max-width: none;
+    }
+    #installBtn {
+        font-size: 1.1em;
+        padding: 12px 28px;
+        border-radius: 24px;
+        min-width: 120px;
+        margin-left: 12px;
+        width: auto;
+        max-width: none;
+    }
+    .theme-switch {
+        transform: scale(1);
+        margin-right: 4px;
+    }
+}
+
+/* Touch feedback - prevent gray overlay on iOS */
+@media (hover: none) and (pointer: coarse) {
+    .card {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .card:active {
+        background: rgba(26, 115, 232, 0.05);
+    }
+    
+    [data-theme="dark"] .card:active {
+        background: rgba(26, 115, 232, 0.1);
+    }
+}

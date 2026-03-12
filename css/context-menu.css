@@ -1,0 +1,135 @@
+/* --- CONTEXT MENU (FIXED) --- */
+
+/* Khung bao ngoài chỉ dùng để định vị, KHÔNG có màu nền hay viền */
+#contextMenu {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    /* Reset toàn bộ style cũ để tránh bị hiện bóng ma */
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    width: auto;
+    backdrop-filter: none;
+}
+
+/* Giao diện chính nằm ở thẻ này */
+.context-card {
+    background: #222222;
+    width: 260px;
+    border: 2px solid #313131;
+    border-radius: 10px;
+    padding: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: fadeIn 0.15s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.context-card .separator {
+    width: 100%;
+    border-bottom: 1px solid #444444;
+    margin: 5px 0px;
+}
+
+.context-card .list {
+    color: #e9e9e9;
+    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0; padding: 0;
+}
+
+.context-card .item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+    padding: 10px 12px; /* Tăng padding chút cho thoáng */
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    color: #e9e9e9; /* Màu chữ mặc định */
+}
+
+.context-card .item svg {
+    width: 18px; height: 18px;
+    stroke-width: 2px;
+}
+
+.context-card .item:hover {
+    background: #333333;
+    color: #fff;
+}
+
+.context-card .label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Style riêng cho nút Xóa */
+.context-card .item.delete {
+    color: #ff6b6b; /* Màu đỏ nhạt cho dễ nhìn trên nền đen */
+}
+
+.context-card .item.delete:hover {
+    background: #4a1818; /* Màu nền đỏ đậm khi hover */
+    color: #ff8787;
+}
+
+/* --- MOBILE CONTEXT MENU STYLES --- */
+
+/* Long-press active state for cards and items */
+.long-press-active {
+    background: rgba(26, 115, 232, 0.1) !important;
+    border-color: #1a73e8 !important;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2) !important;
+}
+
+[data-theme="dark"] .long-press-active {
+    background: rgba(26, 115, 232, 0.15) !important;
+    border-color: #64b5f6 !important;
+    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.1) !important;
+}
+
+/* Ripple effect for long-press feedback */
+.ripple-effect {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(26, 115, 232, 0.6) 0%, rgba(26, 115, 232, 0) 70%);
+    opacity: 0;
+    width: 40px;
+    height: 40px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Ripple animation */
+@keyframes ripple-expand {
+    0% {
+        width: 40px;
+        height: 40px;
+        opacity: 0.8;
+    }
+    100% {
+        width: 300px;
+        height: 300px;
+        opacity: 0;
+    }
+}
+
+.ripple-animate {
+    animation: ripple-expand 0.6s ease-out forwards;
+}
+
+/* Ensure context menu stays above all other elements on mobile */
+@media (max-width: 768px) {
+    #contextMenu {
+        z-index: 99999 !important;
+    }
+}

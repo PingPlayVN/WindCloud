@@ -1,0 +1,225 @@
+/* --- NEW MEDIA MODAL UI (Thay thế giao diện cũ) --- */
+.modal {
+    display: none; position: fixed; z-index: 5000; 
+    left: 0; top: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.85); /* Nền tối hơn */
+    backdrop-filter: blur(5px);   /* Hiệu ứng mờ nền sau */
+    justify-content: center; align-items: center; 
+    padding: 20px;
+}
+
+/* Container chính của nội dung (giữ nguyên logic JS) */
+.modal-content { 
+    position: relative; 
+    width: 100%; max-width: 1000px; /* Giới hạn chiều rộng trên PC */
+    height: auto; 
+    display: flex; justify-content: center; align-items: center; 
+    pointer-events: none; /* Để click xuyên qua vùng trống đóng modal */
+}
+
+/* Cửa sổ Popup mới */
+.media-window {
+    width: 100%;
+    background: #1e1e1e;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column;
+    pointer-events: auto; /* Cho phép thao tác lại */
+    border: 1px solid rgba(255,255,255,0.1);
+    animation: zoomIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Hạn chế chiều cao tổng để header luôn hiển thị và tránh tràn */
+.media-window {
+    max-height: 90vh;
+}
+
+/* Thanh tiêu đề */
+.media-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Đảm bảo header luôn hiển thị trên desktop (header sẽ bị override trên mobile) */
+.media-header {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+}
+
+.media-title {
+    margin: 0; font-size: 16px; color: #e8eaed; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 80%;
+}
+
+/* Nút đóng mới */
+.btn-close-media {
+    background: transparent; border: none; cursor: pointer;
+    color: #9aa0a6; padding: 4px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.btn-close-media svg { width: 24px; height: 24px; fill: currentColor; }
+.btn-close-media:hover { background: rgba(255,255,255,0.1); color: white; transform: rotate(90deg); }
+
+/* Vùng chứa nội dung (Video/Ảnh) */
+.media-body {
+    position: relative;
+    width: 100%;
+    background: black;
+    /* Aspect Ratio cho Video mặc định là 16:9, chiều cao tự tính */
+    aspect-ratio: 16/9; 
+    display: flex; justify-content: center; align-items: center;
+}
+
+/* Giữ phần nội dung có thể cuộn bên trong, tránh tràn ra ngoài modal */
+.media-body {
+    max-height: calc(90vh - 64px);
+    overflow: auto;
+}
+
+/* Nội dung (Iframe/Img) */
+.media-content {
+    width: 100%; height: 100%;
+    border: none; object-fit: contain;
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    margin: 0 auto;
+    opacity: 0; transition: opacity 0.5s ease; /* Fade in khi tải xong */
+}
+.media-content.loaded { opacity: 1; }
+
+/* Loader căn giữa */
+.media-body .loader {
+    display: block;
+    position: absolute; /* Bắt buộc để nằm đè lên video */
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%); /* Căn chính giữa */
+    z-index: 10;
+    
+    /* Style vòng tròn */
+    border-color: rgba(255,255,255,0.1);
+    border-top-color: var(--primary);
+    pointer-events: none; /* Để click xuyên qua nếu lỡ nó không tắt */
+}
+.media-content.loaded + .loader { 
+    display: none; 
+}
+
+/* --- STYLE RIÊNG CHO TÀI LIỆU (DOCS) --- */
+.modal-content.view-doc .media-window {
+    height: 90vh; /* Cao 90% màn hình */
+}
+.modal-content.view-doc .media-body {
+    aspect-ratio: auto; /* Bỏ tỷ lệ 16:9 */
+    flex: 1; /* Chiếm hết chiều cao còn lại */
+}
+
+/* Khi xem tài liệu/ảnh: đảm bảo phần body không tràn và nội dung co vừa */
+.modal-content.view-doc .media-body {
+    max-height: calc(90vh - 64px);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ảnh đứng/nhỏ: co lại vừa trong vùng xem */
+.modal-content.view-doc .media-body img.media-content {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Iframe (Google Drive preview): chiếm hết vùng .media-body và có thể cuộn */
+.modal-content.view-doc .media-body iframe.media-content {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* --- FIX LỖI ẢNH DỌC TRÀN MÀN HÌNH --- */
+
+/* 1. Khi xem ảnh, Container tự co giãn theo nội dung thay vì fix cứng */
+.modal-content.view-image .media-window {
+    width: auto;       /* Chiều rộng tự động theo ảnh */
+    max-width: 95vw;   /* Không quá 95% chiều rộng màn hình */
+    max-height: 95vh;  /* QUAN TRỌNG: Giới hạn chiều cao popup là 95% màn hình */
+    display: inline-flex; /* Ôm sát nội dung */
+}
+
+/* 2. Bỏ tỉ lệ 16:9 của Video, chuyển sang tự động */
+.modal-content.view-image .media-body {
+    aspect-ratio: auto !important; /* Bắt buộc bỏ tỉ lệ 16/9 */
+    width: auto;
+    height: auto;
+    background: transparent; /* Bỏ nền đen thừa */
+    display: block; /* Để ảnh chiếm khối */
+}
+
+/* 3. Giới hạn kích thước ảnh thật sự */
+.modal-content.view-image .media-content {
+    display: block;
+    width: auto;
+    height: auto;
+    
+    /* Tính toán: 95vh (popup) - 50px (header) = khoảng 85vh cho ảnh */
+    max-height: 85vh; 
+    max-width: 100%;
+    object-fit: contain; /* Đảm bảo ảnh không bị méo */
+}
+
+/* --- CUSTOM ACTION MODAL --- */
+.custom-modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);
+    z-index: 6000; justify-content: center; align-items: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.custom-modal-box {
+    background: var(--bg-surface); width: 90%; max-width: 400px;
+    padding: 24px; border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column; gap: 15px;
+    transform: scale(0.9); animation: popIn 0.2s forwards;
+    border: 1px solid var(--border);
+}
+
+.custom-modal-box h3 { margin: 0; color: var(--text-main); font-size: 18px; }
+.custom-modal-box p { 
+    margin: 0; 
+    color: var(--text-sub); 
+    font-size: 14px; 
+    line-height: 1.5;
+    /* ✅ Fix text overflow for long filenames */
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    white-space: normal;
+}
+
+#acModalInput {
+    padding: 10px 12px; border: 2px solid var(--border);
+    border-radius: 6px; font-size: 16px; width: 100%; transition: 0.2s;
+    background: var(--bg-body); color: var(--text-main);
+}
+#acModalInput:focus { border-color: var(--primary); background: var(--bg-surface); }
+
+.modal-btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+
+.btn-modal-cancel, .btn-modal-confirm {
+    padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; font-size: 14px;
+}
+.btn-modal-cancel { background: transparent; color: var(--text-sub); }
+.btn-modal-cancel:hover { background: var(--hover-bg); color: var(--text-main); }
+
+.btn-modal-confirm { background: var(--primary); color: white; }
+.btn-modal-confirm:hover { background: var(--primary-hover); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
