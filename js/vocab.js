@@ -9,7 +9,8 @@ class VocabQuiz {
         this.currentList = [];
         this.currentIndex = 0;
         this.score = 0;
-        this.failedAttempts = 0; 
+        this.failedAttempts = 0;
+        this.saveDataTimeout = null; // Debounce timer
         
         this.initDOM();
         this.bindEvents();
@@ -72,7 +73,76 @@ class VocabQuiz {
     }
     
     saveData() {
-        localStorage.setItem('windcloud_vocab_sets', JSON.stringify(this.sets));
+        // Debounce: chỉ save sau 500ms không có input mới
+        if (this.saveDataTimeout) clearTimeout(this.saveDataTimeout);
+        this.saveDataTimeout = setTimeout(() => {
+            localStorage.setItem('windcloud_vocab_sets', JSON.stringify(this.sets));
+        }, 500);
+    }
+
+    // Rebuild rows cho một set cụ thể mà không render toàn bộ
+    renderSetRows(setIdx) {
+        const setCard = document.querySelectorAll('.vocab-set-card')[setIdx];
+        if (!setCard) return;
+        
+        const rowsContainer = setCard.querySelector('.vocab-row')?.parentElement;
+        if (!rowsContainer) return;
+        
+        // Xóa các hàng cũ
+        rowsContainer.innerHTML = '';
+        
+        // Thêm hàng mới
+        this.sets[setIdx].words.forEach((word, wordIndex) => {
+            const row = document.createElement('div');
+            row.className = 'vocab-row';
+            row.style.cssText = "display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);";
+            row.innerHTML = `
+                <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
+                    <span style="font-size: 0.75rem; color: var(--primary); font-weight: bold; letter-spacing: 0.5px;">🇬🇧 TIẾNG ANH</span>
+                    <input type="text" id="vocab-en-${setIdx}-${wordIndex}" name="vocab-en-${setIdx}-${wordIndex}" class="input-en" data-set="${setIdx}" data-word="${wordIndex}" value="${word.en}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
+                </div>
+                
+                <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
+                    <span style="font-size: 0.75rem; color: #10b981; font-weight: bold; letter-spacing: 0.5px;">🇻🇳 TIẾNG VIỆT</span>
+                    <input type="text" id="vocab-vi-${setIdx}-${wordIndex}" name="vocab-vi-${setIdx}-${wordIndex}" class="input-vi" data-set="${setIdx}" data-word="${wordIndex}" value="${word.vi}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
+                </div>
+                
+                <button class="btn-icon btn-delete-row" data-set="${setIdx}" data-word="${wordIndex}" tabindex="-1" style="flex: 0 0 auto; margin-bottom: 8px; padding: 5px;">✕</button>
+            `;
+            rowsContainer.appendChild(row);
+        });
+    }
+
+    // Thêm 1 hàng từ vựng vào DOM mà không render lại toàn bộ
+    addRowToDOM(setIdx) {
+        const setCard = document.querySelectorAll('.vocab-set-card')[setIdx];
+        if (!setCard) return;
+        
+        const rowsContainer = setCard.querySelector('.vocab-row')?.parentElement;
+        if (!rowsContainer) return;
+
+        const wordIndex = this.sets[setIdx].words.length - 1;
+        const word = this.sets[setIdx].words[wordIndex];
+        
+        const row = document.createElement('div');
+        row.className = 'vocab-row';
+        row.style.cssText = "display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);";
+        row.innerHTML = `
+            <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
+                <span style="font-size: 0.75rem; color: var(--primary); font-weight: bold; letter-spacing: 0.5px;">🇬🇧 TIẾNG ANH</span>
+                <input type="text" id="vocab-en-${setIdx}-${wordIndex}" name="vocab-en-${setIdx}-${wordIndex}" class="input-en" data-set="${setIdx}" data-word="${wordIndex}" value="${word.en}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
+            </div>
+            
+            <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
+                <span style="font-size: 0.75rem; color: #10b981; font-weight: bold; letter-spacing: 0.5px;">🇻🇳 TIẾNG VIỆT</span>
+                <input type="text" id="vocab-vi-${setIdx}-${wordIndex}" name="vocab-vi-${setIdx}-${wordIndex}" class="input-vi" data-set="${setIdx}" data-word="${wordIndex}" value="${word.vi}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
+            </div>
+            
+            <button class="btn-icon btn-delete-row" data-set="${setIdx}" data-word="${wordIndex}" tabindex="-1" style="flex: 0 0 auto; margin-bottom: 8px; padding: 5px;">✕</button>
+        `;
+        
+        rowsContainer.appendChild(row);
+        return row;
     }
 
     renderSets() {
@@ -228,32 +298,27 @@ class VocabQuiz {
                 const setIdx = target.getAttribute('data-index');
                 this.sets[setIdx].words.push({ en: '', vi: '' });
                 
-                // Render lại nhưng chỉ phần rows
-                const setCard = target.closest('.vocab-set-card');
-                const rowsContainer = setCard?.querySelector('.vocab-row')?.parentElement;
-                
-                // Animate adding new row
-                this.renderSets();
+                // Thêm hàng mới vào DOM mà không render lại toàn bộ
+                const newRow = this.addRowToDOM(setIdx);
                 this.saveData();
                 
-                // Focus vào input mới
-                setTimeout(() => {
-                    const newRow = rowsContainer?.querySelector('.vocab-row:last-child');
-                    if (newRow) {
+                // Focus vào input mới với animation
+                if (newRow) {
+                    setTimeout(() => {
                         const newInput = newRow.querySelector('.input-en');
                         gsap.fromTo(newRow, 
                             { opacity: 0, y: -10 },
                             { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }
                         );
                         if (newInput) newInput.focus();
-                    }
-                }, 50);
+                    }, 50);
+                }
             } else if (target.classList.contains('btn-delete-row')) {
                 const sIdx = target.getAttribute('data-set');
                 const wIdx = target.getAttribute('data-word');
                 const row = target.closest('.vocab-row');
                 
-                // Animate removal
+                // Animate removal và xóa từ data
                 gsap.to(row, {
                     opacity: 0,
                     x: 20,
@@ -261,7 +326,7 @@ class VocabQuiz {
                     ease: 'power2.in',
                     onComplete: () => {
                         this.sets[sIdx].words.splice(wIdx, 1);
-                        this.renderSets();
+                        row.remove(); // Xóa từ DOM mà không render lại toàn bộ
                         this.saveData();
                     }
                 });
@@ -278,10 +343,15 @@ class VocabQuiz {
                 const btn = target.closest('.btn-import-set') || target;
                 const setIdx = btn.getAttribute('data-index');
                 const setCard = btn.closest('.vocab-set-card');
+                if (!setCard) return;
+                
                 const importArea = setCard.querySelector('.import-area');
                 const textarea = setCard.querySelector('.import-textarea');
+                if (!importArea || !textarea) return;
 
-                if (importArea.style.display === 'none') {
+                const isHidden = importArea.style.display === 'none' || window.getComputedStyle(importArea).display === 'none';
+                
+                if (isHidden) {
                     // Mở import area với animation
                     importArea.style.display = 'block';
                     gsap.fromTo(importArea,
@@ -289,7 +359,7 @@ class VocabQuiz {
                         { opacity: 1, maxHeight: 300, duration: 0.3, ease: 'power2.inOut' }
                     );
 
-                    // [TÍNH NĂNG MỚI] Lấy các từ hiện có và đổ vào Textarea
+                    // Lấy các từ hiện có và đổ vào Textarea
                     const currentWords = this.sets[setIdx].words;
                     const textLines = currentWords
                         .filter(w => w.en.trim() !== '' || w.vi.trim() !== '') // Bỏ qua các ô đang trống
@@ -388,7 +458,11 @@ class VocabQuiz {
                 // [QUAN TRỌNG] Ghi đè toàn bộ mảng thay vì nối thêm
                 this.sets[setIdx].words = newWords;
                 
-                this.renderSets();
+                // Chỉ rebuild rows của set này, không render toàn bộ
+                this.renderSetRows(setIdx);
+                
+                // Đóng import area
+                setCard.querySelector('.import-area').style.display = 'none';
                 this.saveData();
             }
         });
@@ -410,18 +484,17 @@ class VocabQuiz {
                         } else {
                             const setIndex = target.getAttribute('data-set');
                             this.sets[setIndex].words.push({ en: '', vi: '' });
-                            this.renderSets();
+                            
+                            // Thêm hàng mới vào DOM thay vì render lại toàn bộ
+                            const newRow = this.addRowToDOM(setIndex);
                             this.saveData();
                             
-                            setTimeout(() => {
-                                const updatedSets = document.querySelectorAll('.vocab-set-card');
-                                const targetSet = updatedSets[setIndex];
-                                if (targetSet) {
-                                    const newInputs = targetSet.querySelectorAll('.input-en');
-                                    const lastInput = newInputs[newInputs.length - 1];
-                                    if (lastInput) lastInput.focus();
-                                }
-                            }, 50);
+                            if (newRow) {
+                                setTimeout(() => {
+                                    const newInput = newRow.querySelector('.input-en');
+                                    if (newInput) newInput.focus();
+                                }, 50);
+                            }
                         }
                     }
                 }
@@ -469,7 +542,7 @@ class VocabQuiz {
                             ease: 'power2.in',
                             onComplete: () => {
                                 this.sets.splice(setIdx, 1);
-                                this.renderSets();
+                                setCard.remove(); // Xóa từ DOM thay vì render lại toàn bộ
                                 this.saveData();
                             }
                         });
