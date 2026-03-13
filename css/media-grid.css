@@ -40,18 +40,55 @@
 }
 
 /* CARD DEFAULT STYLE */
+/* Cập nhật trong css/media-grid.css */
+
+/* CARD DEFAULT STYLE */
 .card {
     background: var(--bg-surface); 
-    border: 1px solid transparent; 
+    border: 1px solid rgba(255, 255, 255, 0.05); /* Viền mỏng tinh tế */
     border-radius: var(--radius-md);
-    overflow: hidden; position: relative; cursor: pointer; 
-    display: flex; flex-direction: column;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    overflow: hidden; 
+    position: relative; 
+    cursor: pointer; 
+    display: flex; 
+    flex-direction: column;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    /* Tăng thời gian transition và dùng cubic-bezier để chuyển động trông tự nhiên hơn */
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+                box-shadow 0.4s ease, 
+                border-color 0.4s ease;
 }
 
-.card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
-.media-grid.list-view .card:hover { transform: translateX(4px); } /* List view thì đẩy sang phải */
+/* Hiệu ứng khi rê chuột */
+.card:hover { 
+    transform: translateY(-6px) scale(1.02); /* Bay lên và to ra một chút xíu */
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15); /* Bóng đổ mềm và sâu hơn */
+    border-color: var(--primary); /* Làm sáng viền bằng màu chủ đạo */
+    z-index: 2;
+}
+
+.media-grid.list-view .card:hover { 
+    transform: translateX(6px) scale(1.01); /* List view thì đẩy sang phải nhẹ nhàng */
+}
+
+/* Thêm hiệu ứng mượt mà cho icon tải xuống */
+.btn-download {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; 
+    border-radius: 50%; 
+    background: transparent;
+    color: var(--text-sub);
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    flex-shrink: 0; 
+}
+
+.btn-download:hover {
+    background-color: var(--primary);
+    color: white; /* Đổi màu icon sang trắng cho nổi bật */
+    transform: rotate(-10deg) scale(1.1); /* Hơi nghiêng và phóng to nút tải */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
 
 /* Folder Styling */
 .card.is-folder .thumb-box { 
@@ -146,3 +183,9 @@
 .card.skeleton-card { pointer-events: none; }
 .card.skeleton-card .thumb-box { background: transparent; }
 .card.skeleton-card .card-footer { background: transparent; }
+
+/**
+ * Hàm tạo hiệu ứng xuất hiện cho các thẻ file trong lưới.
+ * Hãy gọi hàm này ngay SAU KHI bạn đã dùng JavaScript để chèn các <div class="card"> vào trong #grid.
+ */
+

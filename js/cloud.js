@@ -198,6 +198,9 @@ function renderGrid(append = false) {
             // Cách mới: Dùng replaceChildren cực kì tối ưu so với innerHTML = ''
             grid.replaceChildren(fragment);
         }
+        if (typeof window.animateGridItems === 'function') {
+            window.animateGridItems();
+        }
     });
 }
 

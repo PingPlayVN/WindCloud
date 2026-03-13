@@ -442,3 +442,27 @@ document.addEventListener('fullscreenchange', () => {
         }
     }
 });
+
+function animateGridItems() {
+    // Tìm tất cả các phần tử có class 'card' bên trong grid
+    const cards = document.querySelectorAll('#grid .card');
+    
+    // Nếu không có card nào, không làm gì cả
+    if (cards.length === 0) return;
+
+    // Đặt trạng thái ban đầu: mờ đi và tụt xuống dưới
+    gsap.set(cards, { 
+        opacity: 0, 
+        y: 30 
+    });
+
+    // Tạo hiệu ứng xuất hiện lần lượt (stagger)
+    gsap.to(cards, {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        stagger: 0.05, // Mỗi thẻ sẽ hiện ra cách nhau 0.05s tạo hiệu ứng lượn sóng
+        ease: "back.out(1.2)", // Hiệu ứng nảy nhẹ nhàng ở cuối
+        clearProps: "all" // Xóa các thuộc tính inline GSAP sau khi chạy xong để trả lại quyền cho CSS hover
+    });
+}
