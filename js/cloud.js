@@ -428,15 +428,29 @@ function showContextMenu(e, key, isItem) {
         menuBg.style.display = 'block';
     }
 
+    // Phải hiển thị block trước để trình duyệt tính toán kích thước thực tế
     contextMenu.style.display = 'block';
+    
+    // Lấy chiều rộng/cao thực tế của menu
+    const menuWidth = contextMenu.offsetWidth; 
+    const menuHeight = contextMenu.offsetHeight; 
+    
     let top = e.clientY;
     let left = e.clientX;
-    const menuWidth = 260; 
-    const menuHeight = contextMenu.offsetHeight || 300; 
 
-    // Logic thông minh: Mở menu lên trên nếu sát đáy
-    if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
-    if (top + menuHeight > window.innerHeight) top = e.clientY - menuHeight; // Mở ngược lên
+    // 1. Xử lý kịch bản tràn viền phải
+    if (left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 10;
+    }
+    
+    // 2. Xử lý kịch bản tràn viền dưới (Đẩy menu lên vừa đủ sát đáy màn hình)
+    if (top + menuHeight > window.innerHeight) {
+        top = window.innerHeight - menuHeight - 10;
+    }
+
+    // 3. An toàn tối đa: Tránh tràn viền trên và trái (nếu màn hình quá nhỏ)
+    if (top < 0) top = 10;
+    if (left < 0) left = 10;
 
     contextMenu.style.top = `${top}px`;
     contextMenu.style.left = `${left}px`;
@@ -572,6 +586,28 @@ function renameItemUI() {
                 showToast("✅ Đã đổi tên");
                 // Không cần gọi attachDataListener lại vì Firebase on('value') sẽ tự động catch event update này!
             }).catch(err => showToast("❌ Lỗi đổi tên: " + err.message));
+        }
+    });
+}
+
+function editNoteUI() {
+    if (!window.isAdmin) return showToast("Cần quyền Admin!");
+    const item = dataMap[contextTargetId];
+    if (!item) return;
+    
+    showActionModal({
+        title: "Ghi chú bảo mật",
+        desc: `Chỉnh sửa ghi chú cho tệp: ${item.title}`,
+        type: 'prompt',
+        initialValue: item.note || '', // Hiện lại ghi chú cũ nếu có
+        onConfirm: (newNote) => {
+            const cleanNote = newNote.trim(); 
+            const itemPath = getFullCurrentPath() + '/' + contextTargetId;
+            
+            // Cập nhật trường 'note' lên Firebase
+            db.ref(itemPath).update({ note: cleanNote }).then(() => {
+                showToast("✅ Đã lưu ghi chú");
+            }).catch(err => showToast("❌ Lỗi lưu ghi chú: " + err.message));
         }
     });
 }
@@ -1080,6 +1116,7 @@ document.addEventListener('click', function (e) {
             case 'open': return openContextItem();
             case 'download': return downloadItem();
             case 'rename': return renameItemUI();
+            case 'addNote': return editNoteUI();
             case 'copy': return copyItem();
             case 'cut': return cutItem();
             case 'editlink': return editLinkUI();
