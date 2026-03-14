@@ -10,33 +10,43 @@ export function setupProtection() {
         }
     }
 
-    // Handler to block DevTools hotkeys
+    // Handler to block DevTools hotkeys and Save As
     function blockDevTools(e) {
         if (!window.isAdmin) {
-            // F12
+            // 1. Chặn F12
             if (e.key === "F12") {
                 e.preventDefault();
+                e.stopPropagation();
                 return false;
             }
-            // Ctrl + Shift + I
-            if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === "I") {
+            // 2. Chặn Ctrl + Shift + I
+            if (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.keyCode === 73)) {
                 e.preventDefault();
+                e.stopPropagation();
                 return false;
             }
-            // Ctrl + Shift + J
-            if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === "J") {
+            // 3. Chặn Ctrl + Shift + J
+            if (e.ctrlKey && e.shiftKey && (e.key === "J" || e.key === "j" || e.keyCode === 74)) {
                 e.preventDefault();
+                e.stopPropagation();
                 return false;
             }
-            // Ctrl + U (view source)
-            if (e.ctrlKey && e.key.toUpperCase() === "U") {
+            // 4. Chặn Ctrl + U (View Source)
+            if (e.ctrlKey && (e.key === "U" || e.key === "u" || e.keyCode === 85)) {
                 e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            // 5. Chặn Ctrl + S (Windows) hoặc Cmd + S (Mac) để chống lưu trang
+            if ((e.ctrlKey || e.metaKey) && (e.key === "S" || e.key === "s" || e.keyCode === 83)) {
+                e.preventDefault();      // Ngăn hành vi tải xuống của trình duyệt
+                e.stopPropagation();   // Ngăn sự kiện lan truyền tiếp
                 return false;
             }
         }
     }
 
-    // Attach listeners once (they check isAdmin internally)
-    document.addEventListener("contextmenu", blockContextMenu, true);
-    document.addEventListener("keydown", blockDevTools, true);
+    // Gắn listener với tham số { capture: true } để bắt sự kiện sớm nhất có thể
+    document.addEventListener("contextmenu", blockContextMenu, { capture: true });
+    window.addEventListener("keydown", blockDevTools, { capture: true });
 }
