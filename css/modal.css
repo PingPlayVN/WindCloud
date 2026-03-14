@@ -223,3 +223,24 @@
 
 .btn-modal-confirm { background: var(--primary); color: white; }
 .btn-modal-confirm:hover { background: var(--primary-hover); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+/* --- LỚP PHỦ CHE NÚT OPEN IN DRIVE (CHỈ TRÊN PC) --- */
+.drive-protect-overlay {
+    display: none; /* Mặc định ẩn trên mobile */
+}
+
+/* Kích hoạt trên màn hình PC (lớn hơn 768px) */
+@media (min-width: 769px) {
+    .drive-protect-overlay {
+        display: block;
+        position: absolute;
+        top: 0;
+        right: 0;
+        /* Kích thước vừa đủ che nút góc phải của iframe Drive */
+        width: 60px; 
+        height: 55px; 
+        background: transparent; /* Hoàn toàn trong suốt */
+        z-index: 50; /* Nằm đè lên trên iframe */
+        cursor: default; /* Tránh hiện con trỏ hình bàn tay */
+    }
+}

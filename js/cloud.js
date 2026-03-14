@@ -934,9 +934,14 @@ function openMedia(id, type, title) {
 
     // choose content
     let bodyHtml = '';
+    let protectOverlay = ''; // Khởi tạo biến cho lớp phủ
+    
     if (type === 'image') {
         bodyHtml = `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" class="media-content loaded">`;
     } else {
+        // Nếu là Docs/Video (dùng iframe), thêm lớp phủ bảo vệ
+        protectOverlay = `<div class="drive-protect-overlay" title="Tính năng này đã bị khóa"></div>`;
+        
         bodyHtml = `<iframe 
                src="https://drive.google.com/file/d/${id}/preview" 
                class="media-content loaded" 
@@ -954,7 +959,7 @@ function openMedia(id, type, title) {
                 <button class="btn-close-media">✕</button>
             </div>
             <div class="media-body">
-                ${navBtns}
+                ${protectOverlay} ${navBtns}
                 ${bodyHtml}
             </div>
         </div>
