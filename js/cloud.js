@@ -390,6 +390,7 @@ function showContextMenu(e, key, isItem) {
     const menuBg = document.getElementById('ctx-bg-actions');
     const menuSetSort = document.getElementById('menuSetSort');
     const menuToggleLock = document.getElementById('menuToggleLock');
+    const menuAddNote = document.querySelector('li[data-action="addNote"]'); // 1. Bắt phần tử nút Ghi chú
 
     menuFile.style.display = 'none';
     menuBg.style.display = 'none';
@@ -397,6 +398,14 @@ function showContextMenu(e, key, isItem) {
     if (isItem) {
         menuFile.style.display = 'block';
         const targetItem = dataMap[key];
+
+        if (menuAddNote) {
+            if (targetItem && targetItem.type === 'folder') {
+                menuAddNote.style.display = 'none'; // Ẩn nếu là thư mục
+            } else {
+                menuAddNote.style.display = 'flex'; // Hiện lại bình thường nếu là file
+            }
+        }
         
         // QUAN TRỌNG: Kiểm tra window.isAdmin để hiện menu
         if (targetItem && targetItem.type === 'folder' && window.isAdmin) {
@@ -597,6 +606,8 @@ function editNoteUI() {
     if (!window.isAdmin) return showToast("Cần quyền Admin!");
     const item = dataMap[contextTargetId];
     if (!item) return;
+
+    if (item.type === 'folder') return showToast("Không thể thêm ghi chú cho thư mục!");
     
     showActionModal({
         title: "Ghi chú bảo mật",
