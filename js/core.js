@@ -443,26 +443,41 @@ document.addEventListener('fullscreenchange', () => {
     }
 });
 
+// --- 8. GSAP ANIMATIONS & SCROLLTRIGGER ---
+
+// 1. Đăng ký plugin
+gsap.registerPlugin(ScrollTrigger);
+
 function animateGridItems() {
-    // Tìm tất cả các phần tử có class 'card' bên trong grid
-    const cards = document.querySelectorAll('#grid .card');
+    // Chỉ chọn những card CHƯA được animate (tránh lỗi khi tải thêm file lúc cuộn)
+    const newCards = gsap.utils.toArray('#grid .card:not(.gsap-loaded)');
     
-    // Nếu không có card nào, không làm gì cả
-    if (cards.length === 0) return;
+    if (newCards.length === 0) return;
 
-    // Đặt trạng thái ban đầu: mờ đi và tụt xuống dưới
-    gsap.set(cards, { 
-        opacity: 0, 
-        y: 30 
+    // Đánh dấu các card này chuẩn bị được xử lý
+    newCards.forEach(card => card.classList.add('gsap-loaded'));
+
+    // Đặt trạng thái ban đầu: mờ và tụt xuống 40px
+    gsap.set(newCards, { opacity: 0, y: 40 });
+
+    // Sử dụng batch để nhóm các card xuất hiện cùng lúc trên màn hình
+    ScrollTrigger.batch(newCards, {
+        // Hiệu ứng kích hoạt khi đỉnh của thẻ nằm ở 90% chiều cao màn hình (từ trên xuống)
+        start: "top 90%", 
+        onEnter: (batch) => {
+            gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                stagger: 0.05, // Hiện lần lượt cách nhau 0.05s
+                ease: "back.out(1.2)",
+                clearProps: "all" // Trả lại quyền CSS sau khi chạy xong để hiệu ứng hover hoạt động
+            });
+        }
     });
 
-    // Tạo hiệu ứng xuất hiện lần lượt (stagger)
-    gsap.to(cards, {
-        opacity: 1,
-        y: 0,
-        duration: 0.6,
-        stagger: 0.05, // Mỗi thẻ sẽ hiện ra cách nhau 0.05s tạo hiệu ứng lượn sóng
-        ease: "back.out(1.2)", // Hiệu ứng nảy nhẹ nhàng ở cuối
-        clearProps: "all" // Xóa các thuộc tính inline GSAP sau khi chạy xong để trả lại quyền cho CSS hover
-    });
+    // Rất quan trọng: Báo cho ScrollTrigger cập nhật lại vị trí do DOM vừa thay đổi
+    ScrollTrigger.refresh();
 }
+
+window.animateGridItems = animateGridItems;
