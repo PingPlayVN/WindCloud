@@ -242,6 +242,31 @@ if (document.readyState === 'loading') {
     const btnCloseLogin = document.getElementById('btnCloseLogin'); if (btnCloseLogin) btnCloseLogin.addEventListener('click', closeLogin);
     const btnLogin = document.getElementById('btnLogin'); if (btnLogin) btnLogin.addEventListener('click', loginAdmin);
 
+    // --- CẢI THIỆN UX ĐĂNG NHẬP BẰNG PHÍM ENTER ---
+    const adminEmail = document.getElementById('adminEmail');
+    const adminPass = document.getElementById('adminPass');
+
+    // 1. Nhấn Enter ở ô Email -> Nhảy xuống ô Mật khẩu
+    if (adminEmail) {
+        adminEmail.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Ngăn trình duyệt reload
+                if (adminPass) adminPass.focus(); // Đưa con trỏ nhấp nháy vào ô mật khẩu
+            }
+        });
+    }
+
+    // 2. Nhấn Enter ở ô Mật khẩu -> Thực hiện đăng nhập
+    if (adminPass) {
+        adminPass.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Ngăn trình duyệt reload
+                loginAdmin(); // Gọi hàm xử lý đăng nhập
+            }
+        });
+    }
+    // ----------------------------------------------
+
     // Theme toggle
     const themeCb = document.getElementById('theme-checkbox'); if (themeCb) themeCb.addEventListener('change', toggleTheme);
 })();
