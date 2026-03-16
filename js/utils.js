@@ -99,19 +99,42 @@ export function closeActionModal() {
     if (acModal) acModal.style.display = 'none';
 }
 
+export function openSafe(url) {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+export function escapeHtml(value) {
+    const str = value === null || value === undefined ? '' : String(value);
+    return str.replace(/[&<>"']/g, (ch) => {
+        switch (ch) {
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '"': return '&quot;';
+            case "'": return '&#39;';
+            default: return ch;
+        }
+    });
+}
+
+export function escapeAttr(value) {
+    return escapeHtml(value);
+}
+
 // Confirm then download helper
-export function confirmDownload(link, title = 'tệp') {
+export function confirmDownload(link, title = 'tá»‡p') {
     // Use local showActionModal if available
     if (typeof showActionModal === 'function') {
         showActionModal({
-            title: 'Tải xuống',
-            desc: `Bạn có muốn tải xuống "${title}" không?`,
+            title: 'Táº£i xuá»‘ng',
+            desc: `Báº¡n cÃ³ muá»‘n táº£i xuá»‘ng "${title}" khÃ´ng?`,
             type: 'confirm',
             onConfirm: () => {
-                window.open(link, '_blank');
+                openSafe(link);
             }
         });
     } else {
-        window.open(link, '_blank');
+        openSafe(link);
     }
 }

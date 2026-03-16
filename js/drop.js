@@ -385,13 +385,23 @@ function renderPeers(users) {
         
         el.style.left = x + 'px';
         el.style.top = y + 'px';
-        el.innerHTML = `<div class="peer-icon">👤</div><span>${user.name}</span><button class="ping-btn" title="Tìm thiết bị">🔔</button>`;
+        const icon = document.createElement('div');
+        icon.className = 'peer-icon';
+        icon.innerText = '👤';
+        const nameEl = document.createElement('span');
+        nameEl.textContent = user.name || '';
+        const pingBtn = document.createElement('button');
+        pingBtn.className = 'ping-btn';
+        pingBtn.title = 'Tìm thiết bị';
+        pingBtn.innerText = '🔔';
+        el.appendChild(icon);
+        el.appendChild(nameEl);
+        el.appendChild(pingBtn);
 
         // Gắn sự kiện kéo thả vào chính icon này
         setupDragDrop(el, userId);
         // Ping button: giúp tìm thiết bị (phát thông báo/rung bên người nhận)
-        const pingBtn = el.querySelector('.ping-btn');
-        if (pingBtn) pingBtn.addEventListener('click', (ev) => { ev.stopPropagation(); sendPing(userId); });
+        pingBtn.addEventListener('click', (ev) => { ev.stopPropagation(); sendPing(userId); });
         orbitZone.appendChild(el);
     });
 }
@@ -603,13 +613,15 @@ async function uploadFileP2P(file, targetPeerId) {
             isTransferring = true;
             document.getElementById('transfer-panel').style.display = 'block';
             document.getElementById('tf-filename').innerText = file.name;
+            updateTransferUI(0, 'Gửi (0s)', 0, file.size);
             
             // ✅ Request wake lock on mobile
             requestWakeLock();
             
             const receiverType = response.deviceType || 'mobile';
+            const receiverIsIOS = !!response.ios;
             // Start sending, with basic retry/resume support using lastAckReceived
-            sendFileInChunks(file, conn, receiverType, encKey, new Uint8Array(iv), () => lastAckReceived);
+            sendFileInChunks(file, conn, receiverType, receiverIsIOS, encKey, new Uint8Array(iv), () => lastAckReceived);
         } 
         else if (response.type === 'busy') {
             showToast("⏳ Người nhận đang bận, thử lại sau...");
@@ -646,7 +658,7 @@ async function uploadFileP2P(file, targetPeerId) {
 }
 
 // --- THUẬT TOÁN ADAPTIVE CHUNKING VỚI ENCRYPTION & TIMEOUT ---
-async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck) {
+async function sendFileInChunks(file, conn, receiverType, receiverIsIOS, encKey, iv, getLastAck) {
     let offset = 0;
     // If there's a previous acknowledged offset (resume), start from there
     try {
@@ -655,13 +667,14 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck
     } catch (e) {}
     
     // Cấu hình thuật toán thích ứng
-    let chunkSize = TRANSFER_CONFIG.CHUNK_SIZE_INIT;
-    const MAX_CHUNK_SIZE = TRANSFER_CONFIG.CHUNK_SIZE_MAX;
+    // Start smaller when the receiver is mobile to reduce stalls on weak devices/networks.
+    let chunkSize = (receiverType === 'mobile') ? (32 * 1024) : (64 * 1024);
+    const MAX_CHUNK_SIZE = receiverIsIOS ? (512 * 1024) : TRANSFER_CONFIG.CHUNK_SIZE_MAX;
     const MIN_CHUNK_SIZE = TRANSFER_CONFIG.CHUNK_SIZE_MIN;
     
     // Cấu hình bộ đệm (Backpressure)
-    const MAX_BUFFERED_AMOUNT = (receiverType === 'mobile' || myDeviceType === 'mobile') 
-        ? 8 * 1024 * 1024
+    const MAX_BUFFERED_AMOUNT = (receiverType === 'mobile' || myDeviceType === 'mobile')
+        ? (receiverIsIOS ? (4 * 1024 * 1024) : (8 * 1024 * 1024))
         : 16 * 1024 * 1024;
 
     let lastUpdateTime = 0;
@@ -772,7 +785,7 @@ async function sendFileInChunks(file, conn, receiverType, encKey, iv, getLastAck
             if (chunkEndTime - lastUpdateTime > TRANSFER_CONFIG.UI_UPDATE_INTERVAL || offset >= file.size) {
                 const percent = (offset / file.size) * 100;
                 const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                updateTransferUI(percent, `Gửi (${elapsed}s)`); 
+                updateTransferUI(percent, `Gửi (${elapsed}s)`, offset, file.size); 
                 lastUpdateTime = chunkEndTime;
                 
                 await new Promise(r => setTimeout(r, 0));
@@ -803,6 +816,7 @@ function setupIncomingConnection(conn) {
     let incomingIV = null;
     let decryptionKey = null;
     let fileChunks = [];
+    let useStreamSaver = false;
     let chunkHashes = [];
     let lastProgressSent = 0;
 
@@ -859,7 +873,7 @@ function setupIncomingConnection(conn) {
                     isTransferring = true;
                     activeConnection = conn; 
                     console.log('📥 [Receiver] Sending ACK...');
-                    conn.send({ type: 'ack', status: 'ok', deviceType: myDeviceType });
+                    conn.send({ type: 'ack', status: 'ok', deviceType: myDeviceType, ios: isMyDeviceIOS });
                     console.log('📥 [Receiver] ACK sent, showing UI');
                     
                     document.getElementById('transfer-panel').style.display = 'block';
@@ -867,9 +881,30 @@ function setupIncomingConnection(conn) {
                     
                     // ✅ Request wake lock on mobile
                     requestWakeLock();
-                    
-                    // ✅ Simplified: Collect chunks in memory, download as Blob at end (works everywhere)
-                    console.log('📥 [Receiver] Will collect chunks and download as Blob');
+
+                    // Prefer streaming download to avoid holding the whole file in RAM.
+                    // Keep Blob fallback for iOS / when StreamSaver is unavailable.
+                    useStreamSaver = false;
+                    fileChunks = [];
+                    if (isStreamSaverSupported() && typeof streamSaver !== 'undefined' && typeof streamSaver.createWriteStream === 'function') {
+                        try {
+                            const fallbackName = 'wind_drop_' + Date.now();
+                            const fileName = data.fileName || fallbackName;
+                            const opts = (data.fileSize && typeof data.fileSize === 'number') ? { size: data.fileSize } : undefined;
+                            const fileStream = streamSaver.createWriteStream(fileName, opts);
+                            currentWriter = fileStream.getWriter();
+                            useStreamSaver = true;
+                            fileChunks = null;
+                            console.log('[Receiver] Streaming download enabled (StreamSaver)');
+                        } catch (e) {
+                            console.warn('[Receiver] StreamSaver init failed, falling back to Blob:', e);
+                            useStreamSaver = false;
+                            fileChunks = [];
+                            currentWriter = null;
+                        }
+                    } else {
+                        console.log('[Receiver] StreamSaver unavailable, using Blob fallback');
+                    }
                     
                     receivedSize = 0;
                     
@@ -891,7 +926,7 @@ function setupIncomingConnection(conn) {
                     progressUpdateInterval = setInterval(() => {
                         if (isTransferring && window.incomingMeta && receivedSize > 0) {
                             const percent = (receivedSize / window.incomingMeta.fileSize) * 100;
-                            updateTransferUI(percent, 'Nhận');
+                            updateTransferUI(percent, 'Nhận', receivedSize, window.incomingMeta.fileSize);
                         }
                     }, TRANSFER_CONFIG.UI_UPDATE_INTERVAL);
                 }
@@ -909,11 +944,37 @@ function setupIncomingConnection(conn) {
             }
             
             // ✅ Always collect chunks (Blob fallback works everywhere)
-            fileChunks.push(chunkData);
+            // Stream to disk when possible; otherwise buffer in memory (fallback).
+            if (useStreamSaver && currentWriter) {
+                try {
+                    const u8 = (chunkData instanceof ArrayBuffer)
+                        ? new Uint8Array(chunkData)
+                        : (ArrayBuffer.isView(chunkData)
+                            ? new Uint8Array(chunkData.buffer, chunkData.byteOffset, chunkData.byteLength)
+                            : new Uint8Array(chunkData));
+                    await currentWriter.write(u8);
+                } catch (e) {
+                    console.error('Stream write failed, cancelling transfer:', e);
+                    try { conn.send({ type: 'cancel' }); } catch (err) {}
+                    showToast('âŒ Lá»—i ghi file (stream)');
+                    try { await currentWriter.abort(e); } catch (err) {}
+                    currentWriter = null;
+                    releaseWakeLock();
+                    resetTransferState();
+                    return;
+                }
+            } else if (fileChunks) {
+                fileChunks.push(chunkData);
+            }
 
             // Compute per-chunk hash (streaming-friendly)
             try {
-                const ch = await crypto.subtle.digest('SHA-256', chunkData);
+                const digestInput = (chunkData instanceof ArrayBuffer)
+                    ? chunkData
+                    : (ArrayBuffer.isView(chunkData)
+                        ? chunkData.buffer.slice(chunkData.byteOffset, chunkData.byteOffset + chunkData.byteLength)
+                        : chunkData);
+                const ch = await crypto.subtle.digest('SHA-256', digestInput);
                 chunkHashes.push(new Uint8Array(ch));
             } catch (e) {
                 console.warn('Chunk hash failed', e);
@@ -922,7 +983,7 @@ function setupIncomingConnection(conn) {
             receivedSize += (chunkData && chunkData.byteLength) ? chunkData.byteLength : 0;
             
             const percent = (receivedSize / window.incomingMeta.fileSize) * 100;
-            updateTransferUI(percent, 'Nhận');
+            updateTransferUI(percent, 'Nhận', receivedSize, window.incomingMeta.fileSize);
 
             // Send progress update to sender (throttle to ~500ms)
             if (Date.now() - lastProgressSent > 400) {
@@ -935,7 +996,12 @@ function setupIncomingConnection(conn) {
                 console.log('📥 [Receiver] Transfer complete, verifying and downloading...');
                 
                 // ✅ Download as Blob (works for all devices)
-                downloadBlobFile(fileChunks, window.incomingMeta.fileName);
+                if (useStreamSaver && currentWriter) {
+                    try { await currentWriter.close(); } catch (e) {}
+                    currentWriter = null;
+                } else {
+                    downloadBlobFile(fileChunks || [], window.incomingMeta.fileName);
+                }
                 
                 // ✅ Verify: file received completely (size matches)
                 // Skip checksum verify due to streaming encryption/hashing complexity
@@ -959,9 +1025,9 @@ function setupIncomingConnection(conn) {
             }
         } else if (data.type === 'cancel') {
             showToast("⛔ Người gửi đã hủy.");
-            if (window.currentWriter) {
-                window.currentWriter.abort("Người gửi đã hủy");
-                window.currentWriter = null;
+            if (currentWriter) {
+                try { currentWriter.abort("Người gửi đã hủy"); } catch (e) {}
+                currentWriter = null;
             }
             releaseWakeLock(); // ✅ Release wake lock
             resetTransferState();
@@ -1007,7 +1073,7 @@ let transferStartTime = 0;
 let lastTransferUpdate = 0;
 let lastTransferBytes = 0;
 
-function updateTransferUI(percent, text) {
+function updateTransferUI(percent, text, bytesDone, bytesTotal) {
     const now = Date.now();
     
     // Initialize timing on first call
@@ -1028,8 +1094,12 @@ function updateTransferUI(percent, text) {
     // Calculate speed (bytes/sec)
     let speedText = '';
     if (elapsed > 0.5) {
-        const fileSize = window.incomingMeta?.fileSize || receivedSize;
-        const currentBytes = receivedSize;
+        const fileSize = (typeof bytesTotal === 'number' && bytesTotal >= 0)
+            ? bytesTotal
+            : (window.incomingMeta?.fileSize || receivedSize);
+        const currentBytes = (typeof bytesDone === 'number' && bytesDone >= 0)
+            ? bytesDone
+            : receivedSize;
         const speed = currentBytes / elapsed;
         
         // Format speed
@@ -1085,7 +1155,7 @@ function resetTransferState() {
     isTransferring = false;
     activeConnection = null;
     receivedSize = 0;
-    window.currentWriter = null;
+    currentWriter = null;
     transferStartTime = 0; // Reset timing
     
     // ✅ Clear timeout properly

@@ -1,3 +1,5 @@
+import { openSafe } from './utils.js';
+
 // Dynamic Wind Game card rendering + iframe host
 const GAMES = [
     {
@@ -67,7 +69,7 @@ export function launchGame(url) {
         window.location.href = url;
     } else {
         // For future online games - could embed in iframe
-        window.open(url, '_blank');
+        openSafe(url);
     }
 }
 
@@ -81,4 +83,3 @@ export function closeWindGame() {
     // small helpers
     function escapeHtml(s) { return (s+'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function escapeJs(s) { return (s+'').replace(/'/g, "\\'").replace(/\n/g,'\\n'); }
-

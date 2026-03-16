@@ -1,6 +1,6 @@
 // js/cloud.js
 
-import { handleImgError, renderSkeleton, extractFileId, confirmDownload } from './utils.js';
+import { handleImgError, renderSkeleton, extractFileId, confirmDownload, escapeHtml, escapeAttr, openSafe } from './utils.js';
 import { showToast, showActionModal, closeActionModal } from './ui.js';
 import { switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme } from './core.js';
 import { db } from './firebase.js';
@@ -111,6 +111,10 @@ function updateDataPipeline() {
 // Hàm sinh HTML cho từng item (Tách ra để tái sử dụng)
 function generateItemHTML(data) {
     const isFolder = data.type === 'folder';
+    const safeKey = escapeAttr(data.key);
+    const safeId = escapeAttr(data.id || '');
+    const safeTitleText = escapeHtml(data.title || '');
+    const safeTitleAttr = escapeAttr(data.title || '');
     let icon = isFolder ? '📁' : (data.type === 'image' ? '📷' : (data.type === 'doc' ? '📄' : '📦'));
     
     // Resolve provider for this item (adapter pattern)
@@ -124,7 +128,7 @@ function generateItemHTML(data) {
     } else {
         const thumbUrl = provider.getThumb(data.id);
         if (thumbUrl) {
-            thumbContent = `<img class="thumb-img" src="${thumbUrl}" loading="lazy" decoding="async" data-id="${data.id}">`;
+            thumbContent = `<img class="thumb-img" src="${thumbUrl}" loading="lazy" decoding="async" data-id="${safeId}">`;
         } else {
             thumbContent = `<div style="font-size:40px">📦</div>`; 
         }
@@ -135,18 +139,18 @@ function generateItemHTML(data) {
 
     const downloadIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
     // Use data attributes and delegate click to avoid embedding raw URLs in HTML
-    const safeTitle = (data.title || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
-    const safeLink = (downloadLink || '').replace(/'/g, "\\'");
+    const safeTitle = escapeAttr((data.title || '').replace(/\n/g, ' '));
+    const safeLink = escapeAttr(downloadLink || '');
     const downloadBtn = !isFolder ? `<button type="button" class="btn-download" title="Tải xuống" data-link='${safeLink}' data-title='${safeTitle}'>${downloadIcon}</button>` : '';
     const playOverlay = (!isFolder && data.type === 'video') ? `<div class="play-overlay"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>` : '';
 
     // Use data attributes instead of inline handlers; clicks/contextmenu delegated in JS
     return `
-        <div class="card ${isFolder ? 'is-folder' : ''}" data-key="${data.key}" data-type="${data.type}" data-id="${data.id}">
+        <div class="card ${isFolder ? 'is-folder' : ''}" data-key="${safeKey}" data-type="${data.type}" data-id="${safeId}">
             <div class="thumb-box">${thumbContent}${playOverlay}</div>
             <div class="card-footer">
                 <div class="file-info">
-                    <span class="file-name" title="${data.title}">${data.title}</span>
+                    <span class="file-name" title="${safeTitleAttr}">${safeTitleText}</span>
                 </div>
                 ${downloadBtn}
             </div>
@@ -291,11 +295,11 @@ function handleClick(key, type, driveId) {
                 desc: `Bạn có muốn tải xuống "${item.title}" không?`,
                 type: 'confirm',
                 onConfirm: () => {
-                    window.open(link, '_blank');
+                    openSafe(link);
                 }
             });
         } else {
-            window.open(link, '_blank');
+            openSafe(link);
         }
     } else if (type === 'doc') {
         // For document files: prefer in-app preview for Google Drive IDs, fall back to download for direct links
@@ -309,7 +313,7 @@ function handleClick(key, type, driveId) {
             openMedia(driveId, 'doc', item ? item.title : 'Document');
         } else {
             if (typeof confirmDownload === 'function') confirmDownload(link, item.title);
-            else window.open(link, '_blank');
+            else openSafe(link);
         }
     } else {
         const item = dataMap[key];
@@ -897,7 +901,7 @@ function downloadItem() {
         const provider = resolveProvider(item);
         const link = provider.getDownloadUrl(item.id || '');
         if (typeof confirmDownload === 'function') confirmDownload(link, item.title);
-        else window.open(link, '_blank');
+        else openSafe(link);
     }
 }
 
@@ -922,6 +926,8 @@ function openMedia(id, type, title) {
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
     if (!modal || !content) return;
+    const safeTitle = escapeHtml(title || 'Viewer');
+    const safeIdUrl = encodeURIComponent(id || '');
 
     // find index in processedData for navigation
     let index = -1;
@@ -948,13 +954,13 @@ function openMedia(id, type, title) {
     let protectOverlay = ''; // Khởi tạo biến cho lớp phủ
     
     if (type === 'image') {
-        bodyHtml = `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w2000" class="media-content loaded">`;
+        bodyHtml = `<img src="https://drive.google.com/thumbnail?id=${safeIdUrl}&sz=w2000" class="media-content loaded">`;
     } else {
         // Nếu là Docs/Video (dùng iframe), thêm lớp phủ bảo vệ
         protectOverlay = `<div class="drive-protect-overlay" title="Tính năng này đã bị khóa"></div>`;
         
         bodyHtml = `<iframe 
-               src="https://drive.google.com/file/d/${id}/preview" 
+               src="https://drive.google.com/file/d/${safeIdUrl}/preview" 
                class="media-content loaded" 
                allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
                allowfullscreen 
@@ -966,7 +972,7 @@ function openMedia(id, type, title) {
     content.innerHTML = `
         <div class="media-window">
             <div class="media-header">
-                <h3 class="media-title">${(title||'Viewer').replace(/</g,'&lt;')}</h3>
+                <h3 class="media-title">${safeTitle}</h3>
                 <button class="btn-close-media">✕</button>
             </div>
             <div class="media-body">
@@ -1085,7 +1091,7 @@ document.addEventListener('click', function (e) {
     const title = btn.getAttribute('data-title') || '';
     if (!link) return;
     if (typeof confirmDownload === 'function') confirmDownload(link, title);
-    else window.open(link, '_blank');
+    else openSafe(link);
 }, true);
 
 // --- UI wiring: replace former inline handlers with event listeners & delegation ---
