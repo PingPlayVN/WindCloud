@@ -201,18 +201,28 @@ class VocabQuiz {
             // --- BỌC TOÀN BỘ PHẦN THÂN VÀO BODY WRAPPER ---
             const bodyWrapper = document.createElement('div');
             bodyWrapper.className = 'vocab-set-body';
-            bodyWrapper.setAttribute('data-collapsed', set.isCollapsed);
-            // Nếu state là thu gọn (true) thì ẩn body đi
+            
+            // Xóa luôn dòng setAttribute('data-collapsed') cũ đi vì ta không dùng CSS để điều khiển nữa
+            
+            // SỬ DỤNG GSAP.SET ĐỂ KHỞI TẠO TRẠNG THÁI CHUẨN KHI VỪA F5
             if (set.isCollapsed) {
-                bodyWrapper.style.height = '0px';
-                bodyWrapper.style.opacity = '0';
-                bodyWrapper.style.paddingTop = '0px';
-                bodyWrapper.style.paddingBottom = '0px';
+                gsap.set(bodyWrapper, { 
+                    height: 0, 
+                    opacity: 0, 
+                    paddingTop: 0, 
+                    paddingBottom: 0, 
+                    display: 'none',
+                    overflow: 'hidden'
+                });
             } else {
-                bodyWrapper.style.height = 'auto';
-                bodyWrapper.style.opacity = '1';
-                bodyWrapper.style.paddingTop = '15px';
-                bodyWrapper.style.paddingBottom = '15px';
+                gsap.set(bodyWrapper, { 
+                    height: "auto", 
+                    opacity: 1, 
+                    paddingTop: 15, 
+                    paddingBottom: 15, 
+                    display: 'block',
+                    overflow: 'hidden'
+                });
             }
 
             // 1. Khu vực Import
@@ -398,8 +408,7 @@ class VocabQuiz {
                 const setCard = btn.closest('.vocab-set-card');
                 const bodyWrapper = setCard.querySelector('.vocab-set-body');
                 
-                // 1. VŨ KHÍ 1: Dập tắt ngay lập tức các animation đang chạy dở 
-                // để tránh xung đột khi người dùng click liên tục (spam click)
+                // Dập tắt animation cũ (chống lỗi khi bấm liên tục)
                 gsap.killTweensOf(bodyWrapper);
                 gsap.killTweensOf(btn);
                 
@@ -409,7 +418,7 @@ class VocabQuiz {
                 if (this.sets[setIdx].isCollapsed) {
                     // ====== THU GỌN ======
                     const currentHeight = bodyWrapper.offsetHeight;
-                    gsap.set(bodyWrapper, { height: currentHeight }); // Chốt pixel hiện tại
+                    gsap.set(bodyWrapper, { height: currentHeight }); 
                     
                     gsap.to(btn, { rotation: 0, duration: 0.35, ease: 'power2.inOut' });
                     gsap.to(bodyWrapper, {
@@ -420,7 +429,7 @@ class VocabQuiz {
                         duration: 0.35,
                         ease: 'power2.inOut',
                         onComplete: () => {
-                            bodyWrapper.style.display = 'none'; // Ẩn hoàn toàn khi xong
+                            bodyWrapper.style.display = 'none'; 
                         }
                     });
                 } else {
@@ -429,27 +438,29 @@ class VocabQuiz {
                     
                     gsap.to(btn, { rotation: 90, duration: 0.35, ease: 'power2.inOut' });
                     
-                    // Lấy các thông số hiện tại (để nếu đang đóng dở mà bấm mở thì nó đi tiếp từ đó)
-                    const currentHeight = bodyWrapper.clientHeight;
-                    const currentOpacity = parseFloat(bodyWrapper.style.opacity) || 0;
+                    // TUYỆT CHIÊU: Lấy thông số VẬT LÝ THỰC TẾ ngay khoảnh khắc này 
+                    // (Giải quyết triệt để lỗi F5 xong bị kẹt)
+                    const computedStyle = window.getComputedStyle(bodyWrapper);
+                    const currentHeight = bodyWrapper.offsetHeight;
+                    const currentOpacity = parseFloat(computedStyle.opacity) || 0;
+                    const currentPt = parseFloat(computedStyle.paddingTop) || 0;
+                    const currentPb = parseFloat(computedStyle.paddingBottom) || 0;
                     
                     gsap.fromTo(bodyWrapper,
                         {
-                            height: currentHeight, // Bắt đầu từ vị trí hiện tại
+                            height: currentHeight, 
                             opacity: currentOpacity,
-                            paddingTop: bodyWrapper.style.paddingTop || 0,
-                            paddingBottom: bodyWrapper.style.paddingBottom || 0
+                            paddingTop: currentPt,
+                            paddingBottom: currentPb
                         },
                         {
-                            height: "auto", // Để GSAP tự tính toán bung ra
+                            height: "auto", 
                             opacity: 1,
                             paddingTop: 15,
                             paddingBottom: 15,
                             duration: 0.35,
                             ease: 'power2.inOut',
-                            // 2. VŨ KHÍ 2: Xóa bỏ CSS height cố định sau khi mở xong.
-                            // Nhờ vậy, khi bạn thêm/xóa từ vựng, bảng sẽ tự động co giãn.
-                            clearProps: "height" 
+                            clearProps: "height" // Chống kẹt chiều cao khi thêm từ mới
                         }
                     );
                 }

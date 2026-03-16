@@ -447,7 +447,7 @@
 .vocab-set-body {
     padding: 15px;
     opacity: 1;
-    overflow: hidden;
+    overflow: hidden !important;
 }
 
 .vocab-set-body[data-collapsed="true"] {
