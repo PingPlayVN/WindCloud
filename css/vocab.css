@@ -450,12 +450,6 @@
     overflow: hidden !important;
 }
 
-.vocab-set-body[data-collapsed="true"] {
-    max-height: 0;
-    opacity: 0;
-    padding: 0 15px;
-}
-
 /* ===== IMPORT AREA ENHANCEMENT ===== */
 .import-area {
     border: 2px dashed var(--primary);
