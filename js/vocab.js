@@ -398,18 +398,19 @@ class VocabQuiz {
                 const setCard = btn.closest('.vocab-set-card');
                 const bodyWrapper = setCard.querySelector('.vocab-set-body');
                 
+                // 1. VŨ KHÍ 1: Dập tắt ngay lập tức các animation đang chạy dở 
+                // để tránh xung đột khi người dùng click liên tục (spam click)
+                gsap.killTweensOf(bodyWrapper);
+                gsap.killTweensOf(btn);
+                
                 // Đảo ngược trạng thái hiện tại
                 this.sets[setIdx].isCollapsed = !this.sets[setIdx].isCollapsed;
                 
                 if (this.sets[setIdx].isCollapsed) {
-                    // ====== THU GỌN (COLLAPSE) ======
-                    // 1. Lấy chiều cao thực tế bằng pixel trước khi thu gọn
+                    // ====== THU GỌN ======
                     const currentHeight = bodyWrapper.offsetHeight;
+                    gsap.set(bodyWrapper, { height: currentHeight }); // Chốt pixel hiện tại
                     
-                    // 2. Set chiều cao thành pixel cố định để GSAP có điểm bắt đầu chính xác
-                    gsap.set(bodyWrapper, { height: currentHeight });
-                    
-                    // 3. Thực hiện animation thu nhỏ
                     gsap.to(btn, { rotation: 0, duration: 0.35, ease: 'power2.inOut' });
                     gsap.to(bodyWrapper, {
                         height: 0,
@@ -419,22 +420,25 @@ class VocabQuiz {
                         duration: 0.35,
                         ease: 'power2.inOut',
                         onComplete: () => {
-                            bodyWrapper.style.display = 'none'; // Ẩn hẳn sau khi thu xong
+                            bodyWrapper.style.display = 'none'; // Ẩn hoàn toàn khi xong
                         }
                     });
                 } else {
-                    // ====== MỞ RỘNG (EXPAND) ======
-                    bodyWrapper.style.display = 'block'; // Hiển thị trước để GSAP có thể tính toán "auto"
+                    // ====== MỞ RỘNG ======
+                    bodyWrapper.style.display = 'block'; 
                     
                     gsap.to(btn, { rotation: 90, duration: 0.35, ease: 'power2.inOut' });
                     
-                    // Dùng fromTo để đảm bảo điểm bắt đầu luôn là 0
+                    // Lấy các thông số hiện tại (để nếu đang đóng dở mà bấm mở thì nó đi tiếp từ đó)
+                    const currentHeight = bodyWrapper.clientHeight;
+                    const currentOpacity = parseFloat(bodyWrapper.style.opacity) || 0;
+                    
                     gsap.fromTo(bodyWrapper,
                         {
-                            height: 0,
-                            opacity: 0,
-                            paddingTop: 0,
-                            paddingBottom: 0
+                            height: currentHeight, // Bắt đầu từ vị trí hiện tại
+                            opacity: currentOpacity,
+                            paddingTop: bodyWrapper.style.paddingTop || 0,
+                            paddingBottom: bodyWrapper.style.paddingBottom || 0
                         },
                         {
                             height: "auto", // Để GSAP tự tính toán bung ra
@@ -442,7 +446,10 @@ class VocabQuiz {
                             paddingTop: 15,
                             paddingBottom: 15,
                             duration: 0.35,
-                            ease: 'power2.inOut'
+                            ease: 'power2.inOut',
+                            // 2. VŨ KHÍ 2: Xóa bỏ CSS height cố định sau khi mở xong.
+                            // Nhờ vậy, khi bạn thêm/xóa từ vựng, bảng sẽ tự động co giãn.
+                            clearProps: "height" 
                         }
                     );
                 }
