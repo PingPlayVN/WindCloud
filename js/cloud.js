@@ -8,7 +8,6 @@ import { updatePaletteSystem, randomBaseColor, exportPalette, exportPaletteJSON,
 import { cancelTransfer } from './drop.js';
 import { StorageProviders, resolveProvider } from './cloudAdapters.js';
 import { initMobileContextMenu, enableMobileContextMenuDismissal } from './mobileContextMenu.js';
-import { activateModal, deactivateModal } from './a11yModal.js';
 
 let currentTab = 'video';
 let currentSortMode = 'date_desc';
@@ -912,120 +911,10 @@ function openContextItem() {
 }
 
 // --- MEDIA MODAL ---
-let mediaOrientationCleanup = null;
-
-function isProbablyMobileViewport() {
-    try {
-        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
-        if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) return true;
-    } catch (_) {}
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-}
-
-function isLandscape() {
-    try {
-        return window.matchMedia && window.matchMedia('(orientation: landscape)').matches;
-    } catch (_) {
-        return window.innerWidth > window.innerHeight;
-    }
-}
-
-function tryExitFullscreen() {
-    const exit =
-        document.exitFullscreen ||
-        document.webkitExitFullscreen ||
-        document.mozCancelFullScreen ||
-        document.msExitFullscreen;
-    if (!exit) return Promise.resolve(false);
-    if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) return Promise.resolve(false);
-    return Promise.resolve(exit.call(document))
-        .then(() => true)
-        .catch(() => false);
-}
-
-function tryRequestFullscreen(el) {
-    if (!el) return Promise.resolve(false);
-    if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) return Promise.resolve(false);
-    const fn =
-        el.requestFullscreen ||
-        el.webkitRequestFullscreen ||
-        el.mozRequestFullScreen ||
-        el.msRequestFullscreen;
-    if (!fn) return Promise.resolve(false);
-    return Promise.resolve(fn.call(el, { navigationUI: 'hide' }))
-        .then(() => true)
-        .catch(() => false);
-}
-
-function tryLockLandscape() {
-    const orientation = window.screen && window.screen.orientation;
-    if (!orientation || typeof orientation.lock !== 'function') return Promise.resolve(false);
-    return Promise.resolve(orientation.lock('landscape'))
-        .then(() => true)
-        .catch(() => false);
-}
-
-function tryUnlockOrientation() {
-    const orientation = window.screen && window.screen.orientation;
-    if (!orientation || typeof orientation.unlock !== 'function') return;
-    try { orientation.unlock(); } catch (_) {}
-}
-
-function setupVideoLandscapeEnforcement(modalEl) {
-    if (!modalEl) return () => {};
-    if (!isProbablyMobileViewport()) return () => {};
-
-    const iframe = modalEl.querySelector('iframe.media-content');
-    const overlay = modalEl.querySelector('.rotate-lock-overlay');
-    if (!iframe || !overlay) return () => {};
-
-    let didRequestFullscreen = false;
-    let cleanedUp = false;
-
-    const update = () => {
-        const ok = isLandscape();
-        overlay.style.display = ok ? 'none' : 'flex';
-        iframe.style.pointerEvents = ok ? '' : 'none';
-    };
-
-    const onResize = () => update();
-    const onOrientationChange = () => update();
-
-    window.addEventListener('resize', onResize, { passive: true });
-    window.addEventListener('orientationchange', onOrientationChange, { passive: true });
-
-    update();
-
-    // Best-effort: go fullscreen then lock orientation (works mainly on Android/Chromium).
-    // Both calls must be user-gesture initiated; openMedia() is called from click handlers.
-    tryRequestFullscreen(modalEl)
-        .then((entered) => {
-            didRequestFullscreen = entered;
-            return tryLockLandscape();
-        })
-        .catch(() => {});
-
-    return () => {
-        if (cleanedUp) return;
-        cleanedUp = true;
-        window.removeEventListener('resize', onResize);
-        window.removeEventListener('orientationchange', onOrientationChange);
-        tryUnlockOrientation();
-        if (didRequestFullscreen) tryExitFullscreen();
-        overlay.style.display = 'none';
-        iframe.style.pointerEvents = '';
-    };
-}
-
 // Properly close media modal
 function closeMedia() {
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
-    if (typeof mediaOrientationCleanup === 'function') {
-        mediaOrientationCleanup();
-        mediaOrientationCleanup = null;
-    }
-    if (modal) deactivateModal(modal);
     if (modal) modal.style.display = 'none';
     if (content) content.innerHTML = '';
     // reset any global index
@@ -1037,10 +926,6 @@ function openMedia(id, type, title) {
     const modal = document.getElementById('mediaModal');
     const content = document.getElementById('modalContent');
     if (!modal || !content) return;
-    if (typeof mediaOrientationCleanup === 'function') {
-        mediaOrientationCleanup();
-        mediaOrientationCleanup = null;
-    }
     const safeTitle = escapeHtml(title || 'Viewer');
     const safeIdUrl = encodeURIComponent(id || '');
 
@@ -1083,17 +968,6 @@ function openMedia(id, type, title) {
                mozallowfullscreen></iframe>`;
     }
 
-    const rotateOverlay = type === 'video'
-        ? `
-            <div class="rotate-lock-overlay" style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.85); color:#fff; z-index:9; align-items:center; justify-content:center; text-align:center; padding:24px;">
-                <div style="max-width: 420px;">
-                    <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Vui lòng xoay ngang</div>
-                    <div style="opacity: 0.9; line-height: 1.4;">Video sẽ chạy ở chế độ ngang trên mobile. Sau khi đóng video bạn có thể xoay tự do.</div>
-                </div>
-            </div>
-        `
-        : '';
-
     // Render modal
     content.innerHTML = `
         <div class="media-window">
@@ -1101,22 +975,14 @@ function openMedia(id, type, title) {
                 <h3 class="media-title">${safeTitle}</h3>
                 <button class="btn-close-media">✕</button>
             </div>
-            <div class="media-body" style="position: relative;">
+            <div class="media-body">
                 ${protectOverlay} ${navBtns}
-                ${rotateOverlay}
                 ${bodyHtml}
             </div>
         </div>
     `;
 
     modal.style.display = 'flex';
-
-    const closeBtn = content.querySelector('.btn-close-media');
-    activateModal(modal, { initialFocus: closeBtn, onClose: closeMedia });
-
-    if (type === 'video') {
-        mediaOrientationCleanup = setupVideoLandscapeEnforcement(modal);
-    }
 }
 
 // --- ADMIN TOOL INPUT ---

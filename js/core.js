@@ -8,7 +8,6 @@ import { db, auth } from './firebase.js';
 import { initWindGame } from './windgame.js';
 import { setupProtection } from './protection.js';
 import './offline.js'; // Offline support for Color Studio & Wind Game
-import { activateModal, deactivateModal } from './a11yModal.js';
 
 // --- 2. GLOBAL STATE ---
 window.isAdmin = false;
@@ -52,26 +51,16 @@ function showLogin() {
     if(sidebar) sidebar.classList.remove('open');
     if(overlay) overlay.classList.remove('open');
 
-    const screenOverlay = document.getElementById('overlay');
-    const loginPanel = document.getElementById('login-panel');
-    if (screenOverlay) screenOverlay.style.display = 'block';
-    if (loginPanel) loginPanel.style.display = 'flex';
-
-    activateModal(loginPanel, {
-        initialFocus: document.getElementById('adminEmail'),
-        onClose: closeLogin
-    });
+    document.getElementById('overlay').style.display = 'block';
+    document.getElementById('login-panel').style.display = 'flex'; 
     
     const errEl = document.getElementById('loginError');
     if(errEl) errEl.style.display = 'none';
 }
 
 function closeLogin() {
-    const screenOverlay = document.getElementById('overlay');
-    const loginPanel = document.getElementById('login-panel');
-    if (loginPanel) deactivateModal(loginPanel);
-    if (screenOverlay) screenOverlay.style.display = 'none';
-    if (loginPanel) loginPanel.style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('login-panel').style.display = 'none';
 }
 
 function loginAdmin() {
