@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss: ws:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Wind Share Cloud</title>
+    <meta name="description" content="Wind Cloud: lưu trữ, chia sẻ tệp, công cụ màu, gửi nhanh (Wind Drop), game và vocab checker trong một web app.">
+    <meta name="application-name" content="Wind Cloud">
+    <meta name="apple-mobile-web-app-title" content="Wind Cloud">
+    <meta name="color-scheme" content="light dark">
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1a73e8">
@@ -32,6 +36,10 @@
     <link rel="stylesheet" href="./css/vocab.css">
     
     <!-- GSAP Library for smooth animations -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
     
@@ -44,11 +52,17 @@
 </head>
 <body>
 
+<noscript>
+    <div style="padding:12px; margin:12px; border:1px solid var(--border); border-radius:10px;">
+        Ứng dụng cần bật JavaScript để hoạt động.
+    </div>
+</noscript>
+
 <div id="sidebar-overlay"></div>
 <nav id="main-sidebar">
     <div class="sidebar-header">
         <h3>Wind Apps</h3>
-        <button class="btn-close-sidebar" id="btnCloseSidebar">✕</button>
+        <button class="btn-close-sidebar" id="btnCloseSidebar" type="button" aria-label="Đóng menu">✕</button>
     </div>
     <ul class="sidebar-menu">
         <li class="menu-item active" data-app="cloud">
@@ -86,14 +100,14 @@
         <h2>⚠️ Server Quá Tải</h2>
         <p>Hệ thống đang giới hạn tối đa <strong>20 người</strong> truy cập cùng lúc để đảm bảo tốc độ.</p>
         <p>Vui lòng quay lại sau ít phút!</p>
-        <button id="btnRetry" class="btn-submit">Thử lại ngay</button>
+        <button id="btnRetry" class="btn-submit" type="button">Thử lại ngay</button>
     </div>
 </div>
 
 <div class="container" id="mainContainer">
     <header>
         <div class="logo-area">
-            <button class="btn-menu" id="btnMenu">
+            <button class="btn-menu" id="btnMenu" type="button" aria-label="Mở menu">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
 
@@ -137,7 +151,7 @@
         <div style="display:flex; align-items:center; gap:10px;">
             <div class="header-actions-mobile">
                 <label class="theme-switch">
-                    <input type="checkbox" class="theme-switch__checkbox" id="theme-checkbox">
+                    <input type="checkbox" class="theme-switch__checkbox" id="theme-checkbox" aria-label="Chuyển chế độ sáng/tối">
                     <div class="theme-switch__container">
                         <div class="theme-switch__clouds"></div>
                         <div class="theme-switch__stars-container">
@@ -154,7 +168,7 @@
                         </div>
                     </div>
                 </label>
-                <button id="installBtn" style="display:none" class="btn-header icon-btn" title="Cài đặt ứng dụng">Cài đặt</button>
+                <button id="installBtn" style="display:none" class="btn-header icon-btn" type="button" title="Cài đặt ứng dụng">Cài đặt</button>
             </div>
         </div>
     </header>
@@ -180,16 +194,16 @@
 
             <div class="tools-right" style="display:flex; gap:10px; align-items:center;">
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm...">
+                    <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm..." aria-label="Tìm kiếm">
                 </div>
-                <button class="btn-header icon-btn" id="viewBtn" title="Đổi giao diện">⊞</button>
+                <button class="btn-header icon-btn" id="viewBtn" type="button" title="Đổi giao diện" aria-label="Đổi giao diện">⊞</button>
                 <select id="sortSelect" class="sort-select">
                     <option value="date_desc">📅 Mới nhất</option>
                     <option value="date_asc">📅 Cũ nhất</option>
                     <option value="name_asc">🔤 Tên (A-Z)</option>
                     <option value="name_desc">🔤 Tên (Z-A)</option>
                 </select>
-                <button id="btnNew" class="btn-header" style="display:none; background: var(--primary); color: white; border:none; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">+ Thêm</button>
+                <button id="btnNew" class="btn-header" type="button" style="display:none; background: var(--primary); color: white; border:none; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">+ Thêm</button>
             </div>
         </div>
 
@@ -203,9 +217,9 @@
                 <span style="cursor:pointer; font-size: 20px; color: #5f6368;" id="closeAdminTool">✕</span>
             </div>
             <div class="input-row">
-                <input type="text" id="mediaUrl" placeholder="Dán Link Google Drive vào đây...">
-                <input type="text" id="mediaTitle" placeholder="Tên hiển thị (Tùy chọn)...">
-                <button class="btn-submit" id="btnSaveCloud">Lưu Tệp</button>
+                <input type="text" id="mediaUrl" placeholder="Dán Link Google Drive vào đây..." aria-label="Link Google Drive">
+                <input type="text" id="mediaTitle" placeholder="Tên hiển thị (Tùy chọn)..." aria-label="Tên hiển thị">
+                <button class="btn-submit" id="btnSaveCloud" type="button">Lưu Tệp</button>
             </div>
         </div>
 
@@ -245,9 +259,9 @@
             </div>
         
         <div class="palette-actions-bottom">
-            <button class="btn-action" data-palette-action="random">🎲 Random Màu Gốc</button>
-            <button class="btn-action primary" data-palette-action="copy">📋 Copy Cả Bảng</button>
-            <button class="btn-action" data-palette-action="export">⬇️ Xuất .json</button>
+            <button class="btn-action" data-palette-action="random" type="button">🎲 Random Màu Gốc</button>
+            <button class="btn-action primary" data-palette-action="copy" type="button">📋 Copy Cả Bảng</button>
+            <button class="btn-action" data-palette-action="export" type="button">⬇️ Xuất .json</button>
         </div>
     </div>
 </div>
@@ -311,7 +325,7 @@
             <div class="progress-track">
                 <div class="progress-fill" id="tf-progress"></div>
             </div>
-            <button class="btn-cancel-transfer" id="btnCancelTransfer">Hủy bỏ</button>
+            <button class="btn-cancel-transfer" id="btnCancelTransfer" type="button">Hủy bỏ</button>
         </div>
     </div>
 </div>
@@ -328,8 +342,8 @@
                     </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <button id="btnAddSet" class="btn-action" style="flex: 1;">➕ Tạo bảng mới</button>
-                    <button id="btnStartQuiz" class="btn-submit" style="flex: 2;">Ôn tập các bảng đã chọn</button>
+                    <button id="btnAddSet" class="btn-action" type="button" style="flex: 1;">➕ Tạo bảng mới</button>
+                    <button id="btnStartQuiz" class="btn-submit" type="button" style="flex: 2;">Ôn tập các bảng đã chọn</button>
                 </div>
             </div>
 
@@ -345,13 +359,13 @@
                     
                     <div id="quizInputSection" style="display: flex; gap: 10px;">
                         <input type="text" id="answerInput" class="admin-input" style="flex: 1; text-align: center; font-size: 1.2rem;" placeholder="Nhập từ tiếng Anh..." autocomplete="off">
-                        <button id="btnSubmitAnswer" class="btn-submit">Kiểm tra</button>
+                        <button id="btnSubmitAnswer" class="btn-submit" type="button">Kiểm tra</button>
                     </div>
                     
                     <div id="quizFeedback" style="text-align: center; margin-top: 20px; font-weight: bold; font-size: 1.1rem; min-height: 25px;"></div>
                 </div>
                 
-                <button id="btnResetQuiz" class="btn-action" style="width: 100%; margin-top: 15px;">🔄 Quay lại & Nhập từ mới</button>
+                <button id="btnResetQuiz" class="btn-action" type="button" style="width: 100%; margin-top: 15px;">🔄 Quay lại & Nhập từ mới</button>
             </div>
         </div>
     </div>
@@ -472,7 +486,7 @@
     </div>
 </div>
 
-<div id="mediaModal" class="modal">
+<div id="mediaModal" class="modal" role="dialog" aria-modal="true" aria-label="Xem nội dung">
     <div class="modal-content" id="modalContent"></div>
 </div>
 
@@ -489,13 +503,13 @@
             <p id="loginError" style="color:red; font-size:13px; display:none; margin:0; text-align:center"></p>
         </form>
         
-        <button id="btnCloseLogin" class="btn-close-login">Đóng cửa sổ</button>
+        <button id="btnCloseLogin" class="btn-close-login" type="button">Đóng cửa sổ</button>
     </div>
 </div>
 
-<div id="toast">Đã sao chép vào bộ nhớ tạm</div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true">Đã sao chép vào bộ nhớ tạm</div>
 
-<div id="actionModal" class="custom-modal-overlay">
+<div id="actionModal" class="custom-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="acModalTitle" aria-describedby="acModalDesc">
     <div class="custom-modal-box">
         <h3 id="acModalTitle">Tiêu đề</h3>
         <p id="acModalDesc">Nội dung thông báo</p>
@@ -510,8 +524,8 @@
         </select>
         
         <div class="modal-btn-group">
-            <button class="btn-modal-cancel" id="acModalCancel">Hủy</button>
-            <button class="btn-modal-confirm" id="acModalBtn">Đồng ý</button>
+            <button class="btn-modal-cancel" id="acModalCancel" type="button">Hủy</button>
+            <button class="btn-modal-confirm" id="acModalBtn" type="button">Đồng ý</button>
         </div>
     </div>
 </div>
@@ -522,8 +536,8 @@
         <h3>Xóa bảng từ vựng?</h3>
         <p>Bạn có chắc chắn muốn xóa bảng <strong id="vocabDeleteName" style="color: var(--danger, #dc3545);"></strong>?</p>
         <div class="vocab-modal-actions">
-            <button id="btnCancelVocabDelete" class="btn-vocab-cancel">Hủy</button>
-            <button id="btnConfirmVocabDelete" class="btn-vocab-danger">Xóa luôn</button>
+            <button id="btnCancelVocabDelete" class="btn-vocab-cancel" type="button">Hủy</button>
+            <button id="btnConfirmVocabDelete" class="btn-vocab-danger" type="button">Xóa luôn</button>
         </div>
     </div>
 </div>
