@@ -204,19 +204,21 @@ class VocabQuiz {
             bodyWrapper.setAttribute('data-collapsed', set.isCollapsed);
             // Nếu state là thu gọn (true) thì ẩn body đi
             if (set.isCollapsed) {
-                bodyWrapper.style.maxHeight = '0';
+                bodyWrapper.style.height = '0px';
                 bodyWrapper.style.opacity = '0';
-                bodyWrapper.style.padding = '0 15px';
+                bodyWrapper.style.paddingTop = '0px';
+                bodyWrapper.style.paddingBottom = '0px';
             } else {
-                bodyWrapper.style.maxHeight = 'none';
+                bodyWrapper.style.height = 'auto';
                 bodyWrapper.style.opacity = '1';
-                bodyWrapper.style.padding = '15px';
+                bodyWrapper.style.paddingTop = '15px';
+                bodyWrapper.style.paddingBottom = '15px';
             }
 
             // 1. Khu vực Import
             const importArea = document.createElement('div');
             importArea.className = 'import-area';
-            importArea.style.cssText = 'display: none; width: 100%; margin: 10px 0; padding: 15px; background: var(--hover-bg); border-radius: 8px; border: 2px dashed var(--primary); opacity: 0;';
+            importArea.style.cssText = 'display: none; width: 100%; height: 0px; margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; border-width: 0px; opacity: 0; overflow: hidden;';
             importArea.innerHTML = `
                 <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 8px;">Nhập từ vựng theo định dạng <b>Tiếng Anh : Tiếng Việt</b> (mỗi dòng 1 từ):</p>
                 <textarea id="vocab-import-${setIndex}" name="vocab-import-${setIndex}" class="import-textarea" placeholder="hello : xin chào\napple : quả táo" style="width: 100%; height: 100px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-surface); color: var(--text-main); resize: vertical; font-family: 'Segoe UI', 'Helvetica Neue', 'Arial', sans-serif; white-space: pre-wrap; overflow-x: auto;" aria-label="Khu vực nhập từ vựng hàng loạt"></textarea>
@@ -349,69 +351,97 @@ class VocabQuiz {
                 const textarea = setCard.querySelector('.import-textarea');
                 if (!importArea || !textarea) return;
 
-                const isHidden = importArea.style.display === 'none' || window.getComputedStyle(importArea).display === 'none';
+                const isHidden = importArea.style.display === 'none' || importArea.style.height === '0px';
                 
                 if (isHidden) {
-                    // Mở import area với animation
+                    // ====== MỞ RỘNG IMPORT AREA ======
                     importArea.style.display = 'block';
+                    
+                    // Animate bung ra: height, padding, margin, opacity
                     gsap.fromTo(importArea,
-                        { opacity: 0, maxHeight: 0 },
-                        { opacity: 1, maxHeight: 300, duration: 0.3, ease: 'power2.inOut' }
+                        { 
+                            height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, 
+                            marginTop: 0, marginBottom: 0, borderWidth: 0 
+                        },
+                        { 
+                            height: "auto", opacity: 1, paddingTop: 15, paddingBottom: 15, 
+                            marginTop: 10, marginBottom: 15, borderWidth: 2,
+                            duration: 0.35, ease: 'power2.out' 
+                        }
                     );
 
                     // Lấy các từ hiện có và đổ vào Textarea
                     const currentWords = this.sets[setIdx].words;
                     const textLines = currentWords
-                        .filter(w => w.en.trim() !== '' || w.vi.trim() !== '') // Bỏ qua các ô đang trống
-                        .map(w => `${w.en} : ${w.vi}`); // Nối thành chuỗi "Anh : Việt"
+                        .filter(w => w.en.trim() !== '' || w.vi.trim() !== '') 
+                        .map(w => `${w.en} : ${w.vi}`); 
                     
-                    textarea.value = textLines.join('\n'); // Xuống dòng cho mỗi từ
+                    textarea.value = textLines.join('\n'); 
                     setTimeout(() => textarea.focus(), 100);
                 } else {
-                    // Đóng import area với animation
+                    // ====== THU GỌN IMPORT AREA ======
+                    const currentHeight = importArea.offsetHeight;
+                    gsap.set(importArea, { height: currentHeight }); // Gắn cứng pixel trước khi thu
+                    
                     gsap.to(importArea, {
-                        opacity: 0,
-                        maxHeight: 0,
-                        duration: 0.3,
-                        ease: 'power2.inOut',
+                        height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, 
+                        marginTop: 0, marginBottom: 0, borderWidth: 0,
+                        duration: 0.35, ease: 'power2.inOut',
                         onComplete: () => {
                             importArea.style.display = 'none';
                         }
                     });
                 }
             } else if (target.classList.contains('btn-toggle-set') || target.closest('.btn-toggle-set')) {
-                // Sử dụng closest() để phòng trường hợp click trúng icon bên trong thẻ button
                 const btn = target.closest('.btn-toggle-set');
                 const setIdx = btn.getAttribute('data-index');
                 const setCard = btn.closest('.vocab-set-card');
                 const bodyWrapper = setCard.querySelector('.vocab-set-body');
                 
-                // Đảo ngược trạng thái hiện tại (Đang mở -> Thu gọn, Đang thu gọn -> Mở)
+                // Đảo ngược trạng thái hiện tại
                 this.sets[setIdx].isCollapsed = !this.sets[setIdx].isCollapsed;
                 
-                // Sử dụng GSAP để animate sự thay đổi
                 if (this.sets[setIdx].isCollapsed) {
-                    // Thu gọn
-                    gsap.to(btn, { rotation: 0, duration: 0.3, ease: 'power2.inOut' });
+                    // ====== THU GỌN (COLLAPSE) ======
+                    // 1. Lấy chiều cao thực tế bằng pixel trước khi thu gọn
+                    const currentHeight = bodyWrapper.offsetHeight;
+                    
+                    // 2. Set chiều cao thành pixel cố định để GSAP có điểm bắt đầu chính xác
+                    gsap.set(bodyWrapper, { height: currentHeight });
+                    
+                    // 3. Thực hiện animation thu nhỏ
+                    gsap.to(btn, { rotation: 0, duration: 0.35, ease: 'power2.inOut' });
                     gsap.to(bodyWrapper, {
-                        maxHeight: 0,
+                        height: 0,
                         opacity: 0,
-                        duration: 0.4,
+                        paddingTop: 0,
+                        paddingBottom: 0,
+                        duration: 0.35,
                         ease: 'power2.inOut',
                         onComplete: () => {
-                            bodyWrapper.style.display = 'none';
+                            bodyWrapper.style.display = 'none'; // Ẩn hẳn sau khi thu xong
                         }
                     });
                 } else {
-                    // Mở rộng
-                    bodyWrapper.style.display = 'block';
-                    gsap.to(btn, { rotation: 90, duration: 0.3, ease: 'power2.inOut' });
+                    // ====== MỞ RỘNG (EXPAND) ======
+                    bodyWrapper.style.display = 'block'; // Hiển thị trước để GSAP có thể tính toán "auto"
+                    
+                    gsap.to(btn, { rotation: 90, duration: 0.35, ease: 'power2.inOut' });
+                    
+                    // Dùng fromTo để đảm bảo điểm bắt đầu luôn là 0
                     gsap.fromTo(bodyWrapper,
-                        { maxHeight: 0, opacity: 0 },
                         {
-                            maxHeight: 5000,
+                            height: 0,
+                            opacity: 0,
+                            paddingTop: 0,
+                            paddingBottom: 0
+                        },
+                        {
+                            height: "auto", // Để GSAP tự tính toán bung ra
                             opacity: 1,
-                            duration: 0.4,
+                            paddingTop: 15,
+                            paddingBottom: 15,
+                            duration: 0.35,
                             ease: 'power2.inOut'
                         }
                     );
@@ -424,9 +454,17 @@ class VocabQuiz {
             else if (target.classList.contains('btn-cancel-import')) {
                 const setCard = target.closest('.vocab-set-card');
                 const importArea = setCard.querySelector('.import-area');
-                importArea.style.display = 'none';
+                
+                const currentHeight = importArea.offsetHeight;
+                gsap.set(importArea, { height: currentHeight });
+                gsap.to(importArea, {
+                    height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, marginBottom: 0, borderWidth: 0,
+                    duration: 0.35, ease: 'power2.inOut',
+                    onComplete: () => importArea.style.display = 'none'
+                });
+                
                 setCard.querySelector('.import-textarea').value = ''; // Xóa text đang nhập dở
-            } 
+            }
             // Xác nhận Import và Parsing
             else if (target.classList.contains('btn-confirm-import')) {
                 const setIdx = target.getAttribute('data-index');
@@ -462,7 +500,15 @@ class VocabQuiz {
                 this.renderSetRows(setIdx);
                 
                 // Đóng import area
-                setCard.querySelector('.import-area').style.display = 'none';
+                // Đóng import area mượt mà
+                const importArea = setCard.querySelector('.import-area');
+                const currentHeight = importArea.offsetHeight;
+                gsap.set(importArea, { height: currentHeight });
+                gsap.to(importArea, {
+                    height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, marginBottom: 0, borderWidth: 0,
+                    duration: 0.35, ease: 'power2.inOut',
+                    onComplete: () => importArea.style.display = 'none'
+                });
                 this.saveData();
             }
         });

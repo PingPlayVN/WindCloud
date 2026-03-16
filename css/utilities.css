@@ -42,3 +42,153 @@
     from { bottom: 30px; opacity: 1; } 
     to { bottom: 10px; opacity: 0; } 
 }
+
+/* =========================================
+   HEIDISQL CLONE THEME
+   ========================================= */
+.heidi-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px);
+    background-color: #f0f0f0; /* Màu xám chuẩn Windows */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #000;
+}
+
+/* Thanh công cụ (Toolbar) */
+.heidi-toolbar {
+    display: flex;
+    gap: 5px;
+    padding: 5px 10px;
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    align-items: center;
+}
+.heidi-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 3px;
+}
+.heidi-btn:hover {
+    background: #e5f1fb;
+    border-color: #0078d7;
+}
+
+/* Khu vực chia cột chính */
+.heidi-split-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Cây thư mục (Sidebar) */
+.heidi-sidebar {
+    width: 250px;
+    background: #fff;
+    border-right: 1px solid #ccc;
+    overflow-y: auto;
+    padding: 5px;
+}
+.heidi-tree-item {
+    padding: 4px 5px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.heidi-tree-item:hover { background: #e5f1fb; }
+.heidi-tree-item.active { background: #cce8ff; outline: 1px solid #99d1ff; }
+
+/* Khu vực chính (Main) */
+.heidi-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #f0f0f0;
+    overflow: hidden;
+}
+
+/* Các Tab giống Windows */
+.heidi-tabs {
+    display: flex;
+    padding: 5px 5px 0 5px;
+    gap: 2px;
+    border-bottom: 1px solid #ccc;
+}
+.heidi-tab {
+    padding: 6px 15px;
+    background: #e0e0e0;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    cursor: pointer;
+    font-size: 13px;
+    border-radius: 4px 4px 0 0;
+    margin-bottom: -1px;
+}
+.heidi-tab.active {
+    background: #fff;
+    font-weight: bold;
+    border-top: 2px solid #0078d7;
+    border-bottom: 1px solid #fff;
+}
+
+/* Nội dung từng Tab */
+.heidi-tab-content {
+    flex: 1;
+    background: #fff;
+    display: none;
+    flex-direction: column;
+    overflow: auto;
+}
+.heidi-tab-content.active { display: flex; }
+
+/* Bảng dữ liệu (Grid) */
+.heidi-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.heidi-grid th, .heidi-grid td {
+    border: 1px solid #d0d0d0;
+    padding: 4px 6px;
+    text-align: left;
+    white-space: nowrap;
+}
+.heidi-grid th {
+    background: #f0f0f0;
+    position: sticky;
+    top: 0;
+    font-weight: normal;
+    color: #333;
+    border-bottom: 1px solid #a0a0a0;
+}
+
+/* Bảng Log (Dưới cùng) */
+.heidi-log-panel {
+    height: 150px;
+    background: #fff;
+    border-top: 1px solid #ccc;
+    overflow-y: auto;
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+}
+.heidi-log-panel table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.heidi-log-panel td {
+    padding: 2px 5px;
+    border-bottom: 1px solid #eee;
+    color: #333;
+}
+.heidi-log-time { color: #888; width: 70px; }
+.heidi-log-error { color: #d32f2f; }
+.heidi-log-success { color: #1976d2; }

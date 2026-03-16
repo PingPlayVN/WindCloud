@@ -446,8 +446,6 @@
 /* Body wrapper untuk collapse animasi */
 .vocab-set-body {
     padding: 15px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    max-height: 5000px;
     opacity: 1;
     overflow: hidden;
 }
@@ -460,17 +458,18 @@
 
 /* ===== IMPORT AREA ENHANCEMENT ===== */
 .import-area {
-    border: 2px dashed var(--primary) !important;
-    border-radius: 8px !important;
-    background: linear-gradient(135deg, rgba(26, 115, 232, 0.05), rgba(59, 130, 246, 0.05)) !important;
-    padding: 15px !important;
-    margin-bottom: 15px !important;
-    transition: all 0.3s ease;
+    border: 2px dashed var(--primary);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.05), rgba(59, 130, 246, 0.05));
+    padding: 15px;
+    margin-top: 10px;
+    margin-bottom: 15px;
+    overflow: hidden; /* Cực kỳ quan trọng: Giúp nội dung bị cắt gọn gàng khi thu nhỏ */
 }
 
 .import-area:hover {
-    background: linear-gradient(135deg, rgba(26, 115, 232, 0.08), rgba(59, 130, 246, 0.08)) !important;
-    border-color: var(--primary) !important;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.08), rgba(59, 130, 246, 0.08));
+    border-color: var(--primary);
 }
 
 .import-textarea {
