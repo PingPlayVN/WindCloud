@@ -1,4 +1,5 @@
 // js/vocab.js - Tính năng Ôn tập từ vựng (Mobile UI Tối ưu, Progressive Hinting)
+import { activateModal, deactivateModal } from './a11yModal.js';
 let pendingDeleteSetId = null; // Biến lưu ID bảng đang chờ xóa
 class VocabQuiz {
     constructor() {
@@ -54,6 +55,11 @@ class VocabQuiz {
             this.vocabConfirmModal.style.display = 'flex';
             void this.vocabConfirmModal.offsetWidth; // Kích hoạt CSS Animation
             this.vocabConfirmModal.classList.add('show');
+
+            activateModal(this.vocabConfirmModal, {
+                initialFocus: this.btnCancelVocabDelete || this.btnConfirmVocabDelete,
+                onClose: () => this.closeVocabDeleteModal()
+            });
         }
     }
 
@@ -63,6 +69,7 @@ class VocabQuiz {
             this.vocabConfirmModal.classList.remove('show');
             setTimeout(() => {
                 this.vocabConfirmModal.style.display = 'none';
+                deactivateModal(this.vocabConfirmModal);
             }, 300);
         }
     }
@@ -731,4 +738,3 @@ class VocabQuiz {
 }
 
 document.addEventListener('DOMContentLoaded', () => new VocabQuiz());
-

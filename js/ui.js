@@ -10,6 +10,7 @@ export function showToast(msg) {
 
 // Giữ lại import để không phá vỡ dependency của các file khác nếu có
 import { addManagedEventListener, removeManagedEventListener } from './eventManager.js';
+import { activateModal, deactivateModal } from './a11yModal.js';
 
 export function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
     const acModal = document.getElementById('actionModal');
@@ -27,6 +28,8 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
     if (acTitle) acTitle.innerText = title || '';
     if (acDesc) acDesc.innerText = desc || '';
 
+    let initialFocusEl = acBtn;
+
     // 2. Logic xử lý hiển thị động dựa trên biến 'type'
     if (type === 'select') {
         if (acInput) acInput.style.display = 'none';
@@ -34,19 +37,21 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
             acSelect.style.display = 'block';
             acSelect.value = initialValue;
         }
+        initialFocusEl = acSelect || acBtn;
     } else if (type === 'prompt') {
         if (acSelect) acSelect.style.display = 'none';
         if (acInput) {
             acInput.style.display = 'block';
             acInput.value = initialValue;
-            // Best Practice UX: Tự động focus
-            setTimeout(() => acInput.focus(), 50); 
         }
+        initialFocusEl = acInput || acBtn;
     } else {
         // Chế độ 'confirm'
         if (acInput) acInput.style.display = 'none';
         if (acSelect) acSelect.style.display = 'none';
     }
+
+    activateModal(acModal, { initialFocus: initialFocusEl, onClose: closeActionModal });
 
     // 3. Quản lý Event Listeners (Kiến trúc O(1) Memory Management)
     // Gán đè (overwrite) DOM properties thay vì addEventListener
@@ -85,5 +90,6 @@ export function showActionModal({ title, desc, type, initialValue = '', onConfir
 
 export function closeActionModal() {
     const acModal = document.getElementById('actionModal');
+    if (acModal) deactivateModal(acModal);
     if (acModal) acModal.style.display = 'none';
 }
