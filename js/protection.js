@@ -43,6 +43,12 @@ export function setupProtection() {
                 e.stopPropagation();   // Ngăn sự kiện lan truyền tiếp
                 return false;
             }
+	    // 6. Chặn Ctrl + Shift + C
+            if (e.ctrlKey && e.shiftKey && (e.key === "C" || e.key === "c" || e.keyCode === 74)) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
         }
     }
 
