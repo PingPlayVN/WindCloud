@@ -9,7 +9,74 @@ export function showToast(msg) {
 }
 
 // Giữ lại import để không phá vỡ dependency của các file khác nếu có
-import { addManagedEventListener, removeManagedEventListener } from './eventManager.js';
+import { addManagedEventListener } from './eventManager.js';
+
+export function attachCoreUIEvents({
+    toggleSidebar,
+    switchApp,
+    showLogin,
+    logout,
+    closeLogin,
+    loginAdmin,
+    toggleTheme
+}) {
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const btnMenu = document.getElementById('btnMenu');
+    const btnCloseSidebar = document.getElementById('btnCloseSidebar');
+    [sidebarOverlay, btnMenu, btnCloseSidebar].forEach((el) => {
+        if (!el) return;
+        addManagedEventListener(el, 'click', toggleSidebar);
+    });
+
+    // sidebar menu items
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach((item) => {
+        addManagedEventListener(item, 'click', () => {
+            const app = item.dataset.app;
+            if (app) switchApp(app);
+        });
+    });
+
+    // Login / logout
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) addManagedEventListener(loginBtn, 'click', showLogin);
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) addManagedEventListener(logoutBtn, 'click', logout);
+
+    const btnCloseLogin = document.getElementById('btnCloseLogin');
+    if (btnCloseLogin) addManagedEventListener(btnCloseLogin, 'click', closeLogin);
+
+    const btnLogin = document.getElementById('btnLogin');
+    if (btnLogin) addManagedEventListener(btnLogin, 'click', loginAdmin);
+
+    // --- Cải thiện UX đăng nhập bằng phím ENTER ---
+    const adminEmail = document.getElementById('adminEmail');
+    const adminPass = document.getElementById('adminPass');
+
+    // 1. Nhấn Enter ở ô Email -> Nhảy xuống ô Mật khẩu
+    if (adminEmail) {
+        addManagedEventListener(adminEmail, 'keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (adminPass) adminPass.focus();
+            }
+        });
+    }
+
+    // 2. Nhấn Enter ở ô Mật khẩu -> Thực hiện đăng nhập
+    if (adminPass) {
+        addManagedEventListener(adminPass, 'keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                loginAdmin();
+            }
+        });
+    }
+
+    // Theme toggle
+    const themeCb = document.getElementById('theme-checkbox');
+    if (themeCb) addManagedEventListener(themeCb, 'change', toggleTheme);
+}
 
 export function showActionModal({ title, desc, type, initialValue = '', onConfirm }) {
     const acModal = document.getElementById('actionModal');

@@ -1,10 +1,11 @@
-// js/core.js
+﻿// js/core.js
 
 import { extractFileId } from './utils.js';
-import { showActionModal, closeActionModal, showToast } from './ui.js';
+import { attachCoreUIEvents, showActionModal, closeActionModal, showToast } from './ui.js';
 import { updatePaletteSystem } from './palette.js';
 import { initWindDrop } from './drop.js';
 import { db, auth } from './firebase.js';
+import { showLogin, closeLogin, loginAdmin, logout, initAuth } from './auth.js';
 import { initWindGame } from './windgame.js';
 import { setupProtection } from './protection.js';
 import './offline.js'; // Offline support for Color Studio & Wind Game
@@ -45,74 +46,7 @@ function initDeviceLimit() {
 initDeviceLimit();
 
 // --- 5. AUTH SYSTEM ---
-function showLogin() {
-    const sidebar = document.getElementById('main-sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    if(sidebar) sidebar.classList.remove('open');
-    if(overlay) overlay.classList.remove('open');
-
-    document.getElementById('overlay').style.display = 'block';
-    document.getElementById('login-panel').style.display = 'flex'; 
-    
-    const errEl = document.getElementById('loginError');
-    if(errEl) errEl.style.display = 'none';
-}
-
-function closeLogin() {
-    document.getElementById('overlay').style.display = 'none';
-    document.getElementById('login-panel').style.display = 'none';
-}
-
-function loginAdmin() {
-    const email = document.getElementById('adminEmail').value;
-    const pass = document.getElementById('adminPass').value;
-    const btn = document.getElementById('btnLogin');
-    const errObj = document.getElementById('loginError');
-
-    if(btn) { btn.innerText = "Đang xử lý..."; btn.disabled = true; }
-    
-    auth.signInWithEmailAndPassword(email, pass)
-        .then(() => {
-            closeLogin();
-            showToast("Xin chào Admin! 👋");
-        })
-        .catch((error) => {
-            if(errObj) {
-                errObj.innerText = "Sai tài khoản hoặc mật khẩu!";
-                errObj.style.display = 'block';
-            }
-        })
-        .finally(() => {
-            if(btn) { btn.innerText = "Truy cập!"; btn.disabled = false; }
-        });
-}
-
-function logout() {
-    auth.signOut().then(() => {
-        showToast("Đã đăng xuất");
-        setTimeout(() => location.reload(), 1000);
-    });
-}
-
-auth.onAuthStateChanged((user) => {
-    const btnNew = document.getElementById('btnNew');
-    const loginBtn = document.getElementById('loginBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const adminTool = document.getElementById('adminTool');
-
-    if (user) {
-        window.isAdmin = true;
-        if(btnNew) btnNew.style.display = 'block';
-        if(loginBtn) loginBtn.style.display = 'none';
-        if(logoutBtn) logoutBtn.style.display = 'flex'; 
-    } else {
-        window.isAdmin = false;
-        if(btnNew) btnNew.style.display = 'none';
-        if(adminTool) adminTool.style.display = 'none';
-        if(loginBtn) loginBtn.style.display = 'flex';
-        if(logoutBtn) logoutBtn.style.display = 'none';
-    }
-});
+initAuth();
 
 // --- 6. NAVIGATION & THEME ---
 function toggleSidebar() {
@@ -224,52 +158,7 @@ if (document.readyState === 'loading') {
 }
 
 // --- UI Wiring (attachUI) ---
-(function attachUI(){
-    const btnMenu = document.getElementById('btnMenu'); if (btnMenu) btnMenu.addEventListener('click', toggleSidebar);
-    const btnCloseSidebar = document.getElementById('btnCloseSidebar'); if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', toggleSidebar);
-
-    // sidebar menu items
-    document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const app = item.dataset.app;
-            if (app) switchApp(app);
-        });
-    });
-
-    // Login / logout
-    const loginBtn = document.getElementById('loginBtn'); if (loginBtn) loginBtn.addEventListener('click', showLogin);
-    const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.addEventListener('click', logout);
-    const btnCloseLogin = document.getElementById('btnCloseLogin'); if (btnCloseLogin) btnCloseLogin.addEventListener('click', closeLogin);
-    const btnLogin = document.getElementById('btnLogin'); if (btnLogin) btnLogin.addEventListener('click', loginAdmin);
-
-    // --- CẢI THIỆN UX ĐĂNG NHẬP BẰNG PHÍM ENTER ---
-    const adminEmail = document.getElementById('adminEmail');
-    const adminPass = document.getElementById('adminPass');
-
-    // 1. Nhấn Enter ở ô Email -> Nhảy xuống ô Mật khẩu
-    if (adminEmail) {
-        adminEmail.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault(); // Ngăn trình duyệt reload
-                if (adminPass) adminPass.focus(); // Đưa con trỏ nhấp nháy vào ô mật khẩu
-            }
-        });
-    }
-
-    // 2. Nhấn Enter ở ô Mật khẩu -> Thực hiện đăng nhập
-    if (adminPass) {
-        adminPass.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault(); // Ngăn trình duyệt reload
-                loginAdmin(); // Gọi hàm xử lý đăng nhập
-            }
-        });
-    }
-    // ----------------------------------------------
-
-    // Theme toggle
-    const themeCb = document.getElementById('theme-checkbox'); if (themeCb) themeCb.addEventListener('change', toggleTheme);
-})();
+attachCoreUIEvents({ toggleSidebar, switchApp, showLogin, logout, closeLogin, loginAdmin, toggleTheme });
 
 // Initialize protection (block context menu & DevTools for non-admin users)
 setupProtection();
@@ -310,7 +199,7 @@ if ('serviceWorker' in navigator) {
             .then((reg) => {
                 console.log('PWA Service Worker đã đăng ký!', reg.scope);
 
-                // Lắng nghe sự kiện khi trình duyệt tải về một file sw.js mới (Có bản update)
+                // Lắng nghe sự kiện khi trình duyệt tải về một file sw.js mới (có bản update)
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
 
@@ -455,11 +344,11 @@ document.addEventListener('fullscreenchange', () => {
         // Mở khóa và ép thiết bị xoay ngang (Landscape)
         if (screen.orientation && screen.orientation.lock) {
             screen.orientation.lock('landscape').catch((err) => {
-                console.log("Không thể ép xoay ngang (Có thể do thiết bị không hỗ trợ):", err);
+                console.log("Không thể ép xoay ngang (có thể do thiết bị không hỗ trợ):", err);
             });
         }
     } else {
-        // Khi người dùng bấm thoát Toàn màn hình -> Ép thiết bị khóa lại thành dọc (Portrait)
+        // Khi người dùng bấm thoát Toàn màn hình -> ép thiết bị khóa lại thành dọc (Portrait)
         if (screen.orientation && screen.orientation.lock) {
             screen.orientation.lock('portrait').catch((err) => {
                 console.log("Không thể khóa dọc:", err);
@@ -501,7 +390,7 @@ function animateGridItems() {
         }
     });
 
-    // Rất quan trọng: Báo cho ScrollTrigger cập nhật lại vị trí do DOM vừa thay đổi
+    // Rất quan trọng: báo cho ScrollTrigger cập nhật lại vị trí do DOM vừa thay đổi
     ScrollTrigger.refresh();
 }
 

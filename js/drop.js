@@ -956,7 +956,7 @@ function setupIncomingConnection(conn) {
                 } catch (e) {
                     console.error('Stream write failed, cancelling transfer:', e);
                     try { conn.send({ type: 'cancel' }); } catch (err) {}
-                    showToast('âŒ Lá»—i ghi file (stream)');
+                    showToast('❌ Lỗi ghi file (stream)');
                     try { await currentWriter.abort(e); } catch (err) {}
                     currentWriter = null;
                     releaseWakeLock();
