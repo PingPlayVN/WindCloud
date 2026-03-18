@@ -90,9 +90,3 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; bo
 .palette-actions-bottom {
     margin-top: 30px; display: flex; justify-content: center; gap: 15px;
 }
-.btn-action {
-    padding: 10px 20px; border-radius: 20px; border: 1px solid var(--border);
-    background: var(--bg-surface); color: var(--text-main); cursor: pointer; font-weight: 500;
-}
-.btn-action:hover { background: var(--hover-bg); }
-.btn-action.primary { background: var(--primary); color: white; border: none; }
