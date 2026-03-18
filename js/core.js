@@ -9,6 +9,7 @@ import { showLogin, closeLogin, loginAdmin, logout, initAuth } from './auth.js';
 import { initWindGame } from './windgame.js';
 import { setupProtection } from './protection.js';
 import './offline.js'; // Offline support for Color Studio & Wind Game
+import { loadCSS } from './utils.js';
 
 // --- 2. GLOBAL STATE ---
 window.isAdmin = false;
@@ -72,18 +73,21 @@ function switchApp(appName) {
         document.title = "Wind Cloud - Storage";
     } 
     else if (appName === 'palette') {
+        loadCSS('./css/palette.css');
         if(menuItems[1]) menuItems[1].classList.add('active');
         document.getElementById('app-palette').style.display = 'block';
         document.title = "Wind Cloud - Color Studio";
         if(typeof updatePaletteSystem === 'function') updatePaletteSystem();
     } 
     else if (appName === 'drop') {
+        loadCSS('./css/drop.css');
         if(menuItems[2]) menuItems[2].classList.add('active');
         document.getElementById('app-drop').style.display = 'block';
         document.title = "Wind Cloud - Wind Drop";
         if(typeof initWindDrop === 'function') initWindDrop();
     }
     else if (appName === 'windgame') {
+        loadCSS('./css/windgame.css');
         // mark the clicked menu item active (by data-app match)
         const el = document.querySelector(`.sidebar-menu .menu-item[data-app="windgame"]`);
         if (el) el.classList.add('active');
@@ -92,6 +96,7 @@ function switchApp(appName) {
         initWindGame();
     }
     else if (appName === 'vocab') {
+        loadCSS('./css/vocab.css');
         // Tìm đúng menu item có data-app là 'vocab' để đổi màu Active
         const el = document.querySelector(`.sidebar-menu .menu-item[data-app="vocab"]`);
         if (el) el.classList.add('active');
