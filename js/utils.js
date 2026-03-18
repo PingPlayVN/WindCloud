@@ -138,22 +138,3 @@ export function confirmDownload(link, title = 'tải') {
         openSafe(link);
     }
 }
-
-// Một Set để lưu trữ các tệp CSS đã tải, tránh tải lại nhiều lần
-const loadedCSS = new Set();
-
-/**
- * Hàm tải CSS động
- * @param {string} href - Đường dẫn tới file CSS
- */
-export function loadCSS(href) {
-    if (loadedCSS.has(href)) return; // Nếu đã tải rồi thì bỏ qua
-
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = href;
-    document.head.appendChild(link);
-    
-    loadedCSS.add(href); // Đánh dấu là đã tải
-    console.log(`Đã tải tệp CSS: ${href}`);
-}
