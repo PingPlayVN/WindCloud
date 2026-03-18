@@ -123,12 +123,12 @@ export function escapeAttr(value) {
 }
 
 // Confirm then download helper
-export function confirmDownload(link, title = 'tá»‡p') {
+export function confirmDownload(link, title = 'tải') {
     // Use local showActionModal if available
     if (typeof showActionModal === 'function') {
         showActionModal({
-            title: 'Táº£i xuá»‘ng',
-            desc: `Báº¡n cÃ³ muá»‘n táº£i xuá»‘ng "${title}" khÃ´ng?`,
+            title: 'Tải xuống',
+            desc: `Bạn có muốn tải xuống "${title}" không?`,
             type: 'confirm',
             onConfirm: () => {
                 openSafe(link);
