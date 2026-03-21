@@ -4,7 +4,6 @@ const settingsModal = document.getElementById('settingsModal');
 const guideModal = document.getElementById('guideModal');
 const modeModal = document.getElementById('modeSelectModal');
 const mapModal = document.getElementById('mapSelectModal'); 
-const deviceModal = document.getElementById('deviceSelectModal');
 const msgBox = document.getElementById('gameMessage');
 
 // --- TANK PREVIEW VARIABLES ---
@@ -247,23 +246,6 @@ function renderMobileSettings(container) {
     html += `</div>`; container.innerHTML = html;
 }
 
-function selectDevice(type) {
-    isMobile = (type === 'mobile');
-    deviceModal.style.display = 'none';
-    menu.style.display = 'flex';
-    if(isMobile) {
-        setupMobileControls();
-        const docEl = document.documentElement;
-        if (docEl.requestFullscreen) { docEl.requestFullscreen().catch(() => {}); } 
-        else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); }
-        else if (docEl.msRequestFullscreen) { docEl.msRequestFullscreen(); }
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(err => console.log("Khóa xoay không khả dụng (bỏ qua):", err));
-        }
-    }
-    animateMenu();
-}
-
 function setupMobileControls() {
     const joyP1 = document.getElementById('joyP1'), knobP1 = document.getElementById('knobP1'), btnFireP1 = document.getElementById('btnFireP1');
     const joyP2 = document.getElementById('joyP2'), knobP2 = document.getElementById('knobP2'), btnFireP2 = document.getElementById('btnFireP2');
@@ -395,11 +377,11 @@ function animateMenu() {
     menuAnimId = requestAnimationFrame(animateMenu);
 }
 
-window.selectDevice = selectDevice; window.selectMode = selectMode; window.selectMap = selectMap; window.closeMapSelect = closeMapSelect;
+window.selectMode = selectMode; window.selectMap = selectMap; window.closeMapSelect = closeMapSelect;
 window.openGuide = openGuide; window.closeGuide = closeGuide; window.openSettings = openSettings; window.closeSettings = closeSettings; window.quitToMenu = quitToMenu;
 window.updateCustom = updateCustom; window.applyDropRates = applyDropRates; window.showModeSelect = showModeSelect; window.closeModeSelect = closeModeSelect;
 window.cycleAI = cycleAI; window.remap = remap; window.updateMobileConfig = updateMobileConfig; window.resetDropRates = resetDropRates;
-window.restartMatch = function() { scores = { p1: 0, p2: 0 }; document.getElementById('s1').innerText="0"; document.getElementById('s2').innerText="0"; closeSettings(); window.startGame(); }
+window.restartMatch = function () { scores = { p1: 0, p2: 0 }; document.getElementById('s1').innerText = "0"; document.getElementById('s2').innerText = "0"; closeSettings(); window.startGame(); }
 
 window.addEventListener('keydown', e => { 
     if (remapping) { e.preventDefault(); controls[remapping.player][remapping.action] = e.code; remapping.btn.innerText = e.code; remapping.btn.classList.remove("listening"); remapping = null; return; }
@@ -408,6 +390,31 @@ window.addEventListener('keydown', e => {
     if(e.code==='KeyF') if(!document.fullscreenElement) { if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); }
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
+
+// --- AUTO DETECT DEVICE & SETUP UI ---
+// Đọc kết quả nhận diện thiết bị từ HTML
+isMobile = document.documentElement.classList.contains('is-mobile');
+
+if (isMobile) {
+    // Nếu là Mobile, tự động nạp Joystick và nút bấm
+    setupMobileControls();
+    
+    // Yêu cầu Fullscreen và khóa xoay bắt buộc phải có thao tác chạm của người dùng.
+    // Lắng nghe cú chạm đầu tiên vào màn hình (ví dụ khi họ bấm nút Start)
+    document.addEventListener('click', function initMobileView() {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) { docEl.requestFullscreen().catch(() => {}); } 
+        else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); }
+        else if (docEl.msRequestFullscreen) { docEl.msRequestFullscreen(); }
+        
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(e => console.log("Bỏ qua khóa xoay:", e));
+        }
+        
+        // Hủy sự kiện này sau khi chạy thành công 1 lần
+        document.removeEventListener('click', initMobileView);
+    }, { once: true });
+}
 
 animateMenu();
 
