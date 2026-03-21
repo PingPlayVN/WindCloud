@@ -293,6 +293,25 @@
         font-size: 1.2rem !important;
         background: transparent !important;
     }
+    /* --- TẮT HIỆU ỨNG GIẬT/CO RÚM DÒNG KHI CHẠM TRÊN MOBILE --- */
+    
+    /* 1. Tắt hiệu ứng thay đổi margin/padding khi chạm vào dòng */
+    .vocab-row:hover,
+    .vocab-row:active {
+        background: transparent !important;
+        margin: 0 0 10px 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-bottom: 10px !important;
+        border-radius: 0 !important;
+    }
+
+    /* 2. Tắt hiệu ứng nảy lên 2px của ô nhập liệu khi có trỏ chuột/bàn phím */
+    .vocab-row input:focus,
+    .vocab-row input:active {
+        transform: none !important;
+        box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2) !important; /* Chỉ giữ lại viền xanh mờ, bỏ đổ bóng to */
+    }
 }
 
 /* ✅ NEW: Ultra-small screens (iPhone 12 mini, small Android) */
