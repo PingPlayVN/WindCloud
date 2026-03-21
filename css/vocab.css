@@ -549,34 +549,77 @@
     border-left: 4px solid #10b981;
 }
 
-/* ===== ENHANCED DELETE ROW BUTTON ===== */
+/* ===== ENHANCED DELETE ROW BUTTON (Vẽ bằng CSS) ===== */
 .btn-delete-row {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 32px;
     height: 32px;
     padding: 0 !important;
-    background: transparent;
-    border: none;
-    color: #ef4444 !important;
-    font-size: 1.3rem;
+    margin: 0;
     cursor: pointer;
-    border-radius: 6px;
-    opacity: 0.6;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
+    
+    /* Ẩn chữ X text mặc định */
+    color: transparent !important;
+    font-size: 0 !important;
+    -webkit-text-stroke: 0 !important;
+    
+    /* Giao diện nút */
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Vẽ NÉT CHÉO thứ nhất (\) */
+.btn-delete-row::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 2.5px;
+    background-color: #ef4444;
+    border-radius: 2px;
+    transform: rotate(45deg);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Vẽ NÉT CHÉO thứ hai (/) */
+.btn-delete-row::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 2.5px;
+    background-color: #ef4444;
+    border-radius: 2px;
+    transform: rotate(-45deg);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hiệu ứng HOVER cực mượt cho PC */
 .btn-delete-row:hover {
-    opacity: 1;
     background: rgba(239, 68, 68, 0.15);
-    transform: scale(1.1) rotateZ(10deg);
+    border-color: rgba(239, 68, 68, 0.3);
+    transform: scale(1.1); /* BỎ LỆNH ROTATE Ở ĐÂY - Khung chỉ phóng to nhẹ */
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 
+/* KHI HOVER: Xoay nét chéo thứ nhất 180 độ (45 + 180 = 225) */
+.btn-delete-row:hover::before {
+    transform: rotate(225deg) !important;
+}
+
+/* KHI HOVER: Xoay nét chéo thứ hai 180 độ (-45 + 180 = 135) */
+.btn-delete-row:hover::after {
+    transform: rotate(135deg) !important;
+}
+
+/* Hiệu ứng nhấn (Active) cho cả PC và Mobile */
 .btn-delete-row:active {
-    transform: scale(0.9);
+    transform: scale(0.85);
+    background: rgba(239, 68, 68, 0.25);
 }
 
 /* ===== ENHANCED ADD ROW BUTTON ===== */

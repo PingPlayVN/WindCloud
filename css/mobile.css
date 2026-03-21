@@ -281,7 +281,9 @@
         margin: 0 !important;
     }
 
+    /* Giao diện nút xóa - Vẽ dấu X bằng CSS thuần (Không dùng text) */
     .btn-delete-row {
+        position: relative !important; /* Đặt làm mốc để vẽ dấu X ở giữa */
         width: 32px !important;
         height: 40px !important; 
         margin: 0 !important;
@@ -290,8 +292,45 @@
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-size: 1.2rem !important;
-        background: transparent !important;
+        
+        /* GIẤU ĐI CHỮ "X" TEXT CŨ */
+        color: transparent !important; 
+        font-size: 0 !important; 
+        -webkit-text-stroke: 0 !important;
+        
+        /* Nền và viền của nút */
+        background: rgba(239, 68, 68, 0.1) !important; 
+        border: 1px solid rgba(239, 68, 68, 0.2) !important; 
+        border-radius: 8px !important; 
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important; 
+    }
+
+    /* Vẽ NÉT CHÉO thứ nhất của dấu X (\) */
+    .btn-delete-row::before {
+        content: '' !important;
+        position: absolute !important;
+        width: 16px !important; /* ĐỘ DÀI của dấu X */
+        height: 3.5px !important; /* ĐỘ DÀY (Mập mạp) của dấu X */
+        background-color: #ef4444 !important; /* Màu đỏ */
+        border-radius: 2px !important; /* Bo tròn mượt mà ở 2 đầu nét vẽ */
+        transform: rotate(45deg) !important; /* Xoay chéo 45 độ */
+    }
+
+    /* Vẽ NÉT CHÉO thứ hai của dấu X (/) */
+    .btn-delete-row::after {
+        content: '' !important;
+        position: absolute !important;
+        width: 16px !important;
+        height: 3.5px !important;
+        background-color: #ef4444 !important;
+        border-radius: 2px !important;
+        transform: rotate(-45deg) !important; /* Xoay ngược 45 độ */
+    }
+
+    /* Hiệu ứng khi ngón tay chạm/nhấn vào nút */
+    .btn-delete-row:active {
+        background: rgba(239, 68, 68, 0.2) !important; 
+        transform: scale(0.85) !important; 
     }
     /* --- TẮT HIỆU ỨNG GIẬT/CO RÚM DÒNG KHI CHẠM TRÊN MOBILE --- */
     
