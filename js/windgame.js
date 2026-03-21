@@ -60,6 +60,15 @@ function renderGameCards() {
 }
 
 export function launchGame(url) {
+    // 1. Kiểm tra xem người dùng có đang dùng thiết bị di động (Mobile/Tablet) không
+    // (Màn hình dưới 768px hoặc trình duyệt báo là thiết bị di động)
+    const isMobile = window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent);
+    
+    // 2. Nếu là Mobile, kích hoạt chế độ toàn màn hình
+    if (isMobile) {
+        requestMobileFullscreen();
+    }
+
     const isLocalGame = url.includes('/games/');
     if (isLocalGame) {
         // Mark that we're launching a game so we can restore on return
@@ -71,6 +80,21 @@ export function launchGame(url) {
         // For future online games - could embed in iframe
         openSafe(url);
     }
+
+    function requestMobileFullscreen() {
+    const elem = document.documentElement; // Lấy thẻ HTML gốc của trang web
+    try {
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen(); // Chuẩn chung
+        } else if (elem.webkitRequestFullscreen) { 
+            elem.webkitRequestFullscreen(); // Dành cho Safari (iOS) / Chrome cũ
+        } else if (elem.msRequestFullscreen) { 
+            elem.msRequestFullscreen(); // Dành cho Edge/IE cũ
+        }
+    } catch (error) {
+        console.log("Không thể bật fullscreen:", error);
+    }
+}
 }
 
 // (removed open-in-new-tab button — games launch in current context)
