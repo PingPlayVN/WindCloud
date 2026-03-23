@@ -74,7 +74,7 @@ function attachDataListener() {
 // [FIX] Gọi Skeleton NGAY LẬP TỨC khi file JS chạy (để lấp đầy màn hình lúc chờ mạng)
 renderSkeleton();
 
-// --- XỬ LÝ LINK CHIA SẺ TỪ URL ---
+// --- XỬ LÝ LINK CHIA SẺ TỪ URL --- //
 async function processSharedUrl() {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
