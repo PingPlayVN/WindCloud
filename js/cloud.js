@@ -22,6 +22,7 @@ let contextTargetId = null;
 let currentPathRef = null;
 let currentFolderPath = ''; // Path to current folder in nested structure (empty = root)
 let folderStack = [];
+let pendingFileToOpen = new URLSearchParams(window.location.search).get('file');
 // e.g., '' for cloud/videos root
 // e.g., 'folder1' for cloud/videos/folder1
 // e.g., 'folder1/subfolder' for cloud/videos/folder1/subfolder
@@ -73,6 +74,52 @@ function attachDataListener() {
 // [FIX] Gọi Skeleton NGAY LẬP TỨC khi file JS chạy (để lấp đầy màn hình lúc chờ mạng)
 renderSkeleton();
 
+// --- XỬ LÝ LINK CHIA SẺ TỪ URL ---
+async function processSharedUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    const folder = params.get('folder');
+
+    if (tab) {
+        currentTab = tab;
+        const radio = document.getElementById(`tab-${tab}-radio`);
+        if(radio) radio.checked = true;
+    }
+
+    if (folder) {
+        currentFolderPath = folder;
+        
+        // 1. Tái tạo tạm thanh điều hướng với chữ "Đang tải..."
+        folderStack = folder.split('/').map(id => ({ id: id, title: 'Đang tải...' }));
+        updateBreadcrumb(); // Cập nhật giao diện ngay lập tức
+
+        // 2. Tự động gọi Firebase để lấy tên thật của từng cấp thư mục
+        const parts = folder.split('/');
+        let basePath = getCloudPath(); // Ví dụ: 'cloud/videos'
+        let realStack = [];
+        
+        for (let i = 0; i < parts.length; i++) {
+            basePath += '/' + parts[i]; // Ghép dần từng ID vào đường dẫn
+            try {
+                // Đọc dữ liệu của thư mục này từ Firebase
+                const snap = await db.ref(basePath).once('value');
+                const data = snap.val();
+                realStack.push({
+                    id: parts[i],
+                    title: (data && data.title) ? data.title : 'Thư mục' // Lấy tên thật, nếu không có thì để mặc định
+                });
+            } catch(err) {
+                realStack.push({ id: parts[i], title: 'Thư mục' });
+            }
+        }
+        
+        // 3. Gắn lại tên thật và cập nhật thanh điều hướng lần cuối
+        folderStack = realStack;
+        updateBreadcrumb();
+    }
+}
+processSharedUrl(); // Gọi ngay lúc load
+
 // --- DATA FETCHING ---
 attachDataListener();
 
@@ -106,6 +153,14 @@ function updateDataPipeline() {
     processedData = filtered;
     renderLimit = 24; 
     renderGrid(false);
+
+    if (pendingFileToOpen) {
+        const targetItem = dataMap[pendingFileToOpen];
+        if (targetItem) {
+            handleClick(targetItem.key, targetItem.type, targetItem.id);
+            pendingFileToOpen = null; // Đã mở xong thì xóa đi để không mở lại lần nữa
+        }
+    }
 }
 
 // Hàm sinh HTML cho từng item (Tách ra để tái sử dụng)
@@ -677,6 +732,39 @@ function createFolderUI() {
     });
 }
 
+function shareItem(isBackground = false) {
+    let shareUrl = new URL(window.location.origin + window.location.pathname);
+    shareUrl.searchParams.set('tab', currentTab);
+
+    if (isBackground) {
+        // Nếu click chuột phải ở nền: Chia sẻ thư mục hiện tại đang xem
+        if (currentFolderPath) {
+            shareUrl.searchParams.set('folder', currentFolderPath);
+        }
+    } else {
+        // Nếu click chuột phải vào 1 mục (File hoặc Folder)
+        const item = dataMap[contextTargetId];
+        if (!item) return;
+
+        if (item.type === 'folder') {
+            const targetPath = currentFolderPath ? currentFolderPath + '/' + contextTargetId : contextTargetId;
+            shareUrl.searchParams.set('folder', targetPath);
+        } else {
+            if (currentFolderPath) {
+                shareUrl.searchParams.set('folder', currentFolderPath);
+            }
+            shareUrl.searchParams.set('file', contextTargetId);
+        }
+    }
+
+    // Sao chép vào bộ nhớ tạm
+    navigator.clipboard.writeText(shareUrl.toString()).then(() => {
+        showToast("🔗 Đã chép link chia sẻ vào bộ nhớ tạm!");
+    }).catch(err => {
+        showToast("❌ Lỗi copy link: " + err.message);
+    });
+}
+
 // Helpers
 function getDescendantIds(targetId) {
     // Build parent -> children map once (O(N)), then traverse (O(N) total)
@@ -1140,6 +1228,8 @@ document.addEventListener('click', function (e) {
         switch(action) {
             case 'open': return openContextItem();
             case 'download': return downloadItem();
+            case 'share': return shareItem(false);
+            case 'shareFolder': return shareItem(true);
             case 'rename': return renameItemUI();
             case 'addNote': return editNoteUI();
             case 'copy': return copyItem();
