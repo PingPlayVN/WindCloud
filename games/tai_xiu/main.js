@@ -45,10 +45,22 @@ function layNgayChuan(lechNgay = 0) {
 
 // Lắng nghe trạng thái đăng nhập
 auth.onAuthStateChanged(async (user) => {
+    const loginScreen = document.getElementById('login-screen'); // Lấy element ra biến để kiểm tra
+    
     if (user) {
         nguoiDungHienTai = user;
-        document.getElementById('login-screen').style.display = 'none'; 
-        document.querySelector('.user-avatar').innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
+        
+        // ẨN MÀN HÌNH ĐĂNG NHẬP (Thêm kiểm tra để chắc chắn không lỗi)
+        if (loginScreen) {
+            loginScreen.style.display = 'none'; 
+        }
+
+        // Cập nhật ảnh đại diện
+        const avatarBox = document.querySelector('.user-avatar');
+        if (avatarBox && user.photoURL) {
+            avatarBox.innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
+        }
+        
         hienThongBao(`Chào mừng ${user.displayName}!`, "yellow");
 
         const docRef = db.collection('nguoi_choi').doc(user.uid);
@@ -87,6 +99,16 @@ auth.onAuthStateChanged(async (user) => {
     } else {
         document.getElementById('login-screen').style.display = 'flex';
     }
+});
+
+// Xử lý kết quả sau khi quay lại từ trang đăng nhập Google
+auth.getRedirectResult().then((result) => {
+    if (result.user) {
+        console.log("Đăng nhập thành công qua Redirect");
+    }
+}).catch((error) => {
+    console.error("Lỗi đăng nhập Redirect:", error);
+    hienThongBao("Đăng nhập thất bại, vui lòng thử lại!", "red");
 });
 
 // Hàm lưu tiền lên DB (gọi mỗi khi tiền thay đổi)
