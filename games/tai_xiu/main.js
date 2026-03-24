@@ -3,7 +3,7 @@
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyDqwbmR12PavR1OrXHEx3PE39NK8XxFevY",
-  authDomain: "taixiu-143ac.firebaseapp.com",
+  authDomain: "taixiu-143ac.firebaseapp.com", // Đuôi firebaseapp.com chuẩn
   projectId: "taixiu-143ac",
   storageBucket: "taixiu-143ac.firebasestorage.app",
   messagingSenderId: "306908951695",
@@ -19,17 +19,19 @@ const db = firebase.firestore();
 const rtdb = firebase.database();
 let nguoiDungHienTai = null;
 
-// Xử lý nút Đăng nhập (Dùng Redirect thay cho Popup)
+// Xử lý nút Đăng nhập bằng Popup
 document.getElementById('btn-login').addEventListener('click', () => {
-    // Đổi chữ trên nút để người dùng biết đang tải
-    document.getElementById('btn-login').innerText = "ĐANG CHUYỂN HƯỚNG...";
-    
+    document.getElementById('btn-login').innerText = "ĐANG KẾT NỐI...";
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Chuyển sang dùng Redirect để tránh lỗi bảo mật COOP
-    auth.signInWithRedirect(provider); 
+    
+    auth.signInWithPopup(provider).then((result) => {
+        console.log("Đăng nhập thành công!");
+    }).catch((error) => {
+        console.error("Lỗi đăng nhập:", error);
+        document.getElementById('btn-login').innerText = "ĐĂNG NHẬP BẰNG GOOGLE";
+        alert("Lỗi: " + error.message);
+    });
 });
-
-// Lắng nghe trạng thái đăng nhập
 // Các biến hỗ trợ Điểm danh
 let chuoiDiemDanh = 0;
 let ngayDiemDanhCuoi = "";
@@ -45,10 +47,23 @@ function layNgayChuan(lechNgay = 0) {
 
 // Lắng nghe trạng thái đăng nhập
 auth.onAuthStateChanged(async (user) => {
+    const loginScreen = document.getElementById('login-screen'); // Lấy element ra biến để kiểm tra
+    
     if (user) {
         nguoiDungHienTai = user;
-        document.getElementById('login-screen').style.display = 'none'; 
-        document.querySelector('.user-avatar').innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
+        
+        // ẨN MÀN HÌNH ĐĂNG NHẬP (Thêm kiểm tra để chắc chắn không lỗi)
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) {
+            loginScreen.style.setProperty('display', 'none', 'important');
+        }
+
+        // Cập nhật ảnh đại diện
+        const avatarBox = document.querySelector('.user-avatar');
+        if (avatarBox && user.photoURL) {
+            avatarBox.innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
+        }
+        
         hienThongBao(`Chào mừng ${user.displayName}!`, "yellow");
 
         const docRef = db.collection('nguoi_choi').doc(user.uid);
@@ -86,7 +101,18 @@ auth.onAuthStateChanged(async (user) => {
         capNhatUIDongTien(); 
     } else {
         document.getElementById('login-screen').style.display = 'flex';
+        setLoginButtonLoading(false);
     }
+});
+
+// Xử lý kết quả sau khi quay lại từ trang đăng nhập Google
+auth.getRedirectResult().then((result) => {
+    if (result.user) {
+        console.log("Đăng nhập thành công qua Redirect");
+    }
+}).catch((error) => {
+    console.error("Lỗi đăng nhập Redirect:", error);
+    hienThongBao("Đăng nhập thất bại, vui lòng thử lại!", "red");
 });
 
 // Hàm lưu tiền lên DB (gọi mỗi khi tiền thay đổi)
