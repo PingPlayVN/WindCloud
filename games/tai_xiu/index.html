@@ -7,8 +7,9 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Back to Wind Game button (external handler loaded from root) -->
-    <div style="position: fixed; top: 10px; left: 10px; z-index: 9999; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 8px; display: flex; align-items: center;"
+
+    <!-- Back to Wind Game button (shared handler in /js/game-exit.js) -->
+    <div style="position: fixed; top: 10px; left: 10px; z-index: 10000; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 8px; display: flex; align-items: center;"
         id="backButton">
         <button onclick="exitToWindGame()"
             style="background: linear-gradient(135deg, #d32f2f, #b71c1c); color: white; border: 2px solid #ff6b6b; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; transition: all 0.2s; box-shadow: 0 4px 8px rgba(211, 47, 47, 0.3);">EXIT</button>
@@ -171,34 +172,6 @@
 
     <audio id="bg-music" src="nhac-nen.mp3" loop></audio>
     <script src="main.js"></script>
-    <!-- External exit handler kept at site root so game folder can be updated independently -->
     <script src="../../js/game-exit.js"></script>
-    <script>
-        // Mobile fullscreen: requires a user gesture (tap/click) on most browsers.
-        (function initMobileFullscreen() {
-            const isMobile =
-                /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-                (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
-            if (!isMobile) return;
-
-            let ran = false;
-            function run() {
-                if (ran) return;
-                ran = true;
-
-                const docEl = document.documentElement;
-                try {
-                    if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
-                    else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-                    else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
-                } catch (e) {
-                    // ignore
-                }
-            }
-
-            document.addEventListener('click', run, { once: true });
-            document.addEventListener('touchend', run, { once: true, passive: true });
-        })();
-    </script>
 </body>
 </html>

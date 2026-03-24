@@ -21,14 +21,12 @@ let nguoiDungHienTai = null;
 
 // Xử lý nút Đăng nhập (Dùng Redirect thay cho Popup)
 document.getElementById('btn-login').addEventListener('click', () => {
+    // Đổi chữ trên nút để người dùng biết đang tải
+    document.getElementById('btn-login').innerText = "ĐANG CHUYỂN HƯỚNG...";
+    
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Đổi từ Redirect sang Popup
-    auth.signInWithPopup(provider).then((result) => {
-        console.log("Đăng nhập thành công!");
-    }).catch((error) => {
-        console.error("Lỗi đăng nhập:", error);
-        alert("Lỗi: " + error.message);
-    });
+    // Chuyển sang dùng Redirect để tránh lỗi bảo mật COOP
+    auth.signInWithRedirect(provider); 
 });
 
 // Lắng nghe trạng thái đăng nhập
@@ -47,23 +45,10 @@ function layNgayChuan(lechNgay = 0) {
 
 // Lắng nghe trạng thái đăng nhập
 auth.onAuthStateChanged(async (user) => {
-    const loginScreen = document.getElementById('login-screen'); // Lấy element ra biến để kiểm tra
-    
     if (user) {
         nguoiDungHienTai = user;
-        
-        // ẨN MÀN HÌNH ĐĂNG NHẬP (Thêm kiểm tra để chắc chắn không lỗi)
-        const loginScreen = document.getElementById('login-screen');
-        if (loginScreen) {
-            loginScreen.style.setProperty('display', 'none', 'important');
-        }
-
-        // Cập nhật ảnh đại diện
-        const avatarBox = document.querySelector('.user-avatar');
-        if (avatarBox && user.photoURL) {
-            avatarBox.innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
-        }
-        
+        document.getElementById('login-screen').style.display = 'none'; 
+        document.querySelector('.user-avatar').innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
         hienThongBao(`Chào mừng ${user.displayName}!`, "yellow");
 
         const docRef = db.collection('nguoi_choi').doc(user.uid);
@@ -102,16 +87,6 @@ auth.onAuthStateChanged(async (user) => {
     } else {
         document.getElementById('login-screen').style.display = 'flex';
     }
-});
-
-// Xử lý kết quả sau khi quay lại từ trang đăng nhập Google
-auth.getRedirectResult().then((result) => {
-    if (result.user) {
-        console.log("Đăng nhập thành công qua Redirect");
-    }
-}).catch((error) => {
-    console.error("Lỗi đăng nhập Redirect:", error);
-    hienThongBao("Đăng nhập thất bại, vui lòng thử lại!", "red");
 });
 
 // Hàm lưu tiền lên DB (gọi mỗi khi tiền thay đổi)

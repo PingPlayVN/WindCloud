@@ -4,6 +4,14 @@
 
 window.exitToWindGame = function() {
     try {
+        // If running inside an iframe (e.g. mobile fullscreen host), ask parent to close the overlay.
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'windgame:exit' }, '*');
+                return;
+            }
+        } catch (ignored) {}
+
         // navigate to root index with #windgame hash so core.js can restore the tab
         window.location.href = '../../index.html#windgame';
     } catch (e) {
