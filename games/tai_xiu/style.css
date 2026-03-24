@@ -23,6 +23,16 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
     border-radius: 20px;
     padding: 20px;
     box-shadow: 0 0 40px rgba(184, 134, 11, 0.4);
+    display: flex;
+    flex-direction: column;
+}
+
+#leaderboard-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    padding-right: 5px;
 }
 
 .leaderboard-title {
@@ -291,6 +301,8 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
 
 .chat-messages {
     flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 /* Tùy chỉnh thanh cuộn của chat */
@@ -344,12 +356,13 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
 .day-status { font-size: 24px; margin-top: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
 
 /* ===============================
-   TỰ ĐỘNG ÉP XOAY NGANG GIAO DIỆN BẰNG CSS (MOBILE)
+   ÉP XOAY NGANG 90° (MOBILE PORTRAIT)
+   - Vẫn cho phép vuốt/scroll trong chat/BXH/modal
 ================================== */
 @media screen and (max-width: 768px) and (orientation: portrait) {
     body {
-        overflow: hidden !important; 
-        padding: 0 !important; 
+        overflow: hidden !important;
+        padding: 0 !important;
         margin: 0 !important;
         width: 100vw;
         height: 100vh;
@@ -359,38 +372,47 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
         position: fixed !important;
         top: 50% !important;
         left: 50% !important;
-        width: 100vh !important;  
-        height: 100vw !important;  
+        width: 100vh !important;
+        height: 100vw !important;
         transform: translate(-50%, -50%) rotate(90deg) !important;
         transform-origin: center center !important;
-        overflow: hidden !important; /* Khóa hoàn toàn cuộn để chống tràn */
         box-sizing: border-box;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
     }
 
+    /* Wrapper: cho phép scroll nếu nội dung tràn (không khóa overflow) */
     .main-wrapper {
-        flex-direction: row !important; 
-        align-items: stretch !important; 
+        overflow: auto !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
         padding: 6px !important;
-        gap: 6px !important; 
+        gap: 6px !important;
     }
 
-    /* Đã tăng bề ngang từ 130px lên 160px để Khung chat to ra */
+    /* Modal overlay cũng cho phép cuộn (phòng trường hợp modal cao hơn màn hình) */
+    .modal-overlay {
+        overflow: auto !important;
+    }
+
     .chat-container, .leaderboard-container {
-        width: 200px !important; 
-        max-width: 200px !important; 
+        width: 200px !important;
+        max-width: 200px !important;
         height: 96vh !important;
     }
-    
-    /* Bảng trò chơi tự động nhỏ lại để nhường chỗ */
+
     .app-container {
-        flex: 1; 
+        flex: 1;
         height: 96vh !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
-        overflow: hidden !important; 
+        overflow: hidden !important;
     }
 }
+
+
 
 /* ===============================
    TỐI ƯU HÓA TỶ LỆ UI CHO MOBILE (CHỐNG TRÀN NÚT)
