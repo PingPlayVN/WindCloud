@@ -453,7 +453,39 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
     }
 }
 
+/* ===============================
+   FIX LỖI TRÀN BẢNG CẦU BỆT / MODAL TRÊN MOBILE
+================================== */
+.modal-content {
+    max-width: 100% !important;
+    overflow: hidden !important; 
+}
 
+.modal-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important; 
+}
+
+.tab-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.bang-cau-bet {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important; 
+    -webkit-overflow-scrolling: touch !important; 
+}
+
+#canvas-cau-diem {
+    max-width: 100% !important;
+    height: auto !important;
+}
 
 /* ===============================
    TỐI ƯU HÓA TỶ LỆ UI CHO MOBILE (CHỐNG TRÀN NÚT)
