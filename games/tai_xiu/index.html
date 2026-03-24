@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tài Xỉu Pro UI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Back to Wind Game button (external handler loaded from root) -->
+    <div style="position: fixed; top: 10px; left: 10px; z-index: 9999; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 8px; display: flex; align-items: center;"
+        id="backButton">
+        <button onclick="exitToWindGame()"
+            style="background: linear-gradient(135deg, #d32f2f, #b71c1c); color: white; border: 2px solid #ff6b6b; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; transition: all 0.2s; box-shadow: 0 4px 8px rgba(211, 47, 47, 0.3);">EXIT</button>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="chat-container">
+            <h2 class="chat-title">💬 KÊNH CHAT TỔNG</h2>
+            <div id="chat-messages" class="chat-messages">
+                <div style="text-align:center; color:#888; margin-top: 20px;">Đang tải tin nhắn...</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." maxlength="80">
+                <button id="btn-send-chat">GỬI</button>
+            </div>
+        </div>
+
+        <div class="app-container">
+            <div class="user-panel">
+                <div class="user-avatar">👤</div>
+                <div class="user-balance" id="balance">0đ</div>
+                
+                <button id="btn-music" onclick="toggleMusic()" style="margin-left: auto; background: #333; border: 1px solid #f1c40f; border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 16px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#333'">🔇</button>
+
+                <button onclick="moBangDiemDanh()" style="position: relative; margin-left: 10px; background: #333; border: 1px solid #f1c40f; border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 16px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#333'">
+                    🎁
+                    <span id="badge-diem-danh" style="display: none; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; background: #e74c3c; border-radius: 50%; box-shadow: 0 0 5px #e74c3c; animation: pulse-glow 1s infinite alternate;"></span>
+                </button>
+
+                <button onclick="moBangBienDong()" style="margin-left: 10px; background: #333; border: 1px solid #f1c40f; border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 16px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#333'">🧾</button>
+            </div>
+
+            <header class="header">
+                <div class="session-info">Phiên: <span id="sessionId" class="highlight">#0000</span></div>
+                <div class="timer">Thời gian: <span id="countdown" class="highlight-timer">00</span>s</div>
+            </header>
+
+            <main class="center-stage">
+                <div class="plate">
+                    <div class="dice-container" id="dice-box">
+                        <div class="dice" id="dice1">?</div>
+                        <div class="dice" id="dice2">?</div>
+                        <div class="dice" id="dice3">?</div>
+                    </div>
+                </div>
+                <div class="total-score" id="totalResult">Sẵn sàng cược!</div>
+            </main>
+
+            <section class="betting-board">
+                <div class="bet-zone" id="zone-xiu" onclick="chonCua('XỈU')">
+                    <h2>XỈU</h2><p>4 - 10</p><div class="multiplier">1 ăn 1</div>
+                    <div class="bet-info">
+                        <div class="my-bet pending" id="pending-xiu" style="display: none;">+0đ</div>
+                        <div class="my-bet confirmed" id="confirmed-xiu">0đ</div>
+                    </div>
+                </div>
+
+                <div class="bet-zone" id="zone-tai" onclick="chonCua('TÀI')">
+                    <h2>TÀI</h2><p>11 - 17</p><div class="multiplier">1 ăn 1</div>
+                    <div class="bet-info">
+                        <div class="my-bet pending" id="pending-tai" style="display: none;">+0đ</div>
+                        <div class="my-bet confirmed" id="confirmed-tai">0đ</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="action-panel">
+                <button class="btn btn-cancel" id="btn-cancel" onclick="huyCuoc()">HỦY CƯỢC</button>
+                <button class="btn btn-confirm" id="btn-confirm" onclick="xacNhanCuoc()">XÁC NHẬN</button>
+            </section>
+
+            <section class="chips-board">
+                <div class="chip" onclick="chonChip(1000, this)">1K</div>
+                <div class="chip active" onclick="chonChip(10000, this)">10K</div>
+                <div class="chip" onclick="chonChip(50000, this)">50K</div>
+                <div class="chip" onclick="chonChip(100000, this)">100K</div>
+                <div class="chip" onclick="chonChip(500000, this)">500K</div>
+                <div class="chip" onclick="chonChip(1000000, this)">1M</div>
+                <div class="chip" onclick="chonChip(10000000, this)">10M</div>
+                <div class="chip" onclick="chonChip(50000000, this)">50M</div>
+                <div class="chip btn-all-in" onclick="chonChip('ALL', this)">ALL IN</div>
+            </section>
+
+            <div class="notification" id="noti">Chào mừng bạn!</div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-history" onclick="moBangLichSu()">📊 XEM LỊCH SỬ PHIÊN</button>
+            </div>
+        </div> 
+
+        <div class="leaderboard-container">
+            <h2 class="leaderboard-title">🏆 TOP ĐẠI GIA</h2>
+            <div id="leaderboard-list">
+                <div style="text-align:center; padding: 20px; color:#ccc;">Đang tải dữ liệu...</div>
+            </div>
+        </div>
+    </div> <div class="modal-overlay" id="modal-lich-su" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: #f1c40f; text-shadow: 0 0 10px #f1c40f;">LỊCH SỬ PHIÊN</h2>
+                <button class="btn-close" onclick="dongBangLichSu()">✖</button>
+            </div>
+
+            <div class="modal-tabs">
+                <button class="tab-btn active" onclick="chuyenTab('tab-cau-diem', this)">CẦU ĐIỂM</button>
+                <button class="tab-btn" onclick="chuyenTab('tab-cau-bet', this)">CẦU BỆT</button>
+            </div>
+
+            <div class="modal-body">
+                <div id="tab-cau-diem" class="tab-content active" style="overflow-x: auto;">
+                    <canvas id="canvas-cau-diem" width="550" height="200"></canvas>
+                </div>
+
+                <div id="tab-cau-bet" class="tab-content" style="display: none;">
+                    <div id="bang-cau-bet" class="bang-cau-bet">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-bien-dong" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 style="color: #f1c40f; text-shadow: 0 0 10px #f1c40f; font-size: 18px;">BIẾN ĐỘNG SỐ DƯ</h2>
+                <button class="btn-close" onclick="dongBangBienDong()">✖</button>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto; padding: 10px 20px;" id="danh-sach-bien-dong">
+                </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-diem-danh" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 style="color: #f1c40f; text-shadow: 0 0 10px #f1c40f; font-size: 18px;">🎁 ĐIỂM DANH 7 NGÀY</h2>
+                <button class="btn-close" onclick="dongBangDiemDanh()">✖</button>
+            </div>
+            <div class="modal-body" style="padding: 20px; text-align: center;">
+                <p style="color: #ccc; margin-bottom: 15px; font-size: 14px;">Đăng nhập mỗi ngày để nhận thưởng. Nếu bỏ lỡ sẽ quay lại Ngày 1!</p>
+                <div id="danh-sach-ngay" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                    </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
+    <div id="login-screen" class="modal-overlay" style="display: flex; z-index: 9999; background: #1a0000;">
+        <div style="text-align: center; background: rgba(0,0,0,0.8); padding: 40px; border-radius: 20px; border: 2px solid #f1c40f; box-shadow: 0 0 30px #f1c40f;">
+            <h1 style="color: #f1c40f; margin-bottom: 10px; text-shadow: 2px 2px 0px #000;">TÀI XỈU PRO</h1>
+            <p style="margin-bottom: 30px; color: #ccc;">Vui lòng đăng nhập để lưu trữ số dư</p>
+            <button id="btn-login" class="btn btn-confirm" style="padding: 15px 30px; font-size: 18px;">
+                ĐĂNG NHẬP BẰNG GOOGLE
+            </button>
+        </div>
+    </div>
+
+    <audio id="bg-music" src="nhac-nen.mp3" loop></audio>
+    <script src="main.js"></script>
+    <!-- External exit handler kept at site root so game folder can be updated independently -->
+    <script src="../../js/game-exit.js"></script>
+    <script>
+        // Mobile fullscreen: requires a user gesture (tap/click) on most browsers.
+        (function initMobileFullscreen() {
+            const isMobile =
+                /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+                (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+            if (!isMobile) return;
+
+            let ran = false;
+            function run() {
+                if (ran) return;
+                ran = true;
+
+                const docEl = document.documentElement;
+                try {
+                    if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+                    else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+                    else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            document.addEventListener('click', run, { once: true });
+            document.addEventListener('touchend', run, { once: true, passive: true });
+        })();
+    </script>
+</body>
+</html>

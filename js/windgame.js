@@ -8,6 +8,13 @@ const GAMES = [
         desc: 'Trò chơi chiến đấu xe tăng PvP',
         thumb: './games/tankbattle/thumnail.png',
         url: './games/tankbattle/index.html'
+    },
+    {
+        id: 'tai_xiu',
+        title: 'Tài Xỉu Pro',
+        desc: 'Game tài xỉu + chat',
+        thumb: './games/tai_xiu/thumnail.png',
+        url: './games/tai_xiu/index.html'
     }
     // future games can be appended here
 ];
