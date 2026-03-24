@@ -364,128 +364,56 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
         overflow: hidden !important;
         padding: 0 !important;
         margin: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        background: #050000 !important; /* Xóa viền trắng */
+        width: 100vw;
+        height: 100vh;
     }
 
-    /* BỎ CÁCH DÙNG SCALE CŨ, SỬ DỤNG FLEX KẾT HỢP ĐẢO NGƯỢC WV/VH */
-    .main-wrapper {
+    .main-wrapper, .modal-overlay {
         position: fixed !important;
         top: 50% !important;
         left: 50% !important;
-        
-        /* Đảo kích thước: Width = chiều dọc ĐT, Height = chiều ngang ĐT */
         width: 100vh !important;
         height: 100vw !important;
-        max-width: none !important;
-        
-        /* Xoay 90 độ mà không dùng scale bóp méo */
         transform: translate(-50%, -50%) rotate(90deg) !important;
         transform-origin: center center !important;
-        
-        box-sizing: border-box !important;
-        overflow: hidden !important; /* Chống cuộn toàn trang */
+        box-sizing: border-box;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+    }
 
-        display: flex !important;
+    /* Wrapper: cho phép scroll nếu nội dung tràn (không khóa overflow) */
+    .main-wrapper {
+        overflow: auto !important;
         flex-direction: row !important;
         align-items: stretch !important;
-        justify-content: space-between !important;
         padding: 6px !important;
         gap: 6px !important;
     }
 
-    /* Ghi đè chiều cao. KHÔNG DÙNG vh/dvh VÌ TRÌNH DUYỆT SẼ TÍNH SAI KHI ĐÃ XOAY */
-    .app-container, .chat-container, .leaderboard-container {
-        height: 100% !important; /* Tự động lấy full 100vw của main-wrapper */
-        margin: 0 !important;
-        max-height: none !important;
-    }
-
-    /* Cố định lại tỷ lệ khung Chat và BXH */
-    .chat-container, .leaderboard-container {
-        width: clamp(160px, 25%, 220px) !important;
-        flex-shrink: 0 !important;
-    }
-
-    /* Khung game chiếm toàn bộ phần diện tích còn lại ở giữa */
-    .app-container {
-        flex: 1 !important;
-        width: auto !important;
-    }
-
-    /* --- FIX CÁC MODAL OVERLAY (LỊCH SỬ, ĐIỂM DANH, SỐ DƯ) --- */
+    /* Modal overlay cũng cho phép cuộn (phòng trường hợp modal cao hơn màn hình) */
     .modal-overlay {
-        position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        width: 100vh !important;
-        height: 100vw !important;
-        transform: translate(-50%, -50%) rotate(90deg) !important;
-        transform-origin: center center !important;
-        padding: 10px !important;
-        box-sizing: border-box !important;
-        background: rgba(0, 0, 0, 0.9) !important;
+        overflow: auto !important;
     }
 
-    .modal-content {
-        width: 100% !important;
-        max-height: 100% !important;
+    .chat-container, .leaderboard-container {
+        /* Sau khi rotate 90deg: trục "cao" thực tế là vw, nên dùng vw để tránh bị dãn quá mức */
+        width: clamp(150px, 24vh, 220px) !important;
+        max-width: none !important;
+        height: calc(100vw - 12px) !important;
+    }
+
+    .app-container {
+        flex: 1;
+        height: calc(100vw - 12px) !important;
         display: flex !important;
         flex-direction: column !important;
-    }
-
-    .modal-body {
-        flex: 1 !important;
-        overflow-y: auto !important;
-    }
-
-    /* --- FIX MÀN HÌNH ĐĂNG NHẬP (NẾU CÓ HIỂN THỊ TRƯỚC KHI VÀO GAME) --- */
-    #login-screen {
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    #login-screen > div {
-        transform: rotate(90deg) !important; /* Xoay riêng form đăng nhập */
-        width: 80vh !important;
-        max-width: 90% !important;
-        padding: 20px !important;
+        justify-content: space-between !important;
+        overflow: hidden !important;
     }
 }
 
-/* ===============================
-   FIX LỖI TRÀN BẢNG CẦU BỆT / MODAL TRÊN MOBILE
-================================== */
-.modal-content {
-    max-width: 100% !important;
-    overflow: hidden !important; 
-}
 
-.modal-body {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    overflow-x: hidden !important; 
-}
-
-.tab-content {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-}
-
-.bang-cau-bet {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    overflow-x: auto !important; 
-    -webkit-overflow-scrolling: touch !important; 
-}
-
-#canvas-cau-diem {
-    max-width: 100% !important;
-    height: auto !important;
-}
 
 /* ===============================
    TỐI ƯU HÓA TỶ LỆ UI CHO MOBILE (CHỐNG TRÀN NÚT)
