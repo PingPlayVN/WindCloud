@@ -495,3 +495,39 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
     .rank-2 .lb-rank, .rank-2 .lb-name { font-size: 9px !important; }
     .rank-3 .lb-rank, .rank-3 .lb-name { font-size: 8px !important; }
 }
+
+/* ===============================
+   FIT FULL MÀN HÌNH KHI XOAY NGANG (MOBILE LANDSCAPE)
+   - Không cần vuốt xuống (không scroll trang)
+   - Chat/BXH vẫn cuộn bên trong
+================================== */
+@media screen and (max-width: 1024px) and (orientation: landscape) {
+    body {
+        padding: 0 !important;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        align-items: stretch !important;
+    }
+
+    .main-wrapper {
+        height: 100vh;
+        height: 100dvh;
+        max-width: 100% !important;
+        align-items: stretch !important;
+        box-sizing: border-box;
+        padding: 6px !important;
+        gap: 6px !important;
+        overflow: hidden !important;
+    }
+
+    .chat-container, .leaderboard-container, .app-container {
+        height: 100% !important;
+    }
+
+    .chat-container, .leaderboard-container {
+        width: clamp(150px, 24vw, 240px) !important;
+        max-width: none !important;
+    }
+}
