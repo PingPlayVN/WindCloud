@@ -21,12 +21,14 @@ let nguoiDungHienTai = null;
 
 // Xử lý nút Đăng nhập (Dùng Redirect thay cho Popup)
 document.getElementById('btn-login').addEventListener('click', () => {
-    // Đổi chữ trên nút để người dùng biết đang tải
-    document.getElementById('btn-login').innerText = "ĐANG CHUYỂN HƯỚNG...";
-    
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Chuyển sang dùng Redirect để tránh lỗi bảo mật COOP
-    auth.signInWithRedirect(provider); 
+    // Đổi từ Redirect sang Popup
+    auth.signInWithPopup(provider).then((result) => {
+        console.log("Đăng nhập thành công!");
+    }).catch((error) => {
+        console.error("Lỗi đăng nhập:", error);
+        alert("Lỗi: " + error.message);
+    });
 });
 
 // Lắng nghe trạng thái đăng nhập
@@ -51,8 +53,9 @@ auth.onAuthStateChanged(async (user) => {
         nguoiDungHienTai = user;
         
         // ẨN MÀN HÌNH ĐĂNG NHẬP (Thêm kiểm tra để chắc chắn không lỗi)
+        const loginScreen = document.getElementById('login-screen');
         if (loginScreen) {
-            loginScreen.style.display = 'none'; 
+            loginScreen.style.setProperty('display', 'none', 'important');
         }
 
         // Cập nhật ảnh đại diện
