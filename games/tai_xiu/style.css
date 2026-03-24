@@ -397,14 +397,15 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
     }
 
     .chat-container, .leaderboard-container {
-        width: 200px !important;
-        max-width: 200px !important;
-        height: 96vh !important;
+        /* Sau khi rotate 90deg: trục "cao" thực tế là vw, nên dùng vw để tránh bị dãn quá mức */
+        width: clamp(150px, 24vh, 220px) !important;
+        max-width: none !important;
+        height: calc(100vw - 12px) !important;
     }
 
     .app-container {
         flex: 1;
-        height: 96vh !important;
+        height: calc(100vw - 12px) !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
@@ -424,12 +425,14 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
         width: 200px !important; /* Tăng từ 130px lên 160px */
         max-width: 200px !important;
         padding: 6px !important;
-        height: 96vh !important; 
+        height: 92vh !important;
+        height: 92dvh !important;
     }
 
     .app-container { 
         padding: 6px 8px !important; 
-        height: 96vh !important; 
+        height: 92vh !important;
+        height: 92dvh !important;
         display: flex !important; 
         flex-direction: column !important; 
         justify-content: space-evenly !important; 
