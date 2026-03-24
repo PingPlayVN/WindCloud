@@ -368,7 +368,31 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
         height: 100vh;
     }
 
-    .main-wrapper, .modal-overlay {
+    /* Scale UI xuống 6/10 để vừa khít điện thoại, không tràn viền/không cần vuốt trang */
+    :root { --tx-mobile-scale: 0.6; }
+
+    .main-wrapper {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        width: 100vh !important;
+        height: 100vw !important;
+        transform: translate(-50%, -50%) rotate(90deg) scale(var(--tx-mobile-scale)) !important;
+        transform-origin: center center !important;
+        box-sizing: border-box;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+        overflow: hidden !important; /* không cuộn trang */
+
+        flex-direction: row !important;
+        align-items: stretch !important;
+        padding: 6px !important;
+        gap: 6px !important;
+    }
+
+    /* Modal: vẫn xoay ngang nhưng không scale để dễ đọc */
+    .modal-overlay {
         position: fixed !important;
         top: 50% !important;
         left: 50% !important;
@@ -380,19 +404,6 @@ body { background: radial-gradient(circle at center, #1a0000 0%, #000000 100%); 
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-x pan-y;
-    }
-
-    /* Wrapper: cho phép scroll nếu nội dung tràn (không khóa overflow) */
-    .main-wrapper {
-        overflow: auto !important;
-        flex-direction: row !important;
-        align-items: stretch !important;
-        padding: 6px !important;
-        gap: 6px !important;
-    }
-
-    /* Modal overlay cũng cho phép cuộn (phòng trường hợp modal cao hơn màn hình) */
-    .modal-overlay {
         overflow: auto !important;
     }
 
