@@ -94,13 +94,6 @@ function registerToolExitListeners() {
         if (data.type !== 'windtool:exit') return;
         closeFullscreenToolOverlay();
     });
-
-    // If user manually exits fullscreen, close overlay too.
-    document.addEventListener('fullscreenchange', () => {
-        const overlay = document.getElementById('windtool-fullscreen-overlay');
-        if (!overlay) return;
-        if (!document.fullscreenElement) closeFullscreenToolOverlay();
-    });
 }
 
 function openToolInFullscreenIframe(url) {
@@ -151,18 +144,6 @@ function openToolInFullscreenIframe(url) {
         document.body.dataset.windtoolOverflow = document.body.style.overflow || '';
     }
     document.body.style.overflow = 'hidden';
-
-    // Try to enter fullscreen from the click gesture.
-    try {
-        const request =
-            iframe.requestFullscreen ||
-            iframe.webkitRequestFullscreen ||
-            overlay.requestFullscreen ||
-            overlay.webkitRequestFullscreen;
-        if (request) request.call(iframe.requestFullscreen ? iframe : overlay);
-    } catch (e) {
-        // ignore
-    }
 }
 
 function closeFullscreenToolOverlay() {

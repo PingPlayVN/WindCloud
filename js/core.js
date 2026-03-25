@@ -211,6 +211,16 @@ function goToWindGameTab() {
 
 // --- 7. PWA REGISTRATION (VỚI TỰ ĐỘNG CẬP NHẬT CACHE) ---
 if ('serviceWorker' in navigator) {
+    // Soft-block user refresh/close while SW is updating (best-effort; some browsers may ignore)
+    window.__windcloudUpdating = false;
+    window.onbeforeunload = (e) => {
+        if (!window.__windcloudUpdating) return undefined;
+        e.preventDefault();
+        // Required for Chrome
+        e.returnValue = '';
+        return '';
+    };
+
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
             .then((reg) => {
@@ -225,6 +235,7 @@ if ('serviceWorker' in navigator) {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             // Show a non-blocking update banner so user can refresh when ready
                             if (!document.getElementById('updateBanner')) {
+                                window.__windcloudUpdating = true;
                                 // Tạo background mờ bao phủ toàn màn hình
                                 const overlay = document.createElement('div');
                                 overlay.id = 'updateBanner';
@@ -298,6 +309,7 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!refreshing) {
                 refreshing = true;
+                window.__windcloudUpdating = false;
                 // Tự động tải lại trang để nạp toàn bộ code CSS/JS mới từ Cache mới
                 window.location.reload();
             }
