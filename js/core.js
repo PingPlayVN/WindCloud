@@ -358,19 +358,30 @@ export { db, auth, switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, 
 document.addEventListener('fullscreenchange', () => {
     // Nếu có một phần tử đang được bật Toàn màn hình (thường là Video)
     if (document.fullscreenElement) {
-        // Mở khóa và ép thiết bị xoay ngang (Landscape)
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch((err) => {
-                console.log("Không thể ép xoay ngang (có thể do thiết bị không hỗ trợ):", err);
-            });
+        // Chỉ ép xoay ngang cho một số trải nghiệm cần thiết (ví dụ Wind Game),
+        // tránh ép xoay khi mở Tool (Tử Vi) trên mobile.
+        const shouldForceLandscape =
+            !!document.getElementById('windgame-fullscreen-overlay') ||
+            !!document.getElementById('windgame-fullscreen-iframe');
+
+        if (shouldForceLandscape && screen.orientation && screen.orientation.lock) {
+            screen.orientation
+                .lock('landscape')
+                .then(() => {
+                    window.__orientationLockedByWindcloud = true;
+                })
+                .catch((err) => {
+                    console.log("Không thể ép xoay ngang (có thể do thiết bị không hỗ trợ):", err);
+                });
         }
     } else {
-        // Khi người dùng bấm thoát Toàn màn hình -> ép thiết bị khóa lại thành dọc (Portrait)
-        if (screen.orientation && screen.orientation.lock) {
+        // Chỉ khóa lại dọc nếu trước đó chính WindCloud đã ép xoay ngang
+        if (window.__orientationLockedByWindcloud && screen.orientation && screen.orientation.lock) {
             screen.orientation.lock('portrait').catch((err) => {
                 console.log("Không thể khóa dọc:", err);
             });
         }
+        window.__orientationLockedByWindcloud = false;
     }
 });
 
