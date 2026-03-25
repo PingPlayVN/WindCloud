@@ -831,24 +831,34 @@ async function nhanThuongDiemDanh(ngayIndex) {
 // ==========================================
 // 14. XỬ LÝ NHẠC NỀN (BACKGROUND MUSIC)
 // ==========================================
-const bgMusic = document.getElementById('bg-music');
-const btnMusic = document.getElementById('btn-music');
+const bgMusic = document.getElementById("bg-music");
+const btnMusic = document.getElementById("btn-music");
 let isMusicPlaying = false;
 
-// Đặt âm lượng nhạc nền xuống 40% để người chơi không bị giật mình
+const MUSIC_ICON_OFF = "\uD83D\uDD07";
+const MUSIC_ICON_ON  = "\uD83D\uDD0A";
+
+function setMusicUI(playing) {
+    isMusicPlaying = !!playing;
+    if (btnMusic) btnMusic.innerText = playing ? MUSIC_ICON_ON : MUSIC_ICON_OFF;
+}
+
+setMusicUI(false);
+
+// volume 40%
 bgMusic.volume = 0.4;
+
+// Keep UI in sync even if music starts via autoplay / browser policy.
+bgMusic.addEventListener("play", () => setMusicUI(true));
+bgMusic.addEventListener("pause", () => setMusicUI(false));
+bgMusic.addEventListener("ended", () => setMusicUI(false));
 
 function autoStartMusicIfRequested() {
     try {
         const params = new URLSearchParams(window.location.search || "");
         if (params.get("autoplayMusic") !== "1") return;
-        if (isMusicPlaying) return;
-
-        bgMusic.play().then(() => {
-            btnMusic.innerText = "ðŸ”Š";
-            isMusicPlaying = true;
-        }).catch((e) => {
-            // Autoplay can be blocked on some browsers; fallback remains the first in-game tap.
+        if (!bgMusic.paused) return;
+        bgMusic.play().catch((e) => {
             console.log("Autoplay music blocked:", e);
         });
     } catch (e) {
@@ -858,33 +868,32 @@ function autoStartMusicIfRequested() {
 
 autoStartMusicIfRequested();
 
-function toggleMusic() {
-    if (isMusicPlaying) {
+function toggleMusic(ev) {
+    try { if (ev && ev.stopPropagation) ev.stopPropagation(); } catch (e) {}
+
+    const currentlyPlaying = !bgMusic.paused;
+    if (currentlyPlaying) {
         bgMusic.pause();
-        btnMusic.innerText = "🔇";
-        isMusicPlaying = false;
-    } else {
-        bgMusic.play().then(() => {
-            btnMusic.innerText = "🔊";
-            isMusicPlaying = true;
-        }).catch(err => {
-            console.log("Lỗi phát nhạc:", err);
-            hienThongBao("Không thể phát nhạc, vui lòng thử lại!", "red");
-        });
+        return;
     }
+
+    bgMusic.play().catch(err => {
+        console.log("Music play error:", err);
+        try { hienThongBao("Khong the phat nhac, vui long thu lai!", "red"); } catch (e) {}
+    });
 }
 
-// Tuyệt chiêu: Tự động phát nhạc khi người dùng bấm vào web lần đầu tiên
-document.body.addEventListener('click', function autoPlayMusic() {
-    if (!isMusicPlaying) {
+// Auto-play on first in-game tap (but ignore the music button tap)
+document.body.addEventListener("click", function autoPlayMusic(e) {
+    try {
+        if (e && btnMusic && (e.target === btnMusic || btnMusic.contains(e.target))) return;
+    } catch (ignored) {}
+
+    if (bgMusic.paused) {
         bgMusic.play().then(() => {
-            btnMusic.innerText = "🔊";
-            isMusicPlaying = true;
-            // Bỏ lắng nghe sự kiện này sau khi nhạc đã phát thành công
-            document.body.removeEventListener('click', autoPlayMusic);
-        }).catch(e => {
-            // Trình duyệt chưa cho phép
-            console.log("Trình duyệt chặn autoplay:", e);
+            document.body.removeEventListener("click", autoPlayMusic);
+        }).catch(err => {
+            console.log("Autoplay music blocked:", err);
         });
     }
-}, { once: true }); // once: true giúp sự kiện này chỉ chực chờ chạy đúng 1 lần
+}, { once: true });
