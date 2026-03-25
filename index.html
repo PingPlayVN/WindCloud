@@ -76,6 +76,9 @@
         <li class="menu-item" data-app="vocab" id="menu-vocab">
             <span class="icon">📚</span> Vocab Checker
         </li>
+        <li class="menu-item" data-app="windtool" id="menu-windtool">
+            <span class="icon">🧰</span> Wind Tool
+        </li>
         <div style="height:1px; background:var(--border); margin:10px 15px;"></div>
 
         <li class="menu-item" id="loginBtn">
@@ -273,6 +276,35 @@
             <!-- Game cards grid (rendered by js/windgame.js) -->
             <div class="game-grid" id="windgame-grid">
                 <!-- cards will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- === Wind Tool === -->
+    <div id="app-windtool" style="display: none;">
+        <div class="windgame-container">
+            <div class="windgame-header">
+                <h1>🧰 Wind Tool</h1>
+                <p>Chọn công cụ để mở. Nhấn vào card để chạy ngay trong WindCloud.</p>
+            </div>
+
+            <!-- Tool cards grid (rendered by js/windtool.js) -->
+            <div class="game-grid" id="windtool-grid"></div>
+
+            <!-- Embedded tool frame -->
+            <div class="windtool-frame-area" id="windtool-frame-area" style="display:none;">
+                <div class="windtool-frame-header">
+                    <button class="btn-header" id="btnWindToolBack" type="button">← Quay lại</button>
+                    <button class="btn-header" id="btnWindToolOpenTab" type="button">Mở tab</button>
+                </div>
+                <iframe
+                    id="windtoolFrame"
+                    class="windtool-frame"
+                    title="Wind Tool"
+                    src="about:blank"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                ></iframe>
             </div>
         </div>
     </div>

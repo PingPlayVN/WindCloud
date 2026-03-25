@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Lập lá số tử vi trực tuyến. Nhập ngày giờ sinh âm lịch hoặc dương lịch để xem lá số tử vi đầy đủ 12 cung."
+    />
+    <link rel="icon" type="image/svg+xml" href="./vite.svg" />
+    <link rel="stylesheet" href="./assets/app.css" />
+    <style>
+      #tuviExitBtn {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1000000;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      #tuviExitBtn:hover {
+        background: rgba(0, 0, 0, 0.85);
+      }
+    </style>
+    <title>Tử Vi</title>
+  </head>
+  <body>
+    <button id="tuviExitBtn" type="button" aria-label="Thoát về Wind Tool">← Wind Tool</button>
+    <div id="root"></div>
+    <script>
+      (function () {
+        const btn = document.getElementById('tuviExitBtn');
+        if (!btn) return;
+
+        const inIframe = window.self !== window.top;
+        if (!inIframe) {
+          btn.style.display = 'none';
+          return;
+        }
+
+        btn.addEventListener('click', () => {
+          try {
+            window.parent.postMessage({ type: 'windtool:exit' }, '*');
+          } catch (e) {}
+        });
+      })();
+    </script>
+    <script type="module" src="./assets/app.js"></script>
+  </body>
+</html>

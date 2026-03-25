@@ -7,6 +7,7 @@ import { initWindDrop } from './drop.js';
 import { db, auth } from './firebase.js';
 import { showLogin, closeLogin, loginAdmin, logout, initAuth } from './auth.js';
 import { initWindGame } from './windgame.js';
+import { initWindTool } from './windtool.js';
 import { setupProtection } from './protection.js';
 import './offline.js'; // Offline support for Color Studio & Wind Game
 import { loadCSS } from './utils.js';
@@ -62,7 +63,7 @@ function switchApp(appName) {
     const menuItems = document.querySelectorAll('.sidebar-menu .menu-item');
     menuItems.forEach(item => item.classList.remove('active'));
 
-    ['app-cloud', 'app-palette', 'app-drop', 'app-windgame', 'app-vocab'].forEach(id => {
+    ['app-cloud', 'app-palette', 'app-drop', 'app-windgame', 'app-vocab', 'app-windtool'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
@@ -94,6 +95,17 @@ function switchApp(appName) {
         document.getElementById('app-windgame').style.display = 'block';
         document.title = "Wind Cloud - Wind Game";
         initWindGame();
+    }
+    else if (appName === 'windtool') {
+        // Reuse Wind Game card styles
+        loadCSS('./css/windgame.css');
+        loadCSS('./css/windtool.css');
+        const el = document.querySelector(`.sidebar-menu .menu-item[data-app="windtool"]`);
+        if (el) el.classList.add('active');
+        const appContainer = document.getElementById('app-windtool');
+        if (appContainer) appContainer.style.display = 'block';
+        document.title = "Wind Cloud - Wind Tool";
+        initWindTool();
     }
     else if (appName === 'vocab') {
         loadCSS('./css/vocab.css');

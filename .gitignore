@@ -2,4 +2,6 @@
 compare.txt
 node_modules/
 dist/
+apps/tu_vi_build/
+.npm-cache/
 .DS_Store
