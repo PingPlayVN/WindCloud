@@ -836,7 +836,27 @@ const btnMusic = document.getElementById('btn-music');
 let isMusicPlaying = false;
 
 // Đặt âm lượng nhạc nền xuống 40% để người chơi không bị giật mình
-bgMusic.volume = 0.4; 
+bgMusic.volume = 0.4;
+
+function autoStartMusicIfRequested() {
+    try {
+        const params = new URLSearchParams(window.location.search || "");
+        if (params.get("autoplayMusic") !== "1") return;
+        if (isMusicPlaying) return;
+
+        bgMusic.play().then(() => {
+            btnMusic.innerText = "ðŸ”Š";
+            isMusicPlaying = true;
+        }).catch((e) => {
+            // Autoplay can be blocked on some browsers; fallback remains the first in-game tap.
+            console.log("Autoplay music blocked:", e);
+        });
+    } catch (e) {
+        // ignore
+    }
+}
+
+autoStartMusicIfRequested();
 
 function toggleMusic() {
     if (isMusicPlaying) {

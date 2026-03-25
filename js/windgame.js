@@ -69,7 +69,10 @@ function renderGameCards() {
 
 export function launchGame(gameOrUrl) {
     const game = typeof gameOrUrl === 'string' ? { url: gameOrUrl, id: '' } : gameOrUrl;
-    const url = game.url;
+    let url = game.url;
+    if (game.id === 'tai_xiu') {
+        url += (url.includes('?') ? '&' : '?') + 'autoplayMusic=1';
+    }
     const isLocalGame = url.includes('/games/');
     if (isLocalGame) {
         // Special case: on mobile, open Tai Xiu in a fullscreen iframe so fullscreen
@@ -147,7 +150,7 @@ function openLocalGameInFullscreenIframe(url) {
     iframe.style.border = '0';
     iframe.setAttribute('allowfullscreen', '');
     iframe.setAttribute('webkitallowfullscreen', '');
-    iframe.setAttribute('allow', 'fullscreen');
+    iframe.setAttribute('allow', 'autoplay; fullscreen');
 
     // Fallback close button (top-right) in case the game fails to load / exit handler isn't reachable
     const closeBtn = document.createElement('button');
