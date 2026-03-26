@@ -116,28 +116,8 @@ function openToolInFullscreenIframe(url) {
     iframe.setAttribute('webkitallowfullscreen', '');
     iframe.setAttribute('allow', 'fullscreen; clipboard-read; clipboard-write');
 
-    const closeBtn = document.createElement('button');
-    closeBtn.id = 'windtool-fullscreen-exit';
-    closeBtn.type = 'button';
-    closeBtn.textContent = '×';
-    closeBtn.style.position = 'fixed';
-    closeBtn.style.top = '10px';
-    closeBtn.style.right = '10px';
-    closeBtn.style.zIndex = '1000000';
-    closeBtn.style.background = 'rgba(0,0,0,0.85)';
-    closeBtn.style.color = '#fff';
-    closeBtn.style.border = '2px solid #ff6b6b';
-    closeBtn.style.padding = '8px 14px';
-    closeBtn.style.borderRadius = '999px';
-    closeBtn.style.fontWeight = '700';
-    closeBtn.style.fontSize = '22px';
-    closeBtn.style.lineHeight = '1';
-    closeBtn.style.cursor = 'pointer';
-    closeBtn.onclick = () => closeFullscreenToolOverlay();
-
     overlay.appendChild(iframe);
     document.body.appendChild(overlay);
-    document.body.appendChild(closeBtn);
 
     // Prevent background scroll while overlay is shown
     if (document.body.dataset.windtoolOverflow === undefined) {
@@ -149,11 +129,9 @@ function openToolInFullscreenIframe(url) {
 function closeFullscreenToolOverlay() {
     const iframe = document.getElementById('windtool-fullscreen-iframe');
     const overlay = document.getElementById('windtool-fullscreen-overlay');
-    const closeBtn = document.getElementById('windtool-fullscreen-exit');
 
     if (iframe) iframe.src = 'about:blank';
     if (overlay) overlay.remove();
-    if (closeBtn) closeBtn.remove();
 
     // Restore background scroll
     if (document.body.dataset.windtoolOverflow !== undefined) {
