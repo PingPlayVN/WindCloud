@@ -213,6 +213,141 @@ let cuocXiuXacNhan = 0;
 let cuocTaiTam = 0;
 let cuocXiuTam = 0;
 
+let isCheDoNanXucXac = false;
+let isKetQuaSanSang = false;
+let ketQuaHienThiSauMoCoc = "";
+let cupDragDangKeo = false;
+let cupDragStartY = 0;
+let cupDragStartOffset = 0;
+let cupDragPointerId = null;
+
+const CUP_OFFSET_MIN = -160;
+const CUP_OFFSET_MAX = 0;
+const CUP_REVEAL_THRESHOLD = -120;
+
+function getPlateEl() {
+    return document.getElementById('plate') || document.querySelector('.plate');
+}
+
+function getCupEl() {
+    return document.getElementById('dice-cup');
+}
+
+function clamp(num, min, max) {
+    return Math.min(max, Math.max(min, num));
+}
+
+function getCupOffset() {
+    const cupEl = getCupEl();
+    if (!cupEl) return 0;
+    const raw = (cupEl.style.getPropertyValue('--cup-y') || '').trim();
+    if (!raw) return 0;
+    const m = raw.match(/-?\d+/);
+    return m ? Number(m[0]) : 0;
+}
+
+function setCupOffset(offsetPx) {
+    const cupEl = getCupEl();
+    if (!cupEl) return;
+    cupEl.style.setProperty('--cup-y', `${offsetPx}px`);
+}
+
+function setCupMode(mode) {
+    const plateEl = getPlateEl();
+    const cupEl = getCupEl();
+    if (!plateEl || !cupEl) return;
+
+    if (mode === 'down') {
+        plateEl.classList.add('cup-down');
+        plateEl.classList.remove('cup-lifted');
+        setCupOffset(0);
+        isCheDoNanXucXac = true;
+        return;
+    }
+
+    plateEl.classList.remove('cup-down');
+    plateEl.classList.remove('cup-lifted');
+    cupEl.classList.remove('pressed');
+    cupEl.classList.remove('dragging');
+    cupDragDangKeo = false;
+    cupDragPointerId = null;
+    setCupOffset(-140);
+    isCheDoNanXucXac = false;
+}
+
+function khoiTaoNanXucXac() {
+    const plateEl = getPlateEl();
+    const cupEl = getCupEl();
+    if (!plateEl || !cupEl) return;
+
+    const onDown = (e) => {
+        if (isKetQuaSanSang) {
+            cupDragDangKeo = true;
+            cupDragPointerId = e.pointerId;
+            cupDragStartY = e.clientY;
+            cupDragStartOffset = getCupOffset();
+            cupEl.classList.add('dragging');
+            try { cupEl.setPointerCapture(e.pointerId); } catch (err) {}
+            e.preventDefault();
+            return;
+        }
+
+        if (!isCheDoNanXucXac) return;
+        e.preventDefault();
+        cupEl.classList.add('pressed');
+        plateEl.classList.add('hard');
+    };
+
+    const onMove = (e) => {
+        if (!cupDragDangKeo) return;
+        if (cupDragPointerId !== e.pointerId) return;
+        const delta = e.clientY - cupDragStartY;
+        const nextOffset = clamp(cupDragStartOffset + delta, CUP_OFFSET_MIN, CUP_OFFSET_MAX);
+        setCupOffset(nextOffset);
+        e.preventDefault();
+    };
+
+    const onUp = () => {
+        if (cupDragDangKeo) {
+            cupDragDangKeo = false;
+            cupEl.classList.remove('dragging');
+
+            const offset = getCupOffset();
+            if (offset <= CUP_REVEAL_THRESHOLD) {
+                // Má»Ÿ cá»‘c / xem káº¿t quáº£
+                plateEl.classList.remove('cup-down');
+                plateEl.classList.add('cup-lifted');
+                setCupOffset(CUP_OFFSET_MIN);
+                isKetQuaSanSang = false;
+                isCheDoNanXucXac = false;
+
+                const totalEl = document.getElementById('totalResult');
+                if (totalEl && ketQuaHienThiSauMoCoc) totalEl.innerText = ketQuaHienThiSauMoCoc;
+                ketQuaHienThiSauMoCoc = "";
+            } else {
+                // Quay láº¡i vá»‹ trÃ­ Ãºp
+                setCupOffset(0);
+            }
+        }
+        cupEl.classList.remove('pressed');
+        plateEl.classList.remove('hard');
+    };
+
+    cupEl.addEventListener('pointerdown', onDown);
+    cupEl.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    cupEl.addEventListener('pointerleave', onUp);
+}
+
+function datKetQuaChoNguoiChoiMoCoc(text) {
+    ketQuaHienThiSauMoCoc = text || "";
+    isKetQuaSanSang = true;
+    // Äáº£m báº£o cá»‘c Ä‘ang Ãºp, ngÆ°á»i chÆ¡i tá»± kÃ©o lÃªn Ä‘á»ƒ xem
+    const totalEl = document.getElementById('totalResult');
+    if (totalEl) totalEl.innerText = "KÃ‰O Cá»C LÃŠN Äá»‚ XEM Káº¾T QUáº¢";
+}
+
 // ==========================================
 // 3. QUẢN LÝ GIAO DIỆN (UI) CƯỢC
 // ==========================================
@@ -473,7 +608,8 @@ async function xuLyTraThuong() {
     document.getElementById('dice1').innerText = xucXacKetQua[0];
     document.getElementById('dice2').innerText = xucXacKetQua[1];
     document.getElementById('dice3').innerText = xucXacKetQua[2];
-    document.getElementById('totalResult').innerText = `T\u1ED4NG: ${tong} - ${(ketQuaPhien || '').toUpperCase()}`;
+    const ketQuaText = `T\u1ED4NG: ${tong} - ${(ketQuaPhien || '').toUpperCase()}`;
+    document.getElementById('totalResult').innerText = ketQuaText;
 
     document.getElementById('zone-tai').classList.remove('win');
     document.getElementById('zone-xiu').classList.remove('win');
@@ -551,6 +687,8 @@ function capNhatGame() {
     else {
         choPhepCuoc = true;
         document.querySelector('.plate').classList.remove('shake');
+        isKetQuaSanSang = false;
+        ketQuaHienThiSauMoCoc = "";
         if(giayConLai > 55) {
             document.getElementById('totalResult').innerText = "VUI LÒNG ĐẶT CƯỢC";
         }

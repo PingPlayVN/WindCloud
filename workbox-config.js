@@ -6,7 +6,8 @@ module.exports = {
 	globIgnores: [
 		'**/node_modules/**',
 		'.npm-cache/**',
-		'apps/tu_vi_build/**'
+		'apps/tu_vi_build/**',
+		'version.json'
 	],
 	swDest: 'sw.js',
 	swSrc: 'sw-src.js'

@@ -225,6 +225,20 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
             .then((reg) => {
                 console.log('PWA Service Worker đã đăng ký!', reg.scope);
+                window.__windcloudSwReg = reg;
+
+                // Chủ động kiểm tra update định kỳ (GitHub Pages đôi khi không "updatefound" ngay nếu không reload)
+                const periodicUpdate = () => {
+                    try { reg.update(); } catch (e) {}
+                };
+                periodicUpdate();
+                setInterval(periodicUpdate, 90 * 1000);
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) periodicUpdate();
+                });
+
+                // Check "version.json" để hiện thông báo realtime khi có bản mới (không phụ thuộc SW)
+                setupRealtimeVersionNotify(reg);
 
                 // Lắng nghe sự kiện khi trình duyệt tải về một file sw.js mới (có bản update)
                 reg.addEventListener('updatefound', () => {
@@ -323,9 +337,184 @@ if ('serviceWorker' in navigator) {
                     if (data && data.type === 'SW_ACTIVATED') {
                         if (typeof showToast === 'function') showToast('Ứng dụng đã được cập nhật (cache: ' + (data.cache || '') + ')');
                     }
+                    if (data && data.type === 'UPDATE_NOTIFICATION_CLICKED') {
+                        // best-effort: bring update banner back if user clicked notification
+                        if (typeof showToast === 'function') showToast('Bấm "Cập nhật" để dùng bản mới');
+                    }
                 } catch (e) { /* ignore */ }
             });
         }
+    });
+}
+
+let __windcloudVersionChecked = false;
+let __windcloudCurrentVersion = null;
+let __windcloudUpdateNotified = false;
+
+async function fetchWindCloudVersion() {
+    const url = './version.json?t=' + Date.now();
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('VERSION_HTTP_' + res.status);
+    const data = await res.json();
+    const version = data && (data.version || data.generatedAt);
+    if (!version) throw new Error('VERSION_INVALID');
+    return String(version);
+}
+
+function showRealtimeUpdateBanner(onUpdate) {
+    if (document.getElementById('remoteUpdateBanner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'remoteUpdateBanner';
+    banner.style.position = 'fixed';
+    banner.style.left = '50%';
+    banner.style.top = '12px';
+    banner.style.transform = 'translateX(-50%)';
+    banner.style.maxWidth = '520px';
+    banner.style.width = 'calc(100% - 24px)';
+    banner.style.zIndex = '9999';
+    banner.style.background = 'rgba(0,0,0,0.88)';
+    banner.style.color = '#fff';
+    banner.style.border = '1px solid rgba(255,255,255,0.15)';
+    banner.style.borderRadius = '12px';
+    banner.style.padding = '12px 14px';
+    banner.style.display = 'flex';
+    banner.style.gap = '10px';
+    banner.style.alignItems = 'center';
+    banner.style.justifyContent = 'space-between';
+    banner.style.backdropFilter = 'blur(8px)';
+    banner.style.boxShadow = '0 10px 30px rgba(0,0,0,0.35)';
+
+    const left = document.createElement('div');
+    left.style.display = 'flex';
+    left.style.flexDirection = 'column';
+    left.style.gap = '2px';
+
+    const title = document.createElement('div');
+    title.innerText = 'Có bản cập nhật mới';
+    title.style.fontWeight = '700';
+
+    const desc = document.createElement('div');
+    desc.innerText = 'Bấm "Cập nhật" để dùng phiên bản mới nhất.';
+    desc.style.fontSize = '12px';
+    desc.style.opacity = '0.85';
+
+    left.appendChild(title);
+    left.appendChild(desc);
+
+    const right = document.createElement('div');
+    right.style.display = 'flex';
+    right.style.gap = '8px';
+    right.style.flexWrap = 'wrap';
+    right.style.justifyContent = 'flex-end';
+
+    const btnLater = document.createElement('button');
+    btnLater.type = 'button';
+    btnLater.innerText = 'Để sau';
+    btnLater.style.background = 'transparent';
+    btnLater.style.color = '#fff';
+    btnLater.style.border = '1px solid rgba(255,255,255,0.25)';
+    btnLater.style.borderRadius = '10px';
+    btnLater.style.padding = '8px 12px';
+    btnLater.style.cursor = 'pointer';
+    btnLater.onclick = () => banner.remove();
+
+    const btnEnableNoti = document.createElement('button');
+    btnEnableNoti.type = 'button';
+    btnEnableNoti.innerText = 'Bật thông báo';
+    btnEnableNoti.style.background = 'transparent';
+    btnEnableNoti.style.color = '#fff';
+    btnEnableNoti.style.border = '1px solid rgba(255,255,255,0.25)';
+    btnEnableNoti.style.borderRadius = '10px';
+    btnEnableNoti.style.padding = '8px 12px';
+    btnEnableNoti.style.cursor = 'pointer';
+    btnEnableNoti.onclick = async () => {
+        try {
+            if (!('Notification' in window)) return;
+            const p = await Notification.requestPermission();
+            if (p === 'granted') {
+                if (typeof showToast === 'function') showToast('Đã bật thông báo');
+                btnEnableNoti.remove();
+            }
+        } catch (e) {}
+    };
+
+    const btnUpdate = document.createElement('button');
+    btnUpdate.type = 'button';
+    btnUpdate.innerText = 'Cập nhật';
+    btnUpdate.style.background = 'linear-gradient(135deg, #1a73e8, #0b5bd3)';
+    btnUpdate.style.color = '#fff';
+    btnUpdate.style.border = 'none';
+    btnUpdate.style.borderRadius = '10px';
+    btnUpdate.style.padding = '8px 12px';
+    btnUpdate.style.cursor = 'pointer';
+    btnUpdate.onclick = () => {
+        banner.remove();
+        try { onUpdate(); } catch (e) {}
+    };
+
+    right.appendChild(btnLater);
+    try {
+        if ('Notification' in window && Notification.permission === 'default') right.appendChild(btnEnableNoti);
+    } catch (e) {}
+    right.appendChild(btnUpdate);
+
+    banner.appendChild(left);
+    banner.appendChild(right);
+    document.body.appendChild(banner);
+}
+
+function setupRealtimeVersionNotify(reg) {
+    if (__windcloudVersionChecked) return;
+    __windcloudVersionChecked = true;
+
+    const doCheck = async () => {
+        try {
+            const latest = await fetchWindCloudVersion();
+            if (!__windcloudCurrentVersion) {
+                __windcloudCurrentVersion = latest;
+                return;
+            }
+
+            if (latest !== __windcloudCurrentVersion && !__windcloudUpdateNotified) {
+                __windcloudUpdateNotified = true;
+                if (typeof showToast === 'function') showToast('Có bản cập nhật mới');
+
+                // App-like system notification (nếu user đã cấp quyền)
+                try {
+                    if ('Notification' in window && Notification.permission === 'granted' && reg && typeof reg.showNotification === 'function') {
+                        await reg.showNotification('WindCloud - Có bản cập nhật mới', {
+                            body: 'Mở ứng dụng để cập nhật phiên bản mới nhất.',
+                            tag: 'windcloud-update',
+                            renotify: false,
+                            icon: './icon.png',
+                            badge: './icon.png',
+                            data: { url: './' }
+                        });
+                    }
+                } catch (e) { /* ignore */ }
+
+                showRealtimeUpdateBanner(() => {
+                    // Ưu tiên update SW trước, rồi để flow updatefound/controllerchange xử lý reload
+                    try { reg.update(); } catch (e) {}
+                    try {
+                        if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+                    } catch (e) {}
+                    // fallback (không có SW / SW không waiting)
+                    setTimeout(() => {
+                        try { window.location.reload(); } catch (e) {}
+                    }, 1500);
+                });
+            }
+        } catch (e) {
+            // ignore network/parse errors
+        }
+    };
+
+    doCheck();
+    setInterval(doCheck, 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) doCheck();
     });
 }
 
