@@ -103,7 +103,7 @@ auth.onAuthStateChanged(async (user) => {
         }
 
         // Äá»“ng bá»™ realtime sá»‘ dÆ° (trÃ¡nh lá»‡ch tiá»n khi má»Ÿ nhiá»u tab / thiáº¿t bá»‹)
-        unsubNguoiChoiSnapshot = docRef.onSnapshot((snap) => {
+        unsubNguoiChoiSnapshot = nguoiChoiDocRef.onSnapshot((snap) => {
             if (!snap.exists) return;
             const data = snap.data() || {};
             if (typeof data.soDu === 'number') soDuTien = data.soDu;
