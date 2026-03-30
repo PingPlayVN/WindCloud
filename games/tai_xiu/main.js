@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // 0. CẤU HÌNH FIREBASE VÀ ĐĂNG NHẬP
 // ==========================================
 const firebaseConfig = {
@@ -846,9 +846,9 @@ function chuyenTab(idTabCanMo, theNutBam) {
     }
 }
 
-// ==========================================
+// ===========================================
 // 10. XỬ LÝ BẢNG XẾP HẠNG TOP 10
-// ==========================================
+// ===========================================
 async function taiBangXepHang() {
     const listContainer = document.getElementById('leaderboard-list');
     if (!listContainer) return;
