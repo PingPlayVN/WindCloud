@@ -7,7 +7,6 @@ module.exports = {
 		'**/node_modules/**',
 		'.npm-cache/**',
 		'apps/tu_vi_build/**',
-		'version.json'
 	],
 	swDest: 'sw.js',
 	swSrc: 'sw-src.js'

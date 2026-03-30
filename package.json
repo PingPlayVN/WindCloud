@@ -7,7 +7,7 @@
     "format": "prettier --write .",
     "prepare": "husky install",
     "test": "echo \"No tests configured\" && exit 0",
-    "build-sw": "node scripts/write-version.cjs && workbox injectManifest workbox-config.js"
+    "build-sw": "workbox injectManifest workbox-config.js"
   },
   "devDependencies": {
     "eslint": "^8.40.0",

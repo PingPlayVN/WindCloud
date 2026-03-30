@@ -22,12 +22,6 @@ if (workbox) {
         new workbox.strategies.NetworkOnly()
     );
 
-    // 2b. VERSION CHECK: LuÃ´n lÃ m má»›i version.json Ä‘á»ƒ pháº¡t hiá»‡n báº£n cáº­p nháº­t nhanh
-    workbox.routing.registerRoute(
-        ({url}) => url.pathname.endsWith('/version.json') || url.pathname === '/version.json',
-        new workbox.strategies.NetworkOnly()
-    );
-
     // 3. CHIáº¾N LÆ¯á»¢C CHO HTML: Network First (Æ¯u tiÃªn máº¡ng)
     // LuÃ´n táº£i giao diá»‡n má»›i nháº¥t náº¿u cÃ³ máº¡ng. Náº¿u rá»›t máº¡ng má»›i lÃ´i tá»« Cache ra.
     workbox.routing.registerRoute(
@@ -66,46 +60,9 @@ if (workbox) {
 
     // Xá»­ lÃ½ thÃ´ng bÃ¡o "Skip Waiting" tá»« phÃ­a core.js Ä‘á»ƒ update phiÃªn báº£n má»›i
     self.addEventListener('message', (event) => {
-        try {
-            const data = event.data || {};
-            if (data === 'SKIP_WAITING' || data.type === 'SKIP_WAITING') {
-                self.skipWaiting();
-                return;
-            }
-            if (data && data.type === 'SHOW_UPDATE_NOTIFICATION') {
-                const title = data.title || 'WindCloud - Có bản cập nhật mới';
-                const options = {
-                    body: data.body || 'Mở ứng dụng để cập nhật phiên bản mới nhất.',
-                    tag: 'windcloud-update',
-                    renotify: false,
-                    icon: data.icon || 'icon.png',
-                    badge: data.badge || 'icon.png',
-                    data: { url: data.url || './', action: 'windcloud-update' }
-                };
-                self.registration.showNotification(title, options);
-            }
-        } catch (e) {
-            // ignore
+        if (event.data && event.data === 'SKIP_WAITING') {
+            self.skipWaiting();
         }
-    });
-
-    // Click notification -> focus/open app
-    self.addEventListener('notificationclick', (event) => {
-        try { event.notification.close(); } catch (e) {}
-        const targetUrl = (event.notification && event.notification.data && event.notification.data.url) ? event.notification.data.url : './';
-        event.waitUntil((async () => {
-            const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-            for (const client of allClients) {
-                try {
-                    if ('focus' in client) {
-                        await client.focus();
-                        client.postMessage({ type: 'UPDATE_NOTIFICATION_CLICKED' });
-                        return;
-                    }
-                } catch (e) {}
-            }
-            try { await self.clients.openWindow(targetUrl); } catch (e) {}
-        })());
     });
 
 } else {
