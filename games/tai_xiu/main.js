@@ -846,9 +846,9 @@ function chuyenTab(idTabCanMo, theNutBam) {
     }
 }
 
-// ===========================================
+// ==========================================
 // 10. XỬ LÝ BẢNG XẾP HẠNG TOP 10
-// ===========================================
+// ==========================================
 async function taiBangXepHang() {
     const listContainer = document.getElementById('leaderboard-list');
     if (!listContainer) return;
@@ -896,9 +896,9 @@ taiBangXepHang();
 // Cứ mỗi 30 giây sẽ tải lại BXH một lần để cập nhật tiền mới nhất
 setInterval(taiBangXepHang, 30000);
 
-// ==========================================
+// ===========================================
 // 11. XỬ LÝ KHUNG CHAT (FIREBASE REALTIME DATABASE - MIỄN PHÍ CAO)
-// ==========================================
+// ===========================================
 function khoiTaoChat() {
     const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
