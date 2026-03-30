@@ -18,8 +18,47 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const rtdb = firebase.database();
 let nguoiDungHienTai = null;
+let nguoiChoiDocRef = null;
+let unsubNguoiChoiSnapshot = null;
+let isSoDuDangCapNhat = false;
+
+const LOAI_GIAO_DICH_DAT_CUOC = "\u0110\u1EB7t c\u01B0\u1EE3c T\u00E0i/X\u1EC9u";
+const LOAI_GIAO_DICH_THANG_CUOC = "Th\u1EAFng c\u01B0\u1EE3c";
 
 // Xử lý nút Đăng nhập bằng Popup
+function getNguoiChoiRef() {
+    if (nguoiChoiDocRef) return nguoiChoiDocRef;
+    if (nguoiDungHienTai) return db.collection('nguoi_choi').doc(nguoiDungHienTai.uid);
+    return null;
+}
+
+async function capNhatSoDuTrongTransaction(loaiGiaoDich, soTienThayDoi) {
+    const docRef = getNguoiChoiRef();
+    if (!docRef) throw new Error("NOT_LOGGED_IN");
+    if (typeof soTienThayDoi !== 'number' || !Number.isFinite(soTienThayDoi)) {
+        throw new Error("INVALID_AMOUNT");
+    }
+
+    const bienDongRef = docRef.collection('bien_dong').doc();
+    return db.runTransaction(async (tx) => {
+        const snap = await tx.get(docRef);
+        const data = snap.exists ? (snap.data() || {}) : {};
+        const soDuHienTai = typeof data.soDu === 'number' ? data.soDu : 0;
+        const soDuMoi = soDuHienTai + soTienThayDoi;
+        if (soDuMoi < 0) throw new Error("INSUFFICIENT_FUNDS");
+
+        tx.set(docRef, { soDu: soDuMoi }, { merge: true });
+        tx.set(bienDongRef, {
+            loai: loaiGiaoDich,
+            soTien: soTienThayDoi,
+            soDuMoi: soDuMoi,
+            thoiGian: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        return soDuMoi;
+    });
+}
+
 document.getElementById('btn-login').addEventListener('click', () => {
     document.getElementById('btn-login').innerText = "ĐANG KẾT NỐI...";
     const provider = new firebase.auth.GoogleAuthProvider();
@@ -51,12 +90,33 @@ auth.onAuthStateChanged(async (user) => {
     
     if (user) {
         nguoiDungHienTai = user;
+        if (unsubNguoiChoiSnapshot) {
+            try { unsubNguoiChoiSnapshot(); } catch (e) {}
+            unsubNguoiChoiSnapshot = null;
+        }
+        nguoiChoiDocRef = db.collection('nguoi_choi').doc(user.uid);
         
         // ẨN MÀN HÌNH ĐĂNG NHẬP (Thêm kiểm tra để chắc chắn không lỗi)
         const loginScreen = document.getElementById('login-screen');
         if (loginScreen) {
             loginScreen.style.setProperty('display', 'none', 'important');
         }
+
+        // Äá»“ng bá»™ realtime sá»‘ dÆ° (trÃ¡nh lá»‡ch tiá»n khi má»Ÿ nhiá»u tab / thiáº¿t bá»‹)
+        unsubNguoiChoiSnapshot = docRef.onSnapshot((snap) => {
+            if (!snap.exists) return;
+            const data = snap.data() || {};
+            if (typeof data.soDu === 'number') soDuTien = data.soDu;
+            if (typeof data.chuoiDiemDanh === 'number') chuoiDiemDanh = data.chuoiDiemDanh;
+            if (typeof data.ngayDiemDanhCuoi === 'string') ngayDiemDanhCuoi = data.ngayDiemDanhCuoi;
+
+            const badge = document.getElementById('badge-diem-danh');
+            if (badge) badge.style.display = (ngayDiemDanhCuoi === layNgayChuan(0)) ? 'none' : 'block';
+
+            capNhatUIDongTien();
+        }, (error) => {
+            console.error("Lá»—i lÆ°áº¯ng nghe nguoi_choi:", error);
+        });
 
         // Cập nhật ảnh đại diện
         const avatarBox = document.querySelector('.user-avatar');
@@ -66,7 +126,7 @@ auth.onAuthStateChanged(async (user) => {
         
         hienThongBao(`Chào mừng ${user.displayName}!`, "yellow");
 
-        const docRef = db.collection('nguoi_choi').doc(user.uid);
+        const docRef = nguoiChoiDocRef;
         const docSnap = await docRef.get();
         
         if (docSnap.exists) {
@@ -100,6 +160,11 @@ auth.onAuthStateChanged(async (user) => {
 
         capNhatUIDongTien(); 
     } else {
+        if (unsubNguoiChoiSnapshot) {
+            try { unsubNguoiChoiSnapshot(); } catch (e) {}
+            unsubNguoiChoiSnapshot = null;
+        }
+        nguoiChoiDocRef = null;
         document.getElementById('login-screen').style.display = 'flex';
         setLoginButtonLoading(false);
     }
@@ -118,7 +183,8 @@ auth.getRedirectResult().then((result) => {
 // Hàm lưu tiền lên DB (gọi mỗi khi tiền thay đổi)
 async function luuTienLenDatabase() {
     if (nguoiDungHienTai) {
-        await db.collection('nguoi_choi').doc(nguoiDungHienTai.uid).update({ soDu: soDuTien });
+        // TrÃ¡nh ghi Ä‘Ã¨ soDu tuyá»‡t Ä‘á»‘i (dÃ¹ng capNhatSoDuTrongTransaction thay thÃ¡y).
+        // await db.collection('nguoi_choi').doc(nguoiDungHienTai.uid).update({ soDu: soDuTien });
         taiBangXepHang(); // Gọi load lại BXH ngay lập tức
     }
 }
@@ -167,6 +233,25 @@ function dinhDangTien(soTien) {
     
     // Tiền quá nhỏ thì để số đ (dành cho đánh ALL IN số lẻ tẻ)
     return soTien + 'đ';
+}
+
+function dinhDangTienBienDongDuong(soTien) {
+    if (soTien === 0) return "0";
+    if (soTien >= 1000000) {
+        const m = soTien / 1000000;
+        return Number.isInteger(m) ? m + 'm' : m.toFixed(2) + 'm';
+    } else if (soTien >= 1000) {
+        const k = soTien / 1000;
+        return Number.isInteger(k) ? k + 'k' : k.toFixed(1) + 'k';
+    }
+    return String(soTien);
+}
+
+function dinhDangSoTienBienDong(soTien) {
+    if (typeof soTien !== 'number' || !Number.isFinite(soTien)) return '';
+    if (soTien > 0) return '+' + dinhDangTienBienDongDuong(soTien);
+    if (soTien < 0) return '-' + dinhDangTienBienDongDuong(Math.abs(soTien));
+    return '0';
 }
 
 function capNhatUIDongTien() {
@@ -260,6 +345,42 @@ function xacNhanCuoc() {
     luuTienLenDatabase();
 }
 
+// Override: xÃ¡c nháº­n cÆ°á»£c theo transaction Ä‘á»ƒ trÃ¡nh lá»‡ch soDu khi nhiá»u tab / thiáº¿t bá»‹
+async function xacNhanCuoc() {
+    if (!choPhepCuoc) return;
+    if (isSoDuDangCapNhat) return;
+
+    const tongTam = cuocTaiTam + cuocXiuTam;
+    if (tongTam === 0) return;
+
+    isSoDuDangCapNhat = true;
+    try {
+        const soDuMoi = await capNhatSoDuTrongTransaction(LOAI_GIAO_DICH_DAT_CUOC, -tongTam);
+        soDuTien = soDuMoi;
+
+        cuocTaiXacNhan += cuocTaiTam;
+        cuocXiuXacNhan += cuocXiuTam;
+        cuocTaiTam = 0;
+        cuocXiuTam = 0;
+
+        hienThongBao("\u0110\u1EB6T C\u01AF\u1EE2C TH\u00C0NH C\u00D4NG!", "#2ecc71");
+        capNhatUIDongTien();
+        taiBangXepHang();
+    } catch (error) {
+        const msg = (error && error.message) ? error.message : "";
+        if (msg === "INSUFFICIENT_FUNDS") {
+            hienThongBao("S\u1ED1 d\u01B0 kh\u00F4ng \u0111\u1EE7 \u0111\u1EC3 x\u00E1c nh\u1EADn c\u01B0\u1EE3c!", "red");
+        } else if (msg === "NOT_LOGGED_IN") {
+            hienThongBao("Vui l\u00F2ng \u0111\u0103ng nh\u1EADp \u0111\u1EC3 c\u01B0\u1EE3c.", "red");
+        } else {
+            console.error("L\u1ED7i c\u1EADp nh\u1EADt s\u1ED1 d\u01B0:", error);
+            hienThongBao("L\u1ED7i k\u1EBFt n\u1ED1i, vui l\u00F2ng th\u1EED l\u1EA1i!", "red");
+        }
+    } finally {
+        isSoDuDangCapNhat = false;
+    }
+}
+
 function huyCuoc() {
     if (!choPhepCuoc) return;
     cuocTaiTam = 0;
@@ -288,7 +409,7 @@ async function dongBoVoiMayChu(laLucTraThuong = false) {
         if (laLucTraThuong && data.previous_round) {
             xucXacKetQua = data.previous_round.dice;
             ketQuaPhien = data.previous_round.result;
-            xuLyTraThuong(); 
+            await xuLyTraThuong(); 
         }
 
         // VẼ LỊCH SỬ TỪ API
@@ -345,6 +466,51 @@ function xuLyTraThuong() {
 // ==========================================
 // 6. GAME LOOP (ĐẾM NGƯỢC NỘI BỘ MỖI GIÂY)
 // ==========================================
+// Override: tráº£ thÆ°á»Ÿng theo transaction Ä‘á»ƒ biáº¿n Ä‘á»™ng sá»‘ dÆ° luÃ´n Ä‘á»“ng bá»™
+async function xuLyTraThuong() {
+    const tong = xucXacKetQua[0] + xucXacKetQua[1] + xucXacKetQua[2];
+
+    document.getElementById('dice1').innerText = xucXacKetQua[0];
+    document.getElementById('dice2').innerText = xucXacKetQua[1];
+    document.getElementById('dice3').innerText = xucXacKetQua[2];
+    document.getElementById('totalResult').innerText = `T\u1ED4NG: ${tong} - ${(ketQuaPhien || '').toUpperCase()}`;
+
+    document.getElementById('zone-tai').classList.remove('win');
+    document.getElementById('zone-xiu').classList.remove('win');
+
+    const kq = (ketQuaPhien || "").toUpperCase();
+    if (kq === "T\u00C0I") document.getElementById('zone-tai').classList.add('win');
+    if (kq === "X\u1EC8U") document.getElementById('zone-xiu').classList.add('win');
+
+    let tienThang = 0;
+    if (kq === "T\u00C0I" && cuocTaiXacNhan > 0) {
+        tienThang = cuocTaiXacNhan * 2;
+        hienThongBao(`B\u1EA0N TH\u1EAENG ${tienThang.toLocaleString('vi-VN')}\u0111!`, "#2ecc71");
+    } else if (kq === "X\u1EC8U" && cuocXiuXacNhan > 0) {
+        tienThang = cuocXiuXacNhan * 2;
+        hienThongBao(`B\u1EA0N TH\u1EAENG ${tienThang.toLocaleString('vi-VN')}\u0111!`, "#2ecc71");
+    } else if (cuocTaiXacNhan > 0 || cuocXiuXacNhan > 0) {
+        hienThongBao("R\u1EA5t ti\u1EBFc! Ch\u00FAc b\u1EA1n may m\u1EAFn v\u00E1n sau.", "#e74c3c");
+    } else {
+        hienThongBao("B\u1EAFt \u0111\u1EA7u phi\u00EAn c\u01B0\u1EE3c m\u1EDBi!", "white");
+    }
+
+    if (tienThang > 0) {
+        try {
+            const soDuMoi = await capNhatSoDuTrongTransaction(LOAI_GIAO_DICH_THANG_CUOC, tienThang);
+            soDuTien = soDuMoi;
+            taiBangXepHang();
+        } catch (error) {
+            console.error("L\u1ED7i c\u1ED9ng th\u01B0\u1EDFng:", error);
+            hienThongBao("Ch\u01B0a c\u1ED9ng ti\u1EC1n th\u1EAFng do l\u1ED7i k\u1EBFt n\u1ED1i. Vui l\u00F2ng th\u1EED l\u1EA1i!", "red");
+        }
+    }
+
+    cuocTaiXacNhan = 0;
+    cuocXiuXacNhan = 0;
+    capNhatUIDongTien();
+}
+
 function capNhatGame() {
     if (idPhienHienTai === 0 || idPhienHienTai === undefined) {
         document.getElementById('totalResult').innerText = "ĐANG KẾT NỐI...";
@@ -724,7 +890,6 @@ async function moBangBienDong() {
             const data = doc.data();
             const laCongTien = data.soTien > 0;
             const mauSac = laCongTien ? '#2ecc71' : '#e74c3c'; // Xanh lá nếu cộng, đỏ nếu trừ
-            const dau = laCongTien ? '+' : '';
             
             // Format ngày giờ
             let thoiGianStr = "Vừa xong";
@@ -740,7 +905,7 @@ async function moBangBienDong() {
                         <div style="font-size: 11px; color: #888; margin-top: 3px;">${thoiGianStr}</div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-weight: bold; font-size: 15px; color: ${mauSac};">${dau}${dinhDangTien(data.soTien)}</div>
+                        <div style="font-weight: bold; font-size: 15px; color: ${mauSac};">${dinhDangSoTienBienDong(data.soTien)}</div>
                         <div style="font-size: 11px; color: #aaa; margin-top: 3px;">SD: ${dinhDangTien(data.soDuMoi)}</div>
                     </div>
                 </div>
@@ -831,6 +996,85 @@ async function nhanThuongDiemDanh(ngayIndex) {
 // ==========================================
 // 14. XỬ LÝ NHẠC NỀN (BACKGROUND MUSIC)
 // ==========================================
+// Override: Ä‘iá»ƒm danh theo transaction Ä‘á»ƒ trÃ¡nh cÃ´ng tiá»n/trá»« tiá»n bá»‹ lá»‡ch khi nhiá»u tab
+async function nhanThuongDiemDanh(ngayIndex) {
+    if (!nguoiDungHienTai) return;
+    if (isSoDuDangCapNhat) return;
+
+    const docRef = getNguoiChoiRef();
+    if (!docRef) return;
+
+    const tienThuong = PHAN_THUONG_DIEM_DANH[ngayIndex];
+    if (typeof tienThuong !== 'number') return;
+
+    isSoDuDangCapNhat = true;
+    try {
+        const homNay = layNgayChuan(0);
+        const homQua = layNgayChuan(-1);
+
+        const bienDongRef = docRef.collection('bien_dong').doc();
+        const ketQua = await db.runTransaction(async (tx) => {
+            const snap = await tx.get(docRef);
+            const data = snap.exists ? (snap.data() || {}) : {};
+            const soDuHienTai = typeof data.soDu === 'number' ? data.soDu : 0;
+            let chuoi = typeof data.chuoiDiemDanh === 'number' ? data.chuoiDiemDanh : 0;
+            const ngayCuoi = typeof data.ngayDiemDanhCuoi === 'string' ? data.ngayDiemDanhCuoi : "";
+
+            if (ngayCuoi === homNay) throw new Error("ALREADY_CLAIMED");
+            if (ngayCuoi !== homQua || chuoi >= 7) chuoi = 0;
+            if (ngayIndex !== chuoi) throw new Error("WRONG_DAY");
+
+            const chuoiMoi = chuoi + 1;
+            const soDuMoi = soDuHienTai + tienThuong;
+            const loai = `\u0110i\u1EC3m danh Ng\u00E0y ${chuoiMoi}`;
+
+            tx.set(docRef, {
+                soDu: soDuMoi,
+                chuoiDiemDanh: chuoiMoi,
+                ngayDiemDanhCuoi: homNay,
+                ten: nguoiDungHienTai.displayName || "An danh"
+            }, { merge: true });
+
+            tx.set(bienDongRef, {
+                loai: loai,
+                soTien: tienThuong,
+                soDuMoi: soDuMoi,
+                thoiGian: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return { soDuMoi, chuoiMoi, ngayMoi: homNay };
+        });
+
+        soDuTien = ketQua.soDuMoi;
+        chuoiDiemDanh = ketQua.chuoiMoi;
+        ngayDiemDanhCuoi = ketQua.ngayMoi;
+        homNayDaDiemDanh = true;
+
+        capNhatUIDongTien();
+        const badge = document.getElementById('badge-diem-danh');
+        if (badge) badge.style.display = 'none';
+        veBangDiemDanh();
+
+        hienThongBao(`\u0110I\u1EC2M DANH TH\u00C0NH C\u00D4NG! B\u1EA1n nh\u1EADn \u0111\u01B0\u1EE3c ${dinhDangTien(tienThuong)}`, "#2ecc71");
+        taiBangXepHang();
+    } catch (error) {
+        const msg = (error && error.message) ? error.message : "";
+        if (msg === "ALREADY_CLAIMED") {
+            homNayDaDiemDanh = true;
+            const badge = document.getElementById('badge-diem-danh');
+            if (badge) badge.style.display = 'none';
+            hienThongBao("H\u00F4m nay b\u1EA1n \u0111\u00E3 \u0111i\u1EC3m danh!", "yellow");
+        } else if (msg === "WRONG_DAY") {
+            hienThongBao("B\u1EA1n c\u1EA7n nh\u1EADn theo \u0111\u00FAng ng\u00E0y trong chu\u1ED7i!", "red");
+        } else {
+            console.error("L\u1ED7i \u0111i\u1EC3m danh:", error);
+            hienThongBao("L\u1ED7i k\u1EBFt n\u1ED1i, vui l\u00F2ng th\u1EED l\u1EA1i!", "red");
+        }
+    } finally {
+        isSoDuDangCapNhat = false;
+    }
+}
+
 const bgMusic = document.getElementById("bg-music");
 const btnMusic = document.getElementById("btn-music");
 let isMusicPlaying = false;
