@@ -225,17 +225,6 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
             .then((reg) => {
                 console.log('PWA Service Worker đã đăng ký!', reg.scope);
-                window.__windcloudSwReg = reg;
-
-                // Chủ động kiểm tra update định kỳ (GitHub Pages đôi khi không "updatefound" ngay nếu không reload)
-                const periodicUpdate = () => {
-                    try { reg.update(); } catch (e) {}
-                };
-                periodicUpdate();
-                setInterval(periodicUpdate, 90 * 1000);
-                document.addEventListener('visibilitychange', () => {
-                    if (!document.hidden) periodicUpdate();
-                });
 
                 // Lắng nghe sự kiện khi trình duyệt tải về một file sw.js mới (có bản update)
                 reg.addEventListener('updatefound', () => {
@@ -313,7 +302,6 @@ if ('serviceWorker' in navigator) {
             })
             .catch((err) => {
                 console.log('Lỗi đăng ký PWA:', err);
-                window.__windcloudUpdating = false;
             });
 
         // Sự kiện này bùng nổ khi Service Worker mới (vừa skipWaiting ở trên) chính thức nắm quyền
