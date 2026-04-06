@@ -25,6 +25,13 @@ let isSoDuDangCapNhat = false;
 const LOAI_GIAO_DICH_DAT_CUOC = "\u0110\u1EB7t c\u01B0\u1EE3c T\u00E0i/X\u1EC9u";
 const LOAI_GIAO_DICH_THANG_CUOC = "Th\u1EAFng c\u01B0\u1EE3c";
 
+// Ensure auth persistence across redirects (best-effort; some in-app browsers may still block storage).
+try {
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch((e) => {
+        console.warn("Kh\u00F4ng setPersistence LOCAL:", e);
+    });
+} catch (e) {}
+
 // Xử lý nút Đăng nhập bằng Popup
 function getNguoiChoiRef() {
     if (nguoiChoiDocRef) return nguoiChoiDocRef;
@@ -88,7 +95,16 @@ document.getElementById('btn-login').addEventListener('click', () => {
         }
     })();
 
-    const signInPromise = useRedirect ? auth.signInWithRedirect(provider) : auth.signInWithPopup(provider);
+    let signInPromise;
+    if (useRedirect) {
+        try {
+            sessionStorage.setItem('tx_login_redirect', '1');
+            sessionStorage.setItem('tx_login_host', (location && location.hostname) ? location.hostname : '');
+        } catch (e) {}
+        signInPromise = auth.signInWithRedirect(provider);
+    } else {
+        signInPromise = auth.signInWithPopup(provider);
+    }
     signInPromise.then((result) => {
         console.log("Đăng nhập thành công!");
     }).catch((error) => {
@@ -212,7 +228,29 @@ auth.onAuthStateChanged(async (user) => {
         }
         nguoiChoiDocRef = null;
         document.getElementById('login-screen').style.display = 'flex';
-        setLoginButtonLoading(false);
+        try {
+            if (typeof setLoginButtonLoading === 'function') setLoginButtonLoading(false);
+            else {
+                const btn = document.getElementById('btn-login');
+                if (btn) btn.innerText = "ÄÄ‚NG NHáº¬P Báº°NG GOOGLE";
+            }
+        } catch (e) {}
+
+        // If we just returned from Google redirect but still have no user, show a helpful hint.
+        try {
+            const wasRedirect = sessionStorage.getItem('tx_login_redirect') === '1';
+            if (wasRedirect) {
+                sessionStorage.removeItem('tx_login_redirect');
+                const host = sessionStorage.getItem('tx_login_host') || '';
+                sessionStorage.removeItem('tx_login_host');
+                alert(
+                    "Kh\u00F4ng \u0111\u0103ng nh\u1EADp \u0111\u01B0\u1EE3c sau khi ch\u1ECDn t\u00E0i kho\u1EA3n Google.\n\n" +
+                    "Nguy\u00EAn nh\u00E2n hay g\u1EB7p nh\u1EA5t: domain ch\u01B0a \u0111\u01B0\u1EE3c Firebase Auth cho ph\u00E9p.\n" +
+                    (host ? ("Domain hi\u1EC7n t\u1EA1i: " + host + "\n\n") : "\n") +
+                    "V\u00E0o Firebase Console \u2192 Authentication \u2192 Settings \u2192 Authorized domains \u2192 th\u00EAm domain n\u00E0y."
+                );
+            }
+        } catch (e) {}
     }
 });
 
