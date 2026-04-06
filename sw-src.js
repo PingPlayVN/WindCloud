@@ -15,6 +15,29 @@ if (workbox) {
     // DÃ²ng nÃ y ráº¥t quan trá»ng, Workbox CLI sáº½ thay tháº¿ nÃ³ báº±ng máº£ng thá»±c táº¿ lÃºc build
     workbox.precaching.precacheAndRoute(self.__WB_MANIFEST);
 
+    // Force-clear runtime caches on each new SW activation to avoid stale assets on hosts
+    // that may aggressively cache responses (e.g., some CDN setups).
+    self.addEventListener('activate', (event) => {
+        event.waitUntil((async () => {
+            const runtimeCaches = ['html-cache', 'assets-cache', 'image-cache'];
+            await Promise.all(runtimeCaches.map((name) => caches.delete(name).catch(() => false)));
+
+            // Also remove old Workbox precache caches (keep current).
+            try {
+                const currentPrecache = workbox.core.cacheNames && workbox.core.cacheNames.precache;
+                const keys = await caches.keys();
+                await Promise.all(keys.map((key) => {
+                    if (!key) return Promise.resolve(false);
+                    if (currentPrecache && key === currentPrecache) return Promise.resolve(false);
+                    if (key.startsWith('workbox-precache')) return caches.delete(key).catch(() => false);
+                    return Promise.resolve(false);
+                }));
+            } catch (e) {
+                // ignore
+            }
+        })());
+    });
+
     // 2. CHIáº¾N LÆ¯á»¢C CHO FIREBASE & API: Bá» qua Cache (Network Only)
     // Äáº£m báº£o dá»¯ liá»‡u realtime khÃ´ng bao giá» bá»‹ káº¹t
     workbox.routing.registerRoute(
