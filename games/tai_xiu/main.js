@@ -62,15 +62,61 @@ async function capNhatSoDuTrongTransaction(loaiGiaoDich, soTienThayDoi) {
 document.getElementById('btn-login').addEventListener('click', () => {
     document.getElementById('btn-login').innerText = "ĐANG KẾT NỐI...";
     const provider = new firebase.auth.GoogleAuthProvider();
-    
-    auth.signInWithPopup(provider).then((result) => {
+
+    // If game is running inside WindCloud's mobile iframe overlay, break out to top-level
+    // so Google auth pages (which block iframes) can work reliably.
+    try {
+        let inIframe = false;
+        try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+        if (inIframe && window.top) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('wc_login', '1');
+            window.top.location.href = url.toString();
+            return;
+        }
+    } catch (e) {}
+
+    const useRedirect = (() => {
+        try {
+            const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            let inIframe = false;
+            try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+            return isTouch || isMobileUA || inIframe;
+        } catch (e) {
+            return true;
+        }
+    })();
+
+    const signInPromise = useRedirect ? auth.signInWithRedirect(provider) : auth.signInWithPopup(provider);
+    signInPromise.then((result) => {
         console.log("Đăng nhập thành công!");
     }).catch((error) => {
+        try {
+            const code = (error && error.code) ? String(error.code) : '';
+            if (!useRedirect && (code.includes('popup') || code.includes('operation-not-supported') || code.includes('web-storage-unsupported'))) {
+                auth.signInWithRedirect(provider);
+                return;
+            }
+        } catch (e) {}
         console.error("Lỗi đăng nhập:", error);
         document.getElementById('btn-login').innerText = "ĐĂNG NHẬP BẰNG GOOGLE";
         alert("Lỗi: " + error.message);
     });
 });
+
+// Auto-start login after we break out of the mobile iframe overlay.
+try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('wc_login') === '1') {
+        url.searchParams.delete('wc_login');
+        history.replaceState(null, '', url.toString());
+        setTimeout(() => {
+            const btn = document.getElementById('btn-login');
+            if (btn) btn.click();
+        }, 50);
+    }
+} catch (e) {}
 // Các biến hỗ trợ Điểm danh
 let chuoiDiemDanh = 0;
 let ngayDiemDanhCuoi = "";
