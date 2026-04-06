@@ -75,12 +75,8 @@ export function launchGame(gameOrUrl) {
     }
     const isLocalGame = url.includes('/games/');
     if (isLocalGame) {
-        // Special case: on mobile, open Tai Xiu in a fullscreen iframe so fullscreen
-        // can be triggered from the Play click (user gesture).
-        if (game.id === 'tai_xiu' && isMobileDevice()) {
-            openLocalGameInFullscreenIframe(url);
-            return;
-        }
+        // NOTE: Tai Xiu uses Google/Firebase auth. On mobile, auth flows are more reliable
+        // in a top-level navigation than inside an iframe overlay.
 
         // Mark that we're launching a game so we can restore on return
         sessionStorage.setItem('returnToWindGame', 'true');

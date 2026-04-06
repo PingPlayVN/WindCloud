@@ -32,6 +32,23 @@ try {
     });
 } catch (e) {}
 
+// Mobile + iframe (WindCloud overlay): Google/Firebase auth is often blocked in iframes.
+// Escape to top-level ASAP so redirect login can complete.
+try {
+    let inIframe = false;
+    try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+    if (inIframe && window.top) {
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const params = new URLSearchParams(window.location.search || "");
+        if ((isTouch || isMobileUA) && params.get('wc_top') !== '1') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('wc_top', '1');
+            window.top.location.href = url.toString();
+        }
+    }
+} catch (e) {}
+
 // Xử lý nút Đăng nhập bằng Popup
 function getNguoiChoiRef() {
     if (nguoiChoiDocRef) return nguoiChoiDocRef;
@@ -94,6 +111,44 @@ document.getElementById('btn-login').addEventListener('click', () => {
             return true;
         }
     })();
+
+    const startSignIn = () => {
+        let signInPromise;
+        if (useRedirect) {
+            try {
+                sessionStorage.setItem('tx_login_redirect', '1');
+                sessionStorage.setItem('tx_login_host', (location && location.hostname) ? location.hostname : '');
+                localStorage.setItem('tx_login_redirect', '1');
+                localStorage.setItem('tx_login_host', (location && location.hostname) ? location.hostname : '');
+            } catch (e) {}
+            signInPromise = auth.signInWithRedirect(provider);
+        } else {
+            signInPromise = auth.signInWithPopup(provider);
+        }
+
+        signInPromise.then(() => {
+            console.log("ÄÄƒng nháº­p thÃ nh cÃ´ng!");
+        }).catch((error) => {
+            try {
+                const code = (error && error.code) ? String(error.code) : '';
+                if (!useRedirect && (code.includes('popup') || code.includes('operation-not-supported') || code.includes('web-storage-unsupported'))) {
+                    auth.signInWithRedirect(provider);
+                    return;
+                }
+            } catch (e) {}
+            console.error("Lá»—i Ä‘Äƒng nháº­p:", error);
+            document.getElementById('btn-login').innerText = "ÄÄ‚NG NHáº¬P Báº°NG GOOGLE";
+            alert("Lá»—i: " + (error && error.message ? error.message : error));
+        });
+    };
+
+    // Ensure persistence is set BEFORE starting redirect/popup (best-effort)
+    try {
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(startSignIn).catch(() => startSignIn());
+    } catch (e) {
+        startSignIn();
+    }
+    return;
 
     let signInPromise;
     if (useRedirect) {
@@ -238,16 +293,25 @@ auth.onAuthStateChanged(async (user) => {
 
         // If we just returned from Google redirect but still have no user, show a helpful hint.
         try {
-            const wasRedirect = sessionStorage.getItem('tx_login_redirect') === '1';
+            const wasRedirect =
+                sessionStorage.getItem('tx_login_redirect') === '1' ||
+                localStorage.getItem('tx_login_redirect') === '1';
             if (wasRedirect) {
                 sessionStorage.removeItem('tx_login_redirect');
-                const host = sessionStorage.getItem('tx_login_host') || '';
+                localStorage.removeItem('tx_login_redirect');
+
+                const host =
+                    sessionStorage.getItem('tx_login_host') ||
+                    localStorage.getItem('tx_login_host') ||
+                    '';
                 sessionStorage.removeItem('tx_login_host');
+                localStorage.removeItem('tx_login_host');
+
                 alert(
                     "Kh\u00F4ng \u0111\u0103ng nh\u1EADp \u0111\u01B0\u1EE3c sau khi ch\u1ECDn t\u00E0i kho\u1EA3n Google.\n\n" +
-                    "Nguy\u00EAn nh\u00E2n hay g\u1EB7p nh\u1EA5t: domain ch\u01B0a \u0111\u01B0\u1EE3c Firebase Auth cho ph\u00E9p.\n" +
+                    "H\u00E3y m\u1EDF Console (F12) \u0111\u1EC3 xem l\u1ED7i chi ti\u1EBFt.\n" +
                     (host ? ("Domain hi\u1EC7n t\u1EA1i: " + host + "\n\n") : "\n") +
-                    "V\u00E0o Firebase Console \u2192 Authentication \u2192 Settings \u2192 Authorized domains \u2192 th\u00EAm domain n\u00E0y."
+                    "N\u1EBFu b\u1EA1n deploy domain m\u1EDBi: Firebase Console \u2192 Authentication \u2192 Settings \u2192 Authorized domains."
                 );
             }
         } catch (e) {}
