@@ -55,6 +55,20 @@ function storeLastAuthError(where, error) {
     } catch (e) {}
 }
 
+function mountNodeToDom(node) {
+    try {
+        if (document.body) {
+            document.body.appendChild(node);
+            return true;
+        }
+        if (document.documentElement) {
+            document.documentElement.appendChild(node);
+            return true;
+        }
+    } catch (e) {}
+    return false;
+}
+
 function showAuthDebugOverlay(title, detailsObj) {
     if (!isDebugAuthEnabled()) return;
     try {
@@ -128,9 +142,101 @@ function showAuthDebugOverlay(title, detailsObj) {
         overlay.appendChild(header);
         overlay.appendChild(pre);
         overlay.appendChild(hint);
-        document.body.appendChild(overlay);
+        if (!mountNodeToDom(overlay)) {
+            setTimeout(() => {
+                try { mountNodeToDom(overlay); } catch (e) {}
+            }, 0);
+        }
     } catch (e) {}
 }
+
+function ensureAuthDebugFab() {
+    if (!isDebugAuthEnabled()) return;
+    try {
+        if (document.getElementById('tx-auth-debug-fab')) return;
+        const btn = document.createElement('button');
+        btn.id = 'tx-auth-debug-fab';
+        btn.type = 'button';
+        btn.innerText = 'DEBUG';
+        btn.style.position = 'fixed';
+        btn.style.right = '12px';
+        btn.style.bottom = '12px';
+        btn.style.zIndex = '100001';
+        btn.style.padding = '10px 12px';
+        btn.style.borderRadius = '999px';
+        btn.style.border = '1px solid rgba(255,255,255,0.35)';
+        btn.style.background = 'rgba(0,0,0,0.55)';
+        btn.style.color = '#fff';
+        btn.style.fontWeight = '800';
+        btn.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+        btn.style.letterSpacing = '0.5px';
+        btn.style.backdropFilter = 'blur(6px)';
+        btn.style.cursor = 'pointer';
+        btn.onclick = () => {
+            let lastError = null;
+            try {
+                const raw =
+                    sessionStorage.getItem('tx_last_auth_error') ||
+                    localStorage.getItem('tx_last_auth_error') ||
+                    '';
+                lastError = raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                lastError = 'parse_failed';
+            }
+            showAuthDebugOverlay('Auth Debug (manual)', {
+                step: 'manual',
+                lastError: lastError,
+                tx_login_redirect: (sessionStorage.getItem('tx_login_redirect') || localStorage.getItem('tx_login_redirect') || ''),
+                tx_login_host: (sessionStorage.getItem('tx_login_host') || localStorage.getItem('tx_login_host') || ''),
+                authCurrentUser: (auth && auth.currentUser) ? { uid: auth.currentUser.uid, email: auth.currentUser.email || '', providerId: (auth.currentUser.providerId || '') } : null
+            });
+        };
+        if (!mountNodeToDom(btn)) {
+            document.addEventListener('DOMContentLoaded', () => mountNodeToDom(btn), { once: true });
+        }
+    } catch (e) {}
+}
+
+try {
+    if (isDebugAuthEnabled()) {
+        ensureAuthDebugFab();
+        // Prove debug mode is active immediately (helps detect stale cache / wrong URL).
+        setTimeout(() => {
+            showAuthDebugOverlay('Auth Debug (loaded)', { step: 'loaded' });
+        }, 50);
+    }
+} catch (e) {}
+
+try {
+    if (isDebugAuthEnabled()) {
+        window.addEventListener('error', (ev) => {
+            try {
+                const payload = {
+                    step: 'window.error',
+                    message: ev && ev.message ? String(ev.message) : 'unknown',
+                    filename: ev && ev.filename ? String(ev.filename) : '',
+                    lineno: ev && typeof ev.lineno === 'number' ? ev.lineno : null,
+                    colno: ev && typeof ev.colno === 'number' ? ev.colno : null
+                };
+                storeLastAuthError('window.error', payload);
+                showAuthDebugOverlay('JS Error', payload);
+            } catch (e) {}
+        });
+
+        window.addEventListener('unhandledrejection', (ev) => {
+            try {
+                const reason = ev ? ev.reason : null;
+                const payload = {
+                    step: 'unhandledrejection',
+                    code: (reason && reason.code) ? String(reason.code) : '',
+                    message: (reason && reason.message) ? String(reason.message) : String(reason)
+                };
+                storeLastAuthError('unhandledrejection', reason || payload);
+                showAuthDebugOverlay('Unhandled Promise', payload);
+            } catch (e) {}
+        });
+    }
+} catch (e) {}
 
 // Mobile + iframe (WindCloud overlay): Google/Firebase auth is often blocked in iframes.
 // Escape to top-level ASAP so redirect login can complete.
