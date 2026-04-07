@@ -32,6 +32,106 @@ try {
     });
 } catch (e) {}
 
+function isDebugAuthEnabled() {
+    try {
+        const params = new URLSearchParams(window.location.search || "");
+        if (params.get('debug') === '1') return true;
+        if (params.get('wc_debug') === '1') return true;
+        if (localStorage.getItem('tx_debug') === '1') return true;
+    } catch (e) {}
+    return false;
+}
+
+function storeLastAuthError(where, error) {
+    try {
+        const payload = {
+            where: where || '',
+            code: (error && error.code) ? String(error.code) : '',
+            message: (error && error.message) ? String(error.message) : String(error),
+            time: new Date().toISOString()
+        };
+        sessionStorage.setItem('tx_last_auth_error', JSON.stringify(payload));
+        localStorage.setItem('tx_last_auth_error', JSON.stringify(payload));
+    } catch (e) {}
+}
+
+function showAuthDebugOverlay(title, detailsObj) {
+    if (!isDebugAuthEnabled()) return;
+    try {
+        const existing = document.getElementById('tx-auth-debug');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'tx-auth-debug';
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.zIndex = '100000';
+        overlay.style.background = 'rgba(0,0,0,0.86)';
+        overlay.style.color = '#fff';
+        overlay.style.padding = '14px';
+        overlay.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.gap = '10px';
+
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.alignItems = 'center';
+        header.style.justifyContent = 'space-between';
+
+        const h = document.createElement('div');
+        h.innerText = title || 'Auth Debug';
+        h.style.fontWeight = '800';
+        h.style.fontSize = '16px';
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.innerText = 'Đóng';
+        close.style.background = 'transparent';
+        close.style.color = '#fff';
+        close.style.border = '1px solid rgba(255,255,255,0.3)';
+        close.style.borderRadius = '10px';
+        close.style.padding = '6px 10px';
+        close.style.cursor = 'pointer';
+        close.onclick = () => overlay.remove();
+
+        header.appendChild(h);
+        header.appendChild(close);
+
+        const pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.wordBreak = 'break-word';
+        pre.style.margin = '0';
+        pre.style.padding = '10px';
+        pre.style.border = '1px solid rgba(255,255,255,0.15)';
+        pre.style.borderRadius = '12px';
+        pre.style.background = 'rgba(255,255,255,0.06)';
+
+        const details = Object.assign({}, detailsObj || {});
+        try {
+            let inIframe = false;
+            try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+            details.href = location.href;
+            details.hostname = location.hostname;
+            details.inIframe = inIframe;
+            details.userAgent = navigator.userAgent;
+            details.cookiesEnabled = navigator.cookieEnabled;
+        } catch (e) {}
+
+        pre.innerText = JSON.stringify(details, null, 2);
+
+        const hint = document.createElement('div');
+        hint.style.fontSize = '12px';
+        hint.style.opacity = '0.9';
+        hint.innerText = 'Mở link với ?debug=1 để xem debug. Chụp ảnh màn hình và gửi admin.';
+
+        overlay.appendChild(header);
+        overlay.appendChild(pre);
+        overlay.appendChild(hint);
+        document.body.appendChild(overlay);
+    } catch (e) {}
+}
+
 // Mobile + iframe (WindCloud overlay): Google/Firebase auth is often blocked in iframes.
 // Escape to top-level ASAP so redirect login can complete.
 try {
@@ -137,6 +237,12 @@ document.getElementById('btn-login').addEventListener('click', () => {
                 }
             } catch (e) {}
             console.error("Lá»—i Ä‘Äƒng nháº­p:", error);
+            storeLastAuthError('signIn', error);
+            showAuthDebugOverlay('Lỗi đăng nhập Google', {
+                step: 'signIn',
+                code: (error && error.code) ? String(error.code) : '',
+                message: (error && error.message) ? String(error.message) : String(error)
+            });
             document.getElementById('btn-login').innerText = "ÄÄ‚NG NHáº¬P Báº°NG GOOGLE";
             alert("Lá»—i: " + (error && error.message ? error.message : error));
         });
@@ -309,10 +415,31 @@ auth.onAuthStateChanged(async (user) => {
 
                 alert(
                     "Kh\u00F4ng \u0111\u0103ng nh\u1EADp \u0111\u01B0\u1EE3c sau khi ch\u1ECDn t\u00E0i kho\u1EA3n Google.\n\n" +
-                    "H\u00E3y m\u1EDF Console (F12) \u0111\u1EC3 xem l\u1ED7i chi ti\u1EBFt.\n" +
+                    "N\u1EBFu b\u1EA1n \u0111ang d\u00F9ng \u0111i\u1EC7n tho\u1EA1i: m\u1EDF link v\u1EDBi ?debug=1 \u0111\u1EC3 xem l\u1ED7i tr\u1EF1c ti\u1EBFp tr\u00EAn m\u00E0n h\u00ECnh (ch\u1EE5p \u1EA3nh g\u1EEDi admin).\n" +
                     (host ? ("Domain hi\u1EC7n t\u1EA1i: " + host + "\n\n") : "\n") +
                     "N\u1EBFu b\u1EA1n deploy domain m\u1EDBi: Firebase Console \u2192 Authentication \u2192 Settings \u2192 Authorized domains."
                 );
+
+                try {
+                    const raw =
+                        sessionStorage.getItem('tx_last_auth_error') ||
+                        localStorage.getItem('tx_last_auth_error') ||
+                        '';
+                    const parsed = raw ? JSON.parse(raw) : null;
+                    showAuthDebugOverlay('Auth Debug (redirect nhưng chưa login)', {
+                        step: 'onAuthStateChanged',
+                        wasRedirect: true,
+                        host: host || '',
+                        lastError: parsed
+                    });
+                } catch (e) {
+                    showAuthDebugOverlay('Auth Debug (redirect nhưng chưa login)', {
+                        step: 'onAuthStateChanged',
+                        wasRedirect: true,
+                        host: host || '',
+                        lastError: 'parse_failed'
+                    });
+                }
             }
         } catch (e) {}
     }
@@ -325,6 +452,12 @@ auth.getRedirectResult().then((result) => {
     }
 }).catch((error) => {
     console.error("Lỗi đăng nhập Redirect:", error);
+    storeLastAuthError('getRedirectResult', error);
+    showAuthDebugOverlay('Lỗi redirect result', {
+        step: 'getRedirectResult',
+        code: (error && error.code) ? String(error.code) : '',
+        message: (error && error.message) ? String(error.message) : String(error)
+    });
     hienThongBao("Đăng nhập thất bại, vui lòng thử lại!", "red");
 });
 
