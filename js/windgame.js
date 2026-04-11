@@ -127,8 +127,14 @@ function registerGameExitListener() {
     document.addEventListener('fullscreenchange', () => {
         const overlay = document.getElementById('windgame-fullscreen-overlay');
         if (!overlay) return;
-        // If user manually exits fullscreen, close overlay to return to Wind Game.
-        if (!document.fullscreenElement) closeFullscreenGameOverlay();
+        // Do NOT auto-close the overlay when fullscreen exits.
+        // On mobile, opening auth popups/redirects (e.g. Google sign-in) can force-exit fullscreen,
+        // which would otherwise kick users back to Wind Game mid-login.
+        //
+        // Users can always exit via the in-game EXIT button (postMessage) or the overlay close button.
+        if (overlay.dataset.closeOnFullscreenExit === '1' && !document.fullscreenElement) {
+            closeFullscreenGameOverlay();
+        }
     });
 }
 
@@ -137,6 +143,7 @@ function openLocalGameInFullscreenIframe(url) {
 
     const overlay = document.createElement('div');
     overlay.id = 'windgame-fullscreen-overlay';
+    overlay.dataset.closeOnFullscreenExit = '0';
     overlay.style.position = 'fixed';
     overlay.style.inset = '0';
     overlay.style.zIndex = '999999';

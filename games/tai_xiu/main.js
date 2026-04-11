@@ -25,7 +25,73 @@ let isSoDuDangCapNhat = false;
 const LOAI_GIAO_DICH_DAT_CUOC = "\u0110\u1EB7t c\u01B0\u1EE3c T\u00E0i/X\u1EC9u";
 const LOAI_GIAO_DICH_THANG_CUOC = "Th\u1EAFng c\u01B0\u1EE3c";
 
-// Xử lý nút Đăng nhập bằng Popup
+function isMobileDevice() {
+    try {
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+        );
+        return isTouch || isMobileUA;
+    } catch (e) {
+        return false;
+    }
+}
+
+function isInIframe() {
+    try {
+        return window.self !== window.top;
+    } catch (e) {
+        return true;
+    }
+}
+
+function setLoginButtonLoading(isLoading) {
+    const btn = document.getElementById('btn-login');
+    if (!btn) return;
+
+    if (!btn.dataset.defaultText) btn.dataset.defaultText = btn.innerText || 'ĐĂNG NHẬP BẰNG GOOGLE';
+    btn.disabled = !!isLoading;
+    btn.innerText = isLoading ? 'ĐANG KẾT NỐI...' : btn.dataset.defaultText;
+}
+
+async function signInWithGoogleSmart() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    // Redirect is generally more reliable on mobile, but redirect-in-iframe often breaks.
+    if (isMobileDevice() && !isInIframe()) {
+        await auth.signInWithRedirect(provider);
+        return;
+    }
+
+    try {
+        await auth.signInWithPopup(provider);
+    } catch (error) {
+        const code = error && error.code;
+        const popupLikelyBlocked =
+            code === 'auth/popup-blocked' ||
+            code === 'auth/operation-not-supported-in-this-environment' ||
+            code === 'auth/popup-closed-by-user';
+
+        if (popupLikelyBlocked && isInIframe()) {
+            // Break out of iframe and re-attempt via redirect in top-level context.
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.set('loginRedirect', '1');
+                window.top.location.href = u.toString();
+                return;
+            } catch (e) {
+                // If URL parsing fails, fall through to the original error.
+            }
+        } else if (popupLikelyBlocked && !isInIframe()) {
+            // Fallback to redirect when not embedded.
+            await auth.signInWithRedirect(provider);
+            return;
+        }
+        throw error;
+    }
+}
+
+// Xử lý nút Đăng nhập Google
 function getNguoiChoiRef() {
     if (nguoiChoiDocRef) return nguoiChoiDocRef;
     if (nguoiDungHienTai) return db.collection('nguoi_choi').doc(nguoiDungHienTai.uid);
@@ -59,18 +125,39 @@ async function capNhatSoDuTrongTransaction(loaiGiaoDich, soTienThayDoi) {
     });
 }
 
-document.getElementById('btn-login').addEventListener('click', () => {
-    document.getElementById('btn-login').innerText = "ĐANG KẾT NỐI...";
-    const provider = new firebase.auth.GoogleAuthProvider();
-    
-    auth.signInWithPopup(provider).then((result) => {
-        console.log("Đăng nhập thành công!");
-    }).catch((error) => {
+document.getElementById('btn-login').addEventListener('click', async (ev) => {
+    if (ev) ev.preventDefault();
+    setLoginButtonLoading(true);
+
+    try {
+        await signInWithGoogleSmart();
+        console.log("Đã bắt đầu đăng nhập!");
+        // Note: redirect flow will navigate away; popup flow will resolve here.
+    } catch (error) {
         console.error("Lỗi đăng nhập:", error);
-        document.getElementById('btn-login').innerText = "ĐĂNG NHẬP BẰNG GOOGLE";
-        alert("Lỗi: " + error.message);
-    });
+        setLoginButtonLoading(false);
+        alert("Lỗi: " + (error && error.message ? error.message : String(error)));
+    }
 });
+
+// Auto-start redirect login when we were forced to break out of an iframe (mobile popup blocked)
+try {
+    const u = new URL(window.location.href);
+    if (u.searchParams.get('loginRedirect') === '1') {
+        u.searchParams.delete('loginRedirect');
+        window.history.replaceState({}, document.title, u.toString());
+
+        setLoginButtonLoading(true);
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithRedirect(provider).catch((error) => {
+            console.error("Lỗi đăng nhập Redirect:", error);
+            setLoginButtonLoading(false);
+            alert("Lỗi: " + (error && error.message ? error.message : String(error)));
+        });
+    }
+} catch (e) {
+    // ignore
+}
 // Các biến hỗ trợ Điểm danh
 let chuoiDiemDanh = 0;
 let ngayDiemDanhCuoi = "";
