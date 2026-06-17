@@ -6,6 +6,8 @@ import { confirmDownload } from './utils.js';
 import { showToast, showActionModal } from './ui.js';
 import { db } from './firebase.js';
 
+const serverTimestamp = () => window.firebase.database.ServerValue.TIMESTAMP;
+
 const isMyDeviceMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 const isMyDeviceIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isMyDeviceAndroid = /Android/.test(navigator.userAgent);
@@ -201,14 +203,18 @@ function cleanupConnections() {
             clearInterval(dropHeartbeatInterval);
             dropHeartbeatInterval = null;
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn('Failed to clear presence heartbeat:', e);
+    }
     // Clear transfer watchdog if running
     try {
         if (transferWatchdogInterval) {
             clearInterval(transferWatchdogInterval);
             transferWatchdogInterval = null;
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn('Failed to clear transfer watchdog:', e);
+    }
 }
 
 // ✅ NEW: Request Screen Wake Lock (Keep Mobile Device Awake)
@@ -329,18 +335,20 @@ function announcePresence() {
     userRef.onDisconnect().remove();
     userRef.set({
         name: (window.isAdmin) ? "Admin" : "Khách " + myPeerId.split('_')[1],
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
+        lastSeen: serverTimestamp()
     });
 
     // Heartbeat: cập nhật lastSeen định kỳ để người khác không thấy thiết bị cũ
     try {
         if (dropHeartbeatInterval) clearInterval(dropHeartbeatInterval);
-    } catch (e) {}
+    } catch (e) {
+        console.warn('Failed to read last acknowledged offset:', e);
+    }
     // ✅ Faster heartbeat on mobile for quicker peer discovery (8s on mobile, 12s on desktop)
     const heartbeatInterval = isMyDeviceMobile ? 8000 : 12000;
     dropHeartbeatInterval = setInterval(() => {
         try {
-            userRef.update({ lastSeen: firebase.database.ServerValue.TIMESTAMP });
+            userRef.update({ lastSeen: serverTimestamp() });
         } catch (e) {
             console.warn('Heartbeat update failed', e);
         }
@@ -664,7 +672,9 @@ async function sendFileInChunks(file, conn, receiverType, receiverIsIOS, encKey,
     try {
         const ack = (typeof getLastAck === 'function') ? getLastAck() : 0;
         if (ack && ack < file.size) offset = ack;
-    } catch (e) {}
+    } catch (e) {
+        console.warn('Failed to read last acknowledged offset:', e);
+    }
     
     // Cấu hình thuật toán thích ứng
     // Start smaller when the receiver is mobile to reduce stalls on weak devices/networks.
@@ -698,7 +708,7 @@ async function sendFileInChunks(file, conn, receiverType, receiverIsIOS, encKey,
             console.warn('Transfer watchdog timeout');
             showToast('❌ Transfer timeout - hủy');
             isTransferring = false;
-            try { conn.send({ type: 'cancel' }); } catch (e) {}
+            try { conn.send({ type: 'cancel' }); } catch (e) { console.warn('Failed to send cancel signal:', e); }
             resetTransferState();
         }
     }, 3000);
@@ -837,7 +847,7 @@ function setupIncomingConnection(conn) {
             if (data && data.type === 'ping') {
             console.log('🔔 [Receiver] Ping received');
             showToast('🔔 Đã nhận yêu cầu tìm thiết bị');
-            try { if (navigator.vibrate) navigator.vibrate([200,100,200]); } catch(e) {}
+            try { if (navigator.vibrate) navigator.vibrate([200,100,200]); } catch(e) { console.warn('Failed to vibrate device:', e); }
             return;
         }
             // Receiver may send periodic progress updates
@@ -915,7 +925,7 @@ function setupIncomingConnection(conn) {
                         if (isTransferring && Date.now() - lastChunkTime > TRANSFER_CONFIG.TIMEOUT_MS) {
                             console.warn('Receiver watchdog timeout');
                             showToast('❌ Timeout - người gửi không phản hồi');
-                            try { conn.send({ type: 'cancel' }); } catch (e) {}
+                            try { conn.send({ type: 'cancel' }); } catch (e) { console.warn('Failed to send cancel signal:', e); }
                             isTransferring = false;
                             resetTransferState();
                         }
@@ -955,9 +965,9 @@ function setupIncomingConnection(conn) {
                     await currentWriter.write(u8);
                 } catch (e) {
                     console.error('Stream write failed, cancelling transfer:', e);
-                    try { conn.send({ type: 'cancel' }); } catch (err) {}
+                    try { conn.send({ type: 'cancel' }); } catch (err) { console.warn('Failed to send cancel signal:', err); }
                     showToast('❌ Lỗi ghi file (stream)');
-                    try { await currentWriter.abort(e); } catch (err) {}
+                    try { await currentWriter.abort(e); } catch (err) { console.warn('Failed to abort writer:', err); }
                     currentWriter = null;
                     releaseWakeLock();
                     resetTransferState();
@@ -987,7 +997,7 @@ function setupIncomingConnection(conn) {
 
             // Send progress update to sender (throttle to ~500ms)
             if (Date.now() - lastProgressSent > 400) {
-                try { conn.send({ type: 'progress', received: receivedSize }); } catch (e) {}
+                try { conn.send({ type: 'progress', received: receivedSize }); } catch (e) { console.warn('Failed to send progress update:', e); }
                 lastProgressSent = Date.now();
             }
 
@@ -997,7 +1007,7 @@ function setupIncomingConnection(conn) {
                 
                 // ✅ Download as Blob (works for all devices)
                 if (useStreamSaver && currentWriter) {
-                    try { await currentWriter.close(); } catch (e) {}
+                    try { await currentWriter.close(); } catch (e) { console.warn('Failed to close writer:', e); }
                     currentWriter = null;
                 } else {
                     downloadBlobFile(fileChunks || [], window.incomingMeta.fileName);
@@ -1026,7 +1036,7 @@ function setupIncomingConnection(conn) {
         } else if (data.type === 'cancel') {
             showToast("⛔ Người gửi đã hủy.");
             if (currentWriter) {
-                try { currentWriter.abort("Người gửi đã hủy"); } catch (e) {}
+                try { currentWriter.abort("Người gửi đã hủy"); } catch (e) { console.warn('Failed to abort writer after cancel:', e); }
                 currentWriter = null;
             }
             releaseWakeLock(); // ✅ Release wake lock
@@ -1239,8 +1249,8 @@ function sendPing(targetId) {
     try {
         const conn = myPeer.connect(targetId, { reliable: true });
         conn.on('open', () => {
-            try { conn.send({ type: 'ping', from: myPeerId }); } catch (e) {}
-            setTimeout(() => { try { conn.close(); } catch (e) {} }, 800);
+            try { conn.send({ type: 'ping', from: myPeerId }); } catch (e) { console.warn('Failed to send ping:', e); }
+            setTimeout(() => { try { conn.close(); } catch (e) { console.warn('Failed to close ping connection:', e); } }, 800);
         });
         conn.on('error', (err) => {
             console.warn('Ping error', err);

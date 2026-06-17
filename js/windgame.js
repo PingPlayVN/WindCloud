@@ -93,6 +93,8 @@ export function launchGame(gameOrUrl) {
     }
 }
 
+window.launchGame = launchGame;
+
 // (removed open-in-new-tab button — games launch in current context)
 
 // closeWindGame is deprecated
@@ -191,12 +193,15 @@ function openLocalGameInFullscreenIframe(url) {
 
     // Try to enter fullscreen from the click gesture.
     try {
-        const request =
-            iframe.requestFullscreen ||
-            iframe.webkitRequestFullscreen ||
-            overlay.requestFullscreen ||
-            overlay.webkitRequestFullscreen;
-        if (request) request.call(iframe.requestFullscreen ? iframe : overlay);
+        if (iframe.requestFullscreen) {
+            iframe.requestFullscreen();
+        } else if (iframe.webkitRequestFullscreen) {
+            iframe.webkitRequestFullscreen();
+        } else if (overlay.requestFullscreen) {
+            overlay.requestFullscreen();
+        } else if (overlay.webkitRequestFullscreen) {
+            overlay.webkitRequestFullscreen();
+        }
     } catch (e) {
         // Ignore: some mobile browsers (notably iOS Safari) do not support element fullscreen.
         // The overlay still provides an "app-like" full-viewport experience.

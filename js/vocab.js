@@ -1,5 +1,15 @@
 // js/vocab.js - Tính năng Ôn tập từ vựng (Mobile UI Tối ưu, Progressive Hinting)
 let pendingDeleteSetId = null; // Biến lưu ID bảng đang chờ xóa
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
+}
+
 class VocabQuiz {
     constructor() {
         this.sets = this.loadData() || [
@@ -99,12 +109,12 @@ class VocabQuiz {
             row.innerHTML = `
                 <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
                     <span style="font-size: 0.75rem; color: var(--primary); font-weight: bold; letter-spacing: 0.5px;">🇬🇧 TIẾNG ANH</span>
-                    <input type="text" id="vocab-en-${setIdx}-${wordIndex}" name="vocab-en-${setIdx}-${wordIndex}" class="input-en" data-set="${setIdx}" data-word="${wordIndex}" value="${word.en}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
+                    <input type="text" id="vocab-en-${setIdx}-${wordIndex}" name="vocab-en-${setIdx}-${wordIndex}" class="input-en" data-set="${setIdx}" data-word="${wordIndex}" value="${escapeHtml(word.en)}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
                 </div>
                 
                 <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
                     <span style="font-size: 0.75rem; color: #10b981; font-weight: bold; letter-spacing: 0.5px;">🇻🇳 TIẾNG VIỆT</span>
-                    <input type="text" id="vocab-vi-${setIdx}-${wordIndex}" name="vocab-vi-${setIdx}-${wordIndex}" class="input-vi" data-set="${setIdx}" data-word="${wordIndex}" value="${word.vi}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
+                    <input type="text" id="vocab-vi-${setIdx}-${wordIndex}" name="vocab-vi-${setIdx}-${wordIndex}" class="input-vi" data-set="${setIdx}" data-word="${wordIndex}" value="${escapeHtml(word.vi)}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
                 </div>
                 
                 <button class="btn-icon btn-delete-row" data-set="${setIdx}" data-word="${wordIndex}" tabindex="-1" style="flex: 0 0 auto; margin-bottom: 8px; padding: 5px;">✕</button>
@@ -130,12 +140,12 @@ class VocabQuiz {
         row.innerHTML = `
             <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
                 <span style="font-size: 0.75rem; color: var(--primary); font-weight: bold; letter-spacing: 0.5px;">🇬🇧 TIẾNG ANH</span>
-                <input type="text" id="vocab-en-${setIdx}-${wordIndex}" name="vocab-en-${setIdx}-${wordIndex}" class="input-en" data-set="${setIdx}" data-word="${wordIndex}" value="${word.en}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
+                <input type="text" id="vocab-en-${setIdx}-${wordIndex}" name="vocab-en-${setIdx}-${wordIndex}" class="input-en" data-set="${setIdx}" data-word="${wordIndex}" value="${escapeHtml(word.en)}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
             </div>
             
             <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
                 <span style="font-size: 0.75rem; color: #10b981; font-weight: bold; letter-spacing: 0.5px;">🇻🇳 TIẾNG VIỆT</span>
-                <input type="text" id="vocab-vi-${setIdx}-${wordIndex}" name="vocab-vi-${setIdx}-${wordIndex}" class="input-vi" data-set="${setIdx}" data-word="${wordIndex}" value="${word.vi}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
+                <input type="text" id="vocab-vi-${setIdx}-${wordIndex}" name="vocab-vi-${setIdx}-${wordIndex}" class="input-vi" data-set="${setIdx}" data-word="${wordIndex}" value="${escapeHtml(word.vi)}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
             </div>
             
             <button class="btn-icon btn-delete-row" data-set="${setIdx}" data-word="${wordIndex}" tabindex="-1" style="flex: 0 0 auto; margin-bottom: 8px; padding: 5px;">✕</button>
@@ -163,7 +173,7 @@ class VocabQuiz {
             const titleSection = document.createElement('div');
             titleSection.className = 'vocab-title-section';
             titleSection.innerHTML = `
-                <input type="text" id="vocab-title-${setIndex}" name="vocab-title-${setIndex}" class="vocab-set-title" data-index="${setIndex}" value="${set.title}" placeholder="Tên bảng..." aria-label="Tên bảng từ vựng">
+                <input type="text" id="vocab-title-${setIndex}" name="vocab-title-${setIndex}" class="vocab-set-title" data-index="${setIndex}" value="${escapeHtml(set.title)}" placeholder="Tên bảng..." aria-label="Tên bảng từ vựng">
             `;
             
             const controlsSection = document.createElement('div');
@@ -247,12 +257,12 @@ class VocabQuiz {
                 row.innerHTML = `
                     <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
                         <span style="font-size: 0.75rem; color: var(--primary); font-weight: bold; letter-spacing: 0.5px;">🇬🇧 TIẾNG ANH</span>
-                        <input type="text" id="vocab-en-${setIndex}-${wordIndex}" name="vocab-en-${setIndex}-${wordIndex}" class="input-en" data-set="${setIndex}" data-word="${wordIndex}" value="${word.en}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
+                        <input type="text" id="vocab-en-${setIndex}-${wordIndex}" name="vocab-en-${setIndex}-${wordIndex}" class="input-en" data-set="${setIndex}" data-word="${wordIndex}" value="${escapeHtml(word.en)}" placeholder="VD: hello" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Từ tiếng Anh">
                     </div>
                     
                     <div style="flex: 1 1 calc(50% - 35px); min-width: 130px; display: flex; flex-direction: column; gap: 5px;">
                         <span style="font-size: 0.75rem; color: #10b981; font-weight: bold; letter-spacing: 0.5px;">🇻🇳 TIẾNG VIỆT</span>
-                        <input type="text" id="vocab-vi-${setIndex}-${wordIndex}" name="vocab-vi-${setIndex}-${wordIndex}" class="input-vi" data-set="${setIndex}" data-word="${wordIndex}" value="${word.vi}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
+                        <input type="text" id="vocab-vi-${setIndex}-${wordIndex}" name="vocab-vi-${setIndex}-${wordIndex}" class="input-vi" data-set="${setIndex}" data-word="${wordIndex}" value="${escapeHtml(word.vi)}" placeholder="VD: xin chào" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-main);" aria-label="Nghĩa tiếng Việt">
                     </div>
                     
                     <button class="btn-icon btn-delete-row" data-set="${setIndex}" data-word="${wordIndex}" tabindex="-1" style="flex: 0 0 auto; margin-bottom: 8px; padding: 5px;">✕</button>
@@ -695,7 +705,7 @@ class VocabQuiz {
             if (this.failedAttempts >= 3) {
                 this.feedbackText.innerHTML = `
                     <span class="feedback-wrong">
-                        ❌ Sai rồi! Đáp án đúng là: <strong style="font-size: 1.2rem;">${currentWord.en}</strong><br>
+                        ❌ Sai rồi! Đáp án đúng là: <strong style="font-size: 1.2rem;">${escapeHtml(currentWord.en)}</strong><br>
                         <span style="font-size:0.9rem; color:var(--text-muted);">(Hãy gõ lại từ trên để tiếp tục)</span>
                     </span>`;
             } else {
@@ -731,4 +741,3 @@ class VocabQuiz {
 }
 
 document.addEventListener('DOMContentLoaded', () => new VocabQuiz());
-

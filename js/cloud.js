@@ -2,12 +2,14 @@
 
 import { handleImgError, renderSkeleton, extractFileId, confirmDownload, escapeHtml, escapeAttr, openSafe } from './utils.js';
 import { showToast, showActionModal, closeActionModal } from './ui.js';
-import { switchApp, toggleSidebar, showLogin, closeLogin, loginAdmin, logout, toggleTheme } from './core.js';
 import { db } from './firebase.js';
 import { updatePaletteSystem, randomBaseColor, exportPalette, exportPaletteJSON, copyColor } from './palette.js';
 import { cancelTransfer } from './drop.js';
 import { StorageProviders, resolveProvider } from './cloudAdapters.js';
 import { initMobileContextMenu, enableMobileContextMenuDismissal } from './mobileContextMenu.js';
+
+const serverTimestamp = () => window.firebase.database.ServerValue.TIMESTAMP;
+const CONTROL_CHARS_RE = new RegExp(`[${String.fromCharCode(0)}-${String.fromCharCode(31)}${String.fromCharCode(127)}]`, 'g');
 
 let currentTab = 'video';
 let currentSortMode = 'date_desc';
@@ -20,6 +22,7 @@ let renderLimit = 24;
 let searchTimeout = null; 
 let contextTargetId = null;
 let currentPathRef = null;
+let renderFrameId = null;
 let currentFolderPath = ''; // Path to current folder in nested structure (empty = root)
 let folderStack = [];
 let pendingFileToOpen = new URLSearchParams(window.location.search).get('file');
@@ -129,7 +132,8 @@ function updateDataPipeline() {
     let filtered = allData.filter(item => {
         // In nested structure, we only show items that are at current level
         // Folders and files are distinguished by type only
-        if (currentSearchTerm && !item.title.toLowerCase().includes(currentSearchTerm)) return false;
+        const title = (item.title || '').toString().toLowerCase();
+        if (currentSearchTerm && !title.includes(currentSearchTerm)) return false;
         return true;
     });
 
@@ -168,6 +172,7 @@ function generateItemHTML(data) {
     const isFolder = data.type === 'folder';
     const safeKey = escapeAttr(data.key);
     const safeId = escapeAttr(data.id || '');
+    const safeType = escapeAttr(data.type || '');
     const safeTitleText = escapeHtml(data.title || '');
     const safeTitleAttr = escapeAttr(data.title || '');
     let icon = isFolder ? '📁' : (data.type === 'image' ? '📷' : (data.type === 'doc' ? '📄' : '📦'));
@@ -183,7 +188,7 @@ function generateItemHTML(data) {
     } else {
         const thumbUrl = provider.getThumb(data.id);
         if (thumbUrl) {
-            thumbContent = `<img class="thumb-img" src="${thumbUrl}" loading="lazy" decoding="async" data-id="${safeId}">`;
+            thumbContent = `<img class="thumb-img" src="${escapeAttr(thumbUrl)}" loading="lazy" decoding="async" data-id="${safeId}">`;
         } else {
             thumbContent = `<div style="font-size:40px">📦</div>`; 
         }
@@ -201,7 +206,7 @@ function generateItemHTML(data) {
 
     // Use data attributes instead of inline handlers; clicks/contextmenu delegated in JS
     return `
-        <div class="card ${isFolder ? 'is-folder' : ''}" data-key="${safeKey}" data-type="${data.type}" data-id="${safeId}">
+        <div class="card ${isFolder ? 'is-folder' : ''}" data-key="${safeKey}" data-type="${safeType}" data-id="${safeId}">
             <div class="thumb-box">${thumbContent}${playOverlay}</div>
             <div class="card-footer">
                 <div class="file-info">
@@ -216,6 +221,11 @@ function generateItemHTML(data) {
 // [TỐI ƯU HIỆU NĂNG] Render Grid chống DOM Thrashing
 function renderGrid(append = false) {
     const grid = document.getElementById('grid');
+    if (!grid) return;
+    if (renderFrameId) {
+        cancelAnimationFrame(renderFrameId);
+        renderFrameId = null;
+    }
     
     // Xử lý trường hợp trống
     if (processedData.length === 0) {
@@ -249,7 +259,8 @@ function renderGrid(append = false) {
     }
 
     // 2. Đồng bộ tác vụ render với Paint Cycle của trình duyệt
-    requestAnimationFrame(() => {
+    renderFrameId = requestAnimationFrame(() => {
+        renderFrameId = null;
         if (append) {
             // Chèn thêm vào cuối (KHÔNG gây reflow lại toàn trang)
             grid.appendChild(fragment);
@@ -258,7 +269,7 @@ function renderGrid(append = false) {
             grid.replaceChildren(fragment);
         }
         if (typeof window.animateGridItems === 'function') {
-            window.animateGridItems();
+            window.animateGridItems({ immediate: !append });
         }
     });
 }
@@ -279,6 +290,7 @@ initViewMode();
 function toggleViewMode() {
     const grid = document.getElementById('grid');
     const btn = document.getElementById('viewBtn');
+    if (!grid || !btn) return;
     if (currentViewMode === 'grid') {
         currentViewMode = 'list';
         grid.classList.add('list-view');
@@ -308,14 +320,14 @@ function switchTab(type) {
     currentFolderPath = ''; // Reset to root of new tab
     folderStack = [];
     currentSearchTerm = ''; 
-    document.getElementById('searchInput').value = '';
-    changeSortMode('date_desc'); 
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    setSortMode('date_desc'); 
     
     const radio = document.getElementById(`tab-${type}-radio`);
     if(radio) radio.checked = true;
 
     attachDataListener();
-    updateDataPipeline();
 }
 
 function handleClick(key, type, driveId) {
@@ -326,14 +338,13 @@ function handleClick(key, type, driveId) {
         // Navigate into folder
         currentFolderPath = currentFolderPath ? currentFolderPath + '/' + key : key;
         currentSearchTerm = '';
-        document.getElementById('searchInput').value = '';
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) searchInput.value = '';
         
         
         attachDataListener(); // Always attach listener for new path
         if (folder && folder.defaultSort) {
-            changeSortMode(folder.defaultSort);
-        } else {
-            updateDataPipeline();
+            setSortMode(folder.defaultSort);
         }
     } else if (type === 'other') {
         // For "other" file type: show confirmation modal before downloading
@@ -388,9 +399,9 @@ function navigateTo(pathStr, index) { // 🔥 Thêm tham số index
         }
     }
     currentSearchTerm = '';
-    document.getElementById('searchInput').value = '';
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
     attachDataListener();
-    updateDataPipeline();
 }
 
 function updateBreadcrumb() {
@@ -722,7 +733,7 @@ function createFolderUI() {
             newFolderRef.set({
                 title: unique,
                 type: 'folder',
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+                timestamp: serverTimestamp()
             }).then(() => {
                 showToast("✅ Đã tạo thư mục");
             }).catch(err => {
@@ -797,7 +808,7 @@ function getDescendantIds(targetId) {
 function normalizeName(name) {
     if (!name) return '';
     // Trim, remove control characters, limit length
-    let s = name.toString().trim().replace(/[\u0000-\u001F\u007F]/g, '');
+    let s = name.toString().trim().replace(CONTROL_CHARS_RE, '');
     if (s.length > 200) s = s.slice(0, 200);
     return s;
 }
@@ -895,6 +906,16 @@ function pasteItem() {
     }
 
     const targetPath = getFullCurrentPath();
+    if (sourceItem.type === 'folder') {
+        const normalizedSourcePath = sourcePath.replace(/\/+$/, '');
+        const normalizedTargetPath = targetPath.replace(/\/+$/, '');
+        if (
+            normalizedTargetPath === normalizedSourcePath ||
+            normalizedTargetPath.startsWith(normalizedSourcePath + '/')
+        ) {
+            return showToast('Cannot paste a folder into itself or its child folder!');
+        }
+    }
     
     if (window.appClipboard.action === 'cut') {
         // Move: read from source, write to target, delete source
@@ -959,7 +980,7 @@ function pasteItem() {
             const newItem = { ...sourceItem };
             delete newItem.key;
             newItem.title = copiedName;
-            newItem.timestamp = firebase.database.ServerValue.TIMESTAMP;
+            newItem.timestamp = serverTimestamp();
             
             const newRef = db.ref(targetPath).push();
             newItem.title = copiedName;
@@ -1030,10 +1051,10 @@ function openMedia(id, type, title) {
         const prevItem = processedData[index - 1];
         const nextItem = processedData[index + 1];
         if (prevItem && prevItem.type === 'image') {
-            navBtns += `<button class="nav-btn prev" data-id="${prevItem.id}" data-type="image">❮</button>`;
+            navBtns += `<button class="nav-btn prev" data-id="${escapeAttr(prevItem.id || '')}" data-type="image">❮</button>`;
         }
         if (nextItem && nextItem.type === 'image') {
-            navBtns += `<button class="nav-btn next" data-id="${nextItem.id}" data-type="image">❯</button>`;
+            navBtns += `<button class="nav-btn next" data-id="${escapeAttr(nextItem.id || '')}" data-type="image">❯</button>`;
         }
     }
 
@@ -1116,7 +1137,7 @@ function addToCloud() {
             id: extractedIdOrUrl, 
             title: uniqueName,  // Lưu tên có thể chứa ký tự đặc biệt ở đây
             type: currentTab,
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            timestamp: serverTimestamp(),
             source: isDropbox ? 'dropbox' : 'drive' 
         }).then(() => {
             document.getElementById('mediaUrl').value = '';
@@ -1132,10 +1153,14 @@ function addToCloud() {
 }
 
 function changeSortMode(mode) {
+    setSortMode(mode);
+    updateDataPipeline();
+}
+
+function setSortMode(mode) {
     currentSortMode = mode;
     const select = document.getElementById('sortSelect');
     if(select) select.value = mode;
-    updateDataPipeline();
 }
 
 function handleSearch(val) {
@@ -1151,7 +1176,11 @@ function sanitizeName(name) {
     if (!name && name !== 0) return '';
     name = String(name).trim();
     // Remove control chars and some filesystem-special chars
-    name = name.replace(/[\x00-\x1F<>:\/\\|?*"']/g, '');
+    name = name
+        .replace(CONTROL_CHARS_RE, '')
+        .split('/')
+        .join('')
+        .replace(/[<>:\\|?*"']/g, '');
     if (name.length > 100) name = name.slice(0, 100);
     return name;
 }
@@ -1162,7 +1191,8 @@ document.addEventListener('click', function (e) {
     const btn = e.target.closest ? e.target.closest('.btn-download') : null;
     if (!btn) return;
     // Intercept early to prevent parent onclick from firing (which opens preview)
-    try { e.stopPropagation(); e.preventDefault(); } catch (err) {}
+    e.stopPropagation();
+    e.preventDefault();
     
     // Get the file key from the card
     const card = btn.closest('.card');
@@ -1184,17 +1214,7 @@ document.addEventListener('click', function (e) {
 
 // --- UI wiring: replace former inline handlers with event listeners & delegation ---
 (function attachUI() {
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const btnMenu = document.getElementById('btnMenu');
-    const btnCloseSidebar = document.getElementById('btnCloseSidebar');
-    [sidebarOverlay, btnMenu, btnCloseSidebar].forEach(el => { if (el) el.addEventListener('click', toggleSidebar); });
-
-    // Sidebar menu click is handled centrally in `core.js` to avoid duplicate handlers
-
-    const loginBtn = document.getElementById('loginBtn'); if (loginBtn) loginBtn.addEventListener('click', showLogin);
-    const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.addEventListener('click', logout);
     const btnRetry = document.getElementById('btnRetry'); if (btnRetry) btnRetry.addEventListener('click', () => location.reload());
-    const themeCheckbox = document.getElementById('theme-checkbox'); if (themeCheckbox) themeCheckbox.addEventListener('change', toggleTheme);
 
     document.querySelectorAll('input[name="tabs"][data-tab]').forEach(r => {
         r.addEventListener('change', () => { if (r.checked) switchTab(r.dataset.tab); });
@@ -1219,8 +1239,6 @@ document.addEventListener('click', function (e) {
     if (btnCancelTransfer) btnCancelTransfer.addEventListener('click', () => {
         if (typeof cancelTransfer === 'function') return cancelTransfer();
     });
-    const btnLogin = document.getElementById('btnLogin'); if (btnLogin) btnLogin.addEventListener('click', loginAdmin);
-    const btnCloseLogin = document.getElementById('btnCloseLogin'); if (btnCloseLogin) btnCloseLogin.addEventListener('click', closeLogin);
     const acModalCancel = document.getElementById('acModalCancel'); if (acModalCancel) acModalCancel.addEventListener('click', closeActionModal);
 
     // Context menu actions mapping
@@ -1282,7 +1300,7 @@ document.addEventListener('click', function (e) {
     // Media modal: nav buttons, play buttons and close
     document.addEventListener('click', function(e) {
         const playBtn = e.target.closest('.btn-play');
-        if (playBtn) { e.stopPropagation(); const url = playBtn.dataset.url || playBtn.getAttribute('data-url'); if (url && typeof window.launchGame === 'function') return launchGame(url); }
+        if (playBtn) { e.stopPropagation(); const url = playBtn.dataset.url || playBtn.getAttribute('data-url'); if (url && typeof window.launchGame === 'function') return window.launchGame(url); }
         const nav = e.target.closest('.nav-btn');
         if (nav) { e.stopPropagation(); const id = nav.dataset.id; const t = nav.dataset.type || 'image'; if (id) openMedia(id, t, ''); }
         const close = e.target.closest('.btn-close-media');

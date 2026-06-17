@@ -12,6 +12,8 @@ import { setupProtection } from './protection.js';
 import './offline.js'; // Offline support for Color Studio & Wind Game
 import { loadCSS } from './utils.js';
 
+const serverTimestamp = () => window.firebase.database.ServerValue.TIMESTAMP;
+
 // --- 2. GLOBAL STATE ---
 window.isAdmin = false;
 window.appClipboard = { action: null, id: null };
@@ -37,7 +39,7 @@ function initDeviceLimit() {
                     if(overlay) overlay.style.display = 'none';
                     myDeviceRef.onDisconnect().remove();
                     myDeviceRef.set({
-                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        timestamp: serverTimestamp(),
                         userAgent: navigator.userAgent
                     });
                 }
@@ -292,7 +294,7 @@ if ('serviceWorker' in navigator) {
                                     if (timeLeft <= 0) {
                                         clearInterval(timer);
                                         // Ra lệnh cho Service Worker mới kích hoạt ngay lập tức
-                                        try { newWorker.postMessage('SKIP_WAITING'); } catch (e) {}
+                                        try { newWorker.postMessage('SKIP_WAITING'); } catch (e) { console.warn('Unable to activate new service worker:', e); }
                                     }
                                 }, 1000);
                             }
@@ -402,7 +404,7 @@ document.addEventListener('fullscreenchange', () => {
 // 1. Đăng ký plugin
 gsap.registerPlugin(ScrollTrigger);
 
-function animateGridItems() {
+function animateGridItems(options = {}) {
     // Chỉ chọn những card CHƯA được animate (tránh lỗi khi tải thêm file lúc cuộn)
     const newCards = gsap.utils.toArray('#grid .card:not(.gsap-loaded)');
     
@@ -412,7 +414,19 @@ function animateGridItems() {
     newCards.forEach(card => card.classList.add('gsap-loaded'));
 
     // Đặt trạng thái ban đầu: mờ và tụt xuống 40px
-    gsap.set(newCards, { opacity: 0, y: 40 });
+    gsap.set(newCards, { opacity: 0, y: options.immediate ? 16 : 40 });
+
+    if (options.immediate) {
+        gsap.to(newCards, {
+            opacity: 1,
+            y: 0,
+            duration: 0.28,
+            stagger: 0.025,
+            ease: "power2.out",
+            clearProps: "all"
+        });
+        return;
+    }
 
     // Sử dụng batch để nhóm các card xuất hiện cùng lúc trên màn hình
     ScrollTrigger.batch(newCards, {
