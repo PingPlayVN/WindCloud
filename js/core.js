@@ -309,7 +309,7 @@ if ('serviceWorker' in navigator) {
         // Sự kiện này bùng nổ khi Service Worker mới (vừa skipWaiting ở trên) chính thức nắm quyền
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (!refreshing) {
+            if (!refreshing && window.__windcloudUpdating) {
                 refreshing = true;
                 window.__windcloudUpdating = false;
                 // Tự động tải lại trang để nạp toàn bộ code CSS/JS mới từ Cache mới

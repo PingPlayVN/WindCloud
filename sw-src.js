@@ -1,15 +1,12 @@
 ﻿// Khai bÃ¡o import thÆ° viá»‡n Workbox tá»« CDN cá»§a Google
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
 
-if (workbox) {
+if (self.workbox) {
     console.log(`[WindCloud SW] Workbox Ä‘Ã£ khá»Ÿi Ä‘á»™ng thÃ nh cÃ´ng! ðŸš€`);
 
-    // Activate new SW ASAP and claim clients to reduce stale-cache issues after refresh
-    try {
-        workbox.core.skipWaiting();
-        workbox.core.clientsClaim();
-    } catch (e) {}
-
+    // Claim clients only after this worker is activated. Waiting is controlled by
+    // the page update flow via the SKIP_WAITING message below.
+    workbox.core.clientsClaim();
 
     // 1. PRECACHE: Tá»± Ä‘á»™ng nhÃºng danh sÃ¡ch máº£ng file (KhÃ´ng cáº§n gÃµ tay ná»¯a)
     // DÃ²ng nÃ y ráº¥t quan trá»ng, Workbox CLI sáº½ thay tháº¿ nÃ³ báº±ng máº£ng thá»±c táº¿ lÃºc build
@@ -34,7 +31,7 @@ if (workbox) {
         })
     );
 
-    // 4. CHIáº¾N LÆ¯á»¢C CHO CSS & JS: Stale-While-Revalidate 
+    // 4. CHIáº¾N LÆ¯á»¢C CHO CSS & JS: Stale-While-Revalidate.
     // Tráº£ vá» file cÅ© cho nhanh, nhÆ°ng ngáº§m gá»i máº¡ng Ä‘á»ƒ cáº­p nháº­t Cache cho láº§n F5 tiáº¿p theo
     workbox.routing.registerRoute(
         ({request}) => request.destination === 'style' || request.destination === 'script',
@@ -63,6 +60,19 @@ if (workbox) {
         if (event.data && event.data === 'SKIP_WAITING') {
             self.skipWaiting();
         }
+    });
+
+    self.addEventListener('activate', (event) => {
+        event.waitUntil(
+            self.clients.matchAll({ type: 'window' }).then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({
+                        type: 'SW_ACTIVATED',
+                        cache: 'workbox-precache'
+                    });
+                });
+            })
+        );
     });
 
 } else {
