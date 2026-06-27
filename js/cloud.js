@@ -81,7 +81,7 @@ renderSkeleton();
 async function processSharedUrl() {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
-    const folder = params.get('folder');
+    let folder = params.get('folder'); // Đổi const thành let
 
     if (tab) {
         currentTab = tab;
@@ -90,6 +90,8 @@ async function processSharedUrl() {
     }
 
     if (folder) {
+        // [FIXED] Xóa bỏ mọi nỗ lực chèn ký tự lùi thư mục (.. hoặc .)
+        folder = folder.replace(/\.\.\//g, '').replace(/\.\//g, '');
         currentFolderPath = folder;
         
         // 1. Tái tạo tạm thanh điều hướng với chữ "Đang tải..."
@@ -304,12 +306,16 @@ function toggleViewMode() {
     }
 }
 
-// [TỐI ƯU] Sự kiện cuộn trang
+// [FIXED] TỐI ƯU HIỆU NĂNG: Chỉ tải thêm khi đang ở tab Cloud
 window.addEventListener('scroll', () => {
-    // Chỉ tải thêm khi cuộn gần đáy và còn dữ liệu chưa hiển thị
-    if (renderLimit < processedData.length && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 300) {
-        renderLimit += 24; 
-        renderGrid(true); // true = Chế độ Append (Gắn thêm)
+    const appCloud = document.getElementById('app-cloud');
+    
+    // Kiểm tra xem trang Cloud có đang được hiển thị hay không
+    if (appCloud && appCloud.style.display !== 'none') {
+        if (renderLimit < processedData.length && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 300) {
+            renderLimit += 24; 
+            renderGrid(true); // true = Chế độ Append (Gắn thêm)
+        }
     }
 });
 
@@ -331,24 +337,34 @@ function switchTab(type) {
 }
 
 function handleClick(key, type, driveId) {
+    // Lấy thông tin item ngay từ đầu
+    const item = dataMap[key];
+    
+    // [FIXED] Ý muốn của bạn: Chỉ chặn click chuột trái đối với tab "File khác" 
+    // (Vì click vào tab này sẽ kích hoạt lệnh tải xuống). Các file Ảnh/Video/Docs vẫn mở Preview bình thường.
+    if (type === 'other' && item && item.locked) {
+         showToast("🔒 File này đã bị khóa, không thể tải xuống!");
+         return;
+    }
+
     if (type === 'folder') {
-        const folder = dataMap[key];
+        const folder = item; // Gán lại biến folder cho code bên dưới
         const folderTitle = folder ? (folder.title || key) : key; 
         folderStack.push({ id: key, title: folderTitle });
-        // Navigate into folder
+        
+        // Điều hướng vào thư mục
         currentFolderPath = currentFolderPath ? currentFolderPath + '/' + key : key;
         currentSearchTerm = '';
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '';
         
+        attachDataListener(); 
         
-        attachDataListener(); // Always attach listener for new path
         if (folder && folder.defaultSort) {
             setSortMode(folder.defaultSort);
         }
     } else if (type === 'other') {
-        // For "other" file type: show confirmation modal before downloading
-        const item = dataMap[key];
+        // Xử lý tab File khác (đã chặn khóa ở trên, xuống đây nghĩa là file mở)
         if (!item) return;
         const provider = resolveProvider(item);
         const link = provider.getDownloadUrl(item.id || '');
@@ -368,21 +384,25 @@ function handleClick(key, type, driveId) {
             openSafe(link);
         }
     } else if (type === 'doc') {
-        // For document files: prefer in-app preview for Google Drive IDs, fall back to download for direct links
-        const item = dataMap[key];
+        // Xử lý tab Docs
         if (!item) return;
         const provider = resolveProvider(item);
         const link = provider.getDownloadUrl(item.id || '');
 
-        // If provider is drive then preview docs inline, otherwise show download confirm
         if (provider === StorageProviders.drive) {
+            // Mở Preview bình thường cho dù có khóa hay không (đúng ý bạn)
             openMedia(driveId, 'doc', item ? item.title : 'Document');
         } else {
+            // Đề phòng file Doc này không thuộc Drive (không có Preview mà sẽ bị tải xuống)
+            if (item.locked) {
+                 showToast("🔒 File này đã bị khóa, không thể tải xuống!");
+                 return;
+            }
             if (typeof confirmDownload === 'function') confirmDownload(link, item.title);
             else openSafe(link);
         }
     } else {
-        const item = dataMap[key];
+        // Xử lý Image, Video: Mở Preview bình thường cho dù có khóa hay không
         openMedia(driveId, type, item ? item.title : 'Viewer');
     }
 }
@@ -628,10 +648,15 @@ function deleteItem() {
             
             db.ref(deletePath).remove().then(() => {
                 showToast("✅ Đã xóa mục.");
+                
+                // [FIXED] THÊM ĐOẠN NÀY: Xóa khỏi bộ nhớ tạm nếu item chuẩn bị dán vừa bị xóa mất
+                if (window.appClipboard && window.appClipboard.id === contextTargetId) {
+                    window.appClipboard = { action: null, id: null, path: null, item: null };
+                }
+                
                 // If deleted item was a folder we were browsing, go back
                 if (item && item.type === 'folder') {
                     // Don't navigate back unless we're inside the deleted folder
-                    // (which shouldn't happen since we can't delete current folder)
                 }
                 updateDataPipeline();
             }).catch(err => {
@@ -683,12 +708,12 @@ function editNoteUI() {
         title: "Ghi chú bảo mật",
         desc: `Chỉnh sửa ghi chú cho tệp: ${item.title}`,
         type: 'prompt',
-        initialValue: item.note || '', // Hiện lại ghi chú cũ nếu có
+        initialValue: item.note || '', 
         onConfirm: (newNote) => {
-            const cleanNote = newNote.trim(); 
+            // [FIXED] Dùng escapeInput
+            const cleanNote = escapeInput(newNote.trim()); 
             const itemPath = getFullCurrentPath() + '/' + contextTargetId;
             
-            // Cập nhật trường 'note' lên Firebase
             db.ref(itemPath).update({ note: cleanNote }).then(() => {
                 showToast("✅ Đã lưu ghi chú");
             }).catch(err => showToast("❌ Lỗi lưu ghi chú: " + err.message));
@@ -717,8 +742,9 @@ function createFolderUI() {
         type: 'prompt',
         initialValue: "Thư mục mới",
         onConfirm: (name) => {
-            const clean = normalizeName(name) || 'Thư mục mới';
-            // Generate unique folder name within current level only
+            // [FIXED] Dùng escapeInput
+            const clean = escapeInput(normalizeName(name)) || 'Thư mục mới';
+            
             const usedNames = allData.map(item => item.title);
             let unique = clean;
             let counter = 1;
@@ -726,9 +752,8 @@ function createFolderUI() {
                 unique = `${clean} (${counter++})`;
             }
             
-            // Create new folder node with push() UID
             const parentRef = db.ref(getFullCurrentPath());
-            const newFolderRef = parentRef.push(); // 🔥 Tạo UID an toàn
+            const newFolderRef = parentRef.push(); 
             
             newFolderRef.set({
                 title: unique,
@@ -804,6 +829,20 @@ function getDescendantIds(targetId) {
     return ids;
 }
 
+// [FIXED] Hàm chống XSS để làm sạch dữ liệu đầu vào
+function escapeInput(str) {
+    if (!str) return '';
+    return str.replace(/[&<>'"]/g, 
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag])
+    );
+}
+
 // --- HELPERS: name sanitization, unique name, deep copy ---
 function normalizeName(name) {
     if (!name) return '';
@@ -830,10 +869,7 @@ function generateUniqueName(baseName, parentId) {
 }
 
 async function deepCopyFolder(sourceKeyName, targetPath) {
-    // In nested structure, copy entire subtree from source to target  
     const sourcePath = getFullCurrentPath() + '/' + sourceKeyName;
-    
-    // Get entire folder subtree
     const snapshot = await db.ref(sourcePath).once('value');
     const folderData = snapshot.val();
     
@@ -841,7 +877,7 @@ async function deepCopyFolder(sourceKeyName, targetPath) {
         throw new Error('Folder not found');
     }
     
-    // Generate unique name for copy
+    // Đổi tên để không trùng lặp
     const usedNames = new Set(allData.map(item => item.title || item.key));
     const sourceItem = dataMap[sourceKeyName];
     const baseName = sourceItem?.title || sourceKeyName;
@@ -851,15 +887,28 @@ async function deepCopyFolder(sourceKeyName, targetPath) {
         copiedName = `${baseName} (bản sao ${counter++})`;
     }
     
-    // Ensure copied folder has title field
-    if (!folderData.title) {
-        folderData.title = copiedName;
+    // [FIXED] Hàm đệ quy tạo UID mới cho toàn bộ item con
+    function regenerateKeys(data) {
+        if (!data || typeof data !== 'object') return data;
+        const newData = {};
+        for (const key in data) {
+            // Giữ nguyên các thuộc tính cấu hình của bản thân thư mục/file
+            if (['title', 'type', 'timestamp', 'defaultSort', 'source', 'id', 'locked', 'note'].includes(key)) {
+                newData[key] = data[key];
+            } else {
+                // Tạo một node push() key hoàn toàn mới cho các file/thư mục con
+                const newPushKey = db.ref().push().key;
+                newData[newPushKey] = regenerateKeys(data[key]);
+            }
+        }
+        return newData;
     }
+
+    let copiedData = regenerateKeys(folderData);
+    copiedData.title = copiedName;
     
-    // Write to new location using UID
     const newRef = db.ref(targetPath).push();
-    folderData.title = copiedName;
-    await newRef.set(folderData);
+    await newRef.set(copiedData);
     
     return copiedName;
 }

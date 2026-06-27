@@ -24,20 +24,25 @@ window.currentFolderId = null;
 
 function initDeviceLimit() {
     const activeRef = db.ref('active_sessions');
-    const myDeviceRef = activeRef.push(); 
     const connectedRef = db.ref('.info/connected');
 
     connectedRef.on('value', (snap) => {
         if (snap.val() === true) {
+            // [FIXED] Tạo sẵn ID nhưng khoan hãy lưu dữ liệu
+            const myDeviceRef = activeRef.push(); 
+            
             activeRef.once('value').then(snapshot => {
                 const count = snapshot.numChildren();
                 const overlay = document.getElementById('limit-overlay');
                 
                 if (count >= 25 && overlay) { 
                     overlay.style.display = 'flex';
+                    // Thu hồi lại ID vừa tạo nếu quá giới hạn
+                    myDeviceRef.remove(); 
                 } else {
                     if(overlay) overlay.style.display = 'none';
                     myDeviceRef.onDisconnect().remove();
+                    // Bây giờ mới chính thức ghi dữ liệu lên DB
                     myDeviceRef.set({
                         timestamp: serverTimestamp(),
                         userAgent: navigator.userAgent
@@ -143,28 +148,18 @@ if (savedTheme === 'dark') {
 
 // --- AUTO-RESTORE WIND GAME TAB ON RETURN FROM GAME ---
 function checkAndRestoreWindGame() {
-    // Check 1: Hash parameter from game EXIT
     const hash = window.location.hash;
     if (hash === '#windgame') {
-        console.log('Hash #windgame detected - restoring Wind Game tab');
-        // Clear hash
         window.history.replaceState({}, document.title, window.location.pathname);
-        // Use setTimeout to ensure all elements are rendered
-        setTimeout(() => {
-            goToWindGameTab();
-        }, 50);
+        // [FIXED] Thay thế setTimeout(..., 50) bằng requestAnimationFrame
+        requestAnimationFrame(() => goToWindGameTab());
         return;
     }
     
-    // Check 2: sessionStorage flag (backup)
     const shouldReturnToWindGame = sessionStorage.getItem('returnToWindGame');
     if (shouldReturnToWindGame === 'true') {
-        console.log('sessionStorage flag detected - restoring Wind Game tab');
         sessionStorage.removeItem('returnToWindGame');
-        // Use setTimeout to ensure all elements are rendered
-        setTimeout(() => {
-            goToWindGameTab();
-        }, 50);
+        requestAnimationFrame(() => goToWindGameTab());
     }
 }
 
@@ -293,8 +288,12 @@ if ('serviceWorker' in navigator) {
                                     
                                     if (timeLeft <= 0) {
                                         clearInterval(timer);
-                                        // Ra lệnh cho Service Worker mới kích hoạt ngay lập tức
-                                        try { newWorker.postMessage('SKIP_WAITING'); } catch (e) { console.warn('Unable to activate new service worker:', e); }
+                                        // [FIXED] Gửi Object chuẩn theo định dạng của Workbox để ép SW kích hoạt
+                                        try { 
+                                            newWorker.postMessage({ type: 'SKIP_WAITING' }); 
+                                        } catch (e) { 
+                                            console.warn('Unable to activate new service worker:', e); 
+                                        }
                                     }
                                 }, 1000);
                             }

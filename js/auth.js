@@ -45,10 +45,19 @@ export function loginAdmin() {
             closeLogin();
             showToast('Xin chào Admin! 👋');
         })
-        .catch(() => {
+        .catch((error) => {
             if (errObj) {
-                errObj.innerText = 'Sai tài khoản hoặc mật khẩu!';
+                // [FIXED] Phân loại lỗi
+                let errorMsg = 'Sai tài khoản hoặc mật khẩu!';
+                if (error.code === 'auth/network-request-failed') {
+                    errorMsg = 'Lỗi kết nối mạng, vui lòng thử lại!';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMsg = 'Quá nhiều lần thử, tài khoản bị tạm khóa!';
+                }
+                
+                errObj.innerText = errorMsg;
                 errObj.style.display = 'block';
+                console.error("Lỗi đăng nhập:", error);
             }
         })
         .finally(() => {
